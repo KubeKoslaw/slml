@@ -41,7 +41,7 @@ doc(title: "The SLML Handbook") {
   section(id: "how", title: "How it works") {
     text "SLML documents can be shown in two ways:"
     list(marker: number, gap: 8) {
-      item { bold "In any web browser." " The compiler translates SLML to HTML and CSS. " code "slml serve" " shows a live preview while you edit, and " code "slml site/" " builds a site you can upload anywhere." }
+      item { bold "In a web browser." " " code "slml serve" " runs SLML's own renderer through WebAssembly while you edit. The Firefox extension can also open .slml URLs directly. For browsers without an extension, " code "slml site/" " exports a separate HTML and CSS site you can upload anywhere." }
       item { bold "In the native SLML viewer." " SLML also has its own renderer written in Rust, which draws pages without a web browser: " code "slml view page.slml" "." }
     }
   }

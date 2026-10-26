@@ -18,7 +18,7 @@ doc(title: "Command line") {
   section(id: "commands", title: "Commands") {
     column(gap: 0) {
       ref(name: "slml check …", values: "files or folders", about: "Report errors without writing anything. Exit status 1 on errors.")
-      ref(name: "slml serve [folder]", values: "--port, --open", about: "Live preview in the browser at http://127.0.0.1:4000/.")
+      ref(name: "slml serve [folder]", values: "--port, --open, --html", about: "Live preview with the SLML WebAssembly renderer. --html explicitly selects the HTML export preview.")
       ref(name: "slml view page.slml", values: "--scale", about: "Open the page in the native SLML viewer window.")
       ref(name: "slml render page.slml", values: "-o, --width, --scale", about: "Render to PNG (same as -o page.png).")
     }
@@ -32,6 +32,7 @@ doc(title: "Command line") {
       ref(name: "--scale", values: "number", about: "Pixel density for PNG and the viewer, e.g. 2 for sharp screens.")
       ref(name: "--port", values: "number", about: "First port serve tries (default 4000).")
       ref(name: "--open", values: "", about: "serve: open the preview in your browser.")
+      ref(name: "--html", values: "", about: "serve: preview the HTML export instead of drawing SLML with WebAssembly.")
       ref(name: "-q, --quiet", values: "", about: "Print only errors.")
       ref(name: "-V, --version", values: "", about: "Compiler and language version.")
     }

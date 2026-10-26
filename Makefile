@@ -15,11 +15,14 @@ ifeq ($(VIEWER),0)
 FEATURES := --no-default-features
 endif
 
-.PHONY: all build test install uninstall clean
+.PHONY: all build web test install uninstall clean
 
 all: build
 
-build:
+web:
+	sh scripts/build-web.sh
+
+build: web
 	$(CARGO) build --release -p slml-cli $(FEATURES)
 
 test:

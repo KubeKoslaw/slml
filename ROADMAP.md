@@ -53,7 +53,8 @@ before work starts. Items marked **good first issue** are self-contained.
 
 ## Tooling and community
 
-- [ ] WebAssembly build + online playground (edit left, render right)
+- [x] WebAssembly renderer, browser source editor and Firefox extension (`make web`)
+- [ ] Publish a signed Firefox add-on and host the online playground
 - [ ] `html2slml` converter for simple HTML pages
 - [ ] Conformance test suite: `.slml` file → expected PNG (golden images)
 - [ ] Benchmarks: parse and layout time for large documents

@@ -28,7 +28,8 @@ doc(title: "Building a website") {
 
   section(id: "preview", title: "Previewing") {
     codeblock "slml serve my-site --open"
-    text { "Pages are compiled each time you open them. Errors are shown in the browser, and open pages reload when you save any file. The preview server only listens on your own computer (127.0.0.1)." }
+    text { "The browser loads the original SLML sources and runs the same parser, layout engine, painter and fonts as the native viewer through WebAssembly. It draws the document on a canvas instead of compiling its layout to HTML. Errors are shown in the browser, and pages reload when you save a file. The server only listens on your own computer (127.0.0.1)." }
+    text { "Use " code "slml serve my-site --html" " to explicitly preview the separate HTML export. In the default viewer, Source opens an editor; edits there stay in the tab. If files change on disk while you have browser edits, Reload discards the browser edits and reloads the files." }
     text { "The default port is 4000. Use " code "slml serve my-site --port 8080" " to choose another. If it is busy, SLML tries the next 19 ports and prints the address it actually uses. Stop the server with Ctrl+C." }
     note(title: "Previewing forms") {
       text { "Fields and browser validation work in the preview. A GET form can navigate to a local page, preserving its query string. The preview server serves files only; it does not process POST submissions or store messages. For those, point your form at a working HTTPS endpoint." }

@@ -60,7 +60,9 @@ Only report errors. Folders are checked recursively.
 .B serve
 Start a preview web server on 127.0.0.1 (port 4000 or the next free one).
 Pages are compiled on every request, errors are shown in the browser, and
-open pages reload automatically when a file changes.
+open pages reload automatically when a file changes. By default the original
+SLML sources are parsed, laid out and painted by the SLML WebAssembly engine
+in the browser. Use --html to preview the separate HTML export.
 .TP
 .B view
 Open a file in the native SLML viewer (not available when built without the
@@ -96,6 +98,11 @@ First port to try for
 With
 .BR serve ,
 open the preview in the default browser.
+.TP
+.B \-\-html
+With
+.BR serve ,
+explicitly preview the HTML export instead of the SLML WebAssembly renderer.
 .TP
 .BR \-q ", " \-\-quiet
 Print only errors.

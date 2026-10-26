@@ -20,9 +20,17 @@ use crate::project::{compile_file, confined_path};
 const RELOAD_SCRIPT: &str = r#"<script>/* SLML preview: reload on change */(function(){var v=null;setInterval(function(){fetch("/_slml/version",{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){if(v!==null&&t!==v){location.reload()}v=t}).catch(function(){})},500)})();</script>
 "#;
 
-pub fn run(root: PathBuf, port: u16, open: bool) -> Result<(), String> {
+#[cfg(slml_web_built)]
+const WASM: &[u8] = include_bytes!(env!("SLML_WASM_PATH"));
+#[cfg(not(slml_web_built))]
+const WASM: &[u8] = &[];
+
+pub fn run(root: PathBuf, port: u16, open: bool, html: bool) -> Result<(), String> {
     if !root.is_dir() {
         return Err(format!("error: {} is not a folder", root.display()));
+    }
+    if !html && WASM.is_empty() {
+        return Err("error: the SLML browser renderer is not built; run `make web` and rebuild slml, or use `--html` to explicitly preview HTML output".into());
     }
     let (listener, port) = (port..=port.saturating_add(19))
         .find_map(|p| TcpListener::bind(("127.0.0.1", p)).ok().map(|l| (l, p)))
@@ -36,7 +44,7 @@ pub fn run(root: PathBuf, port: u16, open: bool) -> Result<(), String> {
     for stream in listener.incoming().flatten() {
         let root = root.clone();
         std::thread::spawn(move || {
-            if let Err(e) = handle(stream, &root) {
+            if let Err(e) = handle(stream, &root, html) {
                 eprintln!("slml serve: {e}");
             }
         });
@@ -78,7 +86,7 @@ impl Response {
     }
 }
 
-fn handle(stream: TcpStream, root: &Path) -> std::io::Result<()> {
+fn handle(stream: TcpStream, root: &Path, html: bool) -> std::io::Result<()> {
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
     reader.read_line(&mut request_line)?;
@@ -91,7 +99,11 @@ fn handle(stream: TcpStream, root: &Path) -> std::io::Result<()> {
     let method = parts.next().unwrap_or("");
     let target = parts.next().unwrap_or("/");
     let response = if method == "GET" || method == "HEAD" {
-        respond(target, root)
+        if html {
+            respond(target, root)
+        } else {
+            respond_native(target, root)
+        }
     } else {
         Response::html("405 Method Not Allowed", "only GET is supported".into())
     };
@@ -111,6 +123,88 @@ fn handle(stream: TcpStream, root: &Path) -> std::io::Result<()> {
         out.write_all(&response.body)?;
     }
     out.flush()
+}
+
+/// Browser chrome is HTML; the document stays SLML and is rendered in WASM.
+fn respond_native(target: &str, root: &Path) -> Response {
+    let raw_path = target.split(['?', '#']).next().unwrap_or("/");
+    let Some(path) = decode(raw_path) else {
+        return not_found(target);
+    };
+    if path.split('/').any(|p| p == "..")
+        || path.contains('\\')
+        || path.chars().any(char::is_control)
+    {
+        return Response::html("403 Forbidden", "forbidden".into());
+    }
+    if path == "/_slml/version" {
+        return respond(target, root);
+    }
+    let asset = match path.strip_prefix("/_slml/web/") {
+        Some("viewer.css") => Some((
+            "text/css; charset=utf-8",
+            include_bytes!("../../../web/viewer.css").as_slice(),
+        )),
+        Some("viewer.mjs") => Some((
+            "text/javascript; charset=utf-8",
+            include_bytes!("../../../web/viewer.mjs").as_slice(),
+        )),
+        Some("engine.mjs") => Some((
+            "text/javascript; charset=utf-8",
+            include_bytes!("../../../web/engine.mjs").as_slice(),
+        )),
+        Some("slml.wasm") => Some(("application/wasm", WASM)),
+        _ => None,
+    };
+    if let Some((kind, bytes)) = asset {
+        return Response::ok(kind, bytes.to_vec());
+    }
+    let rel = path.trim_start_matches('/');
+    let rel = if rel.is_empty() || rel.ends_with('/') {
+        format!("{rel}index.slml")
+    } else {
+        rel.to_string()
+    };
+    if !public_path(Path::new(&rel)) {
+        return not_found(&path);
+    }
+    let Ok(file) = confined_path(root, &root.join(&rel)) else {
+        return Response::html("403 Forbidden", "forbidden".into());
+    };
+    if path.ends_with(".slml") && file.is_file() {
+        return match std::fs::read(file) {
+            Ok(bytes) => Response::ok("text/slml; charset=utf-8", bytes),
+            Err(_) => not_found(&path),
+        };
+    }
+    let source = file.with_extension("slml");
+    let Ok(source) = confined_path(root, &source) else {
+        return Response::html("403 Forbidden", "forbidden".into());
+    };
+    if source.is_file() && (rel.ends_with(".html") || file.extension().is_none())
+        || path.ends_with('/')
+    {
+        let source = Path::new(&rel).with_extension("slml");
+        let url = slml_html::asset(
+            &format!("/{}", source.to_string_lossy()),
+            &slml_html::Options {
+                root_prefix: "/".into(),
+                ..slml_html::Options::default()
+            },
+        );
+        let html = include_str!("../../../web/viewer.html")
+            .replace("href=\"viewer.css\"", "href=\"/_slml/web/viewer.css\"")
+            .replace("src=\"viewer.mjs\"", "src=\"/_slml/web/viewer.mjs\"")
+            .replace(
+                "<body>",
+                &format!(
+                    "<body data-source=\"{}\" data-watch=\"true\">",
+                    slml_html::escape(&url)
+                ),
+            );
+        return Response::html("200 OK", html);
+    }
+    respond(target, root)
 }
 
 fn respond(target: &str, root: &Path) -> Response {
@@ -325,6 +419,45 @@ mod tests {
     fn decodes_urls() {
         assert_eq!(decode("/a%20b/%C5%BC.slml").as_deref(), Some("/a b/ż.slml"));
         assert_eq!(decode("/bad%2"), None);
+    }
+
+    #[test]
+    fn native_preview_serves_source_and_canvas_without_html_translation() {
+        let site = Site::new("native");
+        let source = "slml 0.1 page { heading \"Drawn by SLML\" }";
+        site.write("index.slml", source);
+        site.write("parts.slml", "slml 0.1 style card(padding: 12)");
+        let shell = respond_native("/", &site.0);
+        let shell = String::from_utf8(shell.body).unwrap();
+        assert!(shell.contains("<canvas"));
+        assert!(shell.contains("data-source=\"/index.slml\""));
+        assert!(
+            !shell.contains("Drawn by SLML"),
+            "no document is compiled into HTML"
+        );
+        let raw = respond_native("/index.slml", &site.0);
+        assert_eq!(raw.content_type, "text/slml; charset=utf-8");
+        assert_eq!(raw.body, source.as_bytes());
+        assert!(
+            respond_native("/parts.slml", &site.0)
+                .body
+                .starts_with(b"slml 0.1")
+        );
+        assert_eq!(respond_native("/_slml/version", &site.0).status, "200 OK");
+        assert_eq!(
+            respond_native("/.git/config", &site.0).status,
+            "404 Not Found"
+        );
+        assert_eq!(
+            respond_native("/_slml/web/engine.mjs", &site.0).content_type,
+            "text/javascript; charset=utf-8"
+        );
+        #[cfg(slml_web_built)]
+        assert!(
+            respond_native("/_slml/web/slml.wasm", &site.0)
+                .body
+                .starts_with(b"\0asm")
+        );
     }
 
     #[test]

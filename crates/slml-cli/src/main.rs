@@ -22,7 +22,7 @@ USAGE:
     slml <file.slml>... [-o <output>]     compile pages to HTML (page.slml → page.html)
     slml <folder> [-o <output-folder>]    compile a whole site (default output: <folder>/_site)
     slml check <file-or-folder>...        only check for errors
-    slml serve [<folder>] [--port 4000]   preview in your web browser, reloads on save
+    slml serve [<folder>] [--port 4000]   preview with the SLML WebAssembly renderer
     slml view <file.slml>                 open in the native SLML viewer
     slml render <file.slml> [-o out.png]  render to an image with the native renderer
 
@@ -34,6 +34,7 @@ OPTIONS:
         --scale <n>       pixel density for PNG output and the viewer (default 1)
         --port <n>        first port to try for `serve` (default 4000)
         --open            `serve`: also open the page in your browser
+        --html            `serve`: preview the HTML export instead of the SLML renderer
     -q, --quiet           print only errors
     -h, --help            show this help
     -V, --version         show the version
@@ -57,6 +58,7 @@ struct Args {
     port: u16,
     open: bool,
     quiet: bool,
+    html: bool,
 }
 
 fn parse_args(raw: Vec<String>) -> Result<Args, String> {
@@ -105,6 +107,7 @@ fn parse_args(raw: Vec<String>) -> Result<Args, String> {
                 }
             }
             "--open" => a.open = true,
+            "--html" => a.html = true,
             "-q" | "--quiet" => a.quiet = true,
             flag if flag.starts_with('-') && flag.len() > 1 => {
                 return Err(format!("error: unknown option {flag}\n\n{USAGE}"));
@@ -311,5 +314,5 @@ fn serve(a: &Args) -> Result<(), String> {
         [file] if file.is_file() => project::base_dir(file),
         _ => return Err("error: serve takes one folder".into()),
     };
-    serve::run(root, a.port, a.open)
+    serve::run(root, a.port, a.open, a.html)
 }

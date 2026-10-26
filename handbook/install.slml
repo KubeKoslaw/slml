@@ -17,10 +17,11 @@ doc(title: "Installing the compiler") {
   }
 
   section(id: "source", title: "Building from source") {
-    text { "With " link(to: "https://rustup.rs") "Rust" " 1.88 or newer installed, build and install like any C program:" }
+    text { "Install " link(to: "https://rustup.rs") "Rust" " 1.88 or newer, Python 3 and the WebAssembly standard-library target, then build and install:" }
     codeblock """
         git clone https://github.com/KubeKoslaw/slml
         cd slml
+        rustup target add wasm32-unknown-unknown
         make install
         """
     text { code "make install" " copies " code "slml" " to " code "~/.local/bin" " and its manual page to " code "~/.local/share/man" ". For a system-wide install use " code "sudo make install PREFIX=/usr/local" ". On a server without a graphical desktop, add " code "VIEWER=0" " to leave out the native viewer window." }

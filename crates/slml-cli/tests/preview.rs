@@ -42,6 +42,7 @@ impl Preview {
         assert!(first_port < 65535);
         let mut child = Command::new(env!("CARGO_BIN_EXE_slml"))
             .arg("serve")
+            .arg("--html")
             .arg(&root)
             .arg("--port")
             .arg(first_port.to_string())
