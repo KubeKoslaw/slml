@@ -58,10 +58,11 @@ impl Preview {
         let (send, receive) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
             let mut first_line = String::new();
-            let result = BufReader::new(stdout)
-                .read_line(&mut first_line)
-                .map(|_| first_line);
+            let mut reader = BufReader::new(stdout);
+            let result = reader.read_line(&mut first_line).map(|_| first_line);
             let _ = send.send(result);
+            // Keep stdout open until shutdown, including the second startup line.
+            let _ = std::io::copy(&mut reader, &mut std::io::sink());
         });
         let line = receive
             .recv_timeout(Duration::from_secs(10))
