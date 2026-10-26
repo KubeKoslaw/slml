@@ -1,47 +1,55 @@
 # Command line
 
-`slml` works like a classic compiler: give it input files, get output files. Run `slml --help` or `man slml` for a summary.
+`slml` opens original documents in its own native browser. Run `slml --help` or `man slml` for a summary.
 
-## Compiling
+## Opening documents
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `slml page.slml` | → page.html | Compile one or more pages next to themselves. |
-| `slml page.slml -o out.html` | -o file | Choose the output file. |
-| `slml page.slml -o page.png` | .png | Render a picture of the page with the native renderer. |
-| `slml site/` | → site/_site/ | Build a whole site folder. |
-| `slml site/ -o public/` | -o folder | Build a site into a chosen folder. |
+| `slml page.slml` | native browser | Read the original SLML document and draw it directly. |
+| `slml site/` | site/index.slml | Open the site's home page. The folder is the root for absolute paths. |
+| `slml handbook/` | native handbook | Read this guide in SLML's own browser. |
+
+## Explicit exports
+
+| Name | Values | Description |
+| --- | --- | --- |
+| `slml build page.slml` | page.html | Optional HTML compatibility export. |
+| `slml build site/ -o public/` | HTML folder | Export a site for an existing HTML web host. |
+| `slml page.slml -o out.html` | HTML file | An explicit output path also selects export mode. |
+| `slml render page.slml -o page.png` | native PNG | Save a picture with SLML's renderer. |
 
 ## Commands
 
 | Name | Values | Description |
 | --- | --- | --- |
 | `slml check …` | files or folders | Report errors without writing anything. Exit status 1 on errors. |
-| `slml serve [folder]` | --port, --open, --html | Live preview with the SLML WebAssembly renderer. --html explicitly selects the HTML export preview. |
-| `slml view page.slml` | --scale | Open the page in the native SLML viewer window. |
+| `slml serve [folder]` | --port, --open, --web, --html | Serve original SLML sources. --open launches the native browser; --web or --html explicitly selects a web-browser adapter. |
+| `slml view page-or-folder` | --scale | Explicit form of the default native browser action. |
 | `slml render page.slml` | -o, --width, --scale | Render to PNG (same as -o page.png). |
 
 ## Options
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `-o, --output` | path | Output file or folder. |
+| `-o, --output` | path | Explicitly export a file or folder; .png uses the native image renderer, other output paths select HTML. |
 | `--root` | folder | What paths starting with / refer to. Default: the current folder if the file is inside it, otherwise the file's folder. When building a folder, that folder. |
 | `--width` | pixels | Page width for PNG output (default 900). |
 | `--scale` | number | Pixel density for PNG and the viewer, e.g. 2 for sharp screens. |
 | `--port` | number | First port serve tries (default 4000). |
-| `--open` |  | serve: open the preview in your browser. |
-| `--html` |  | serve: preview the HTML export instead of drawing SLML with WebAssembly. |
+| `--open` |  | serve: open the native SLML browser. With --web or --html, open the explicitly selected web adapter. |
+| `--web` |  | serve: opt into the optional WebAssembly viewer hosted in a web browser. |
+| `--html` |  | Explicit HTML export or HTML server preview. |
 | `-q, --quiet` |  | Print only errors. |
 | `-V, --version` |  | Compiler and language version. |
 
-## The native viewer
+## The native browser
 
-`slml view` shows a page with SLML's own renderer, without a web browser. Scroll with the mouse wheel, arrow keys or Page Up/Down, click links, press Backspace to go back and F5 to reload; the page also reloads when you save it. External links open in your normal browser.
+`slml` shows a page with SLML's own renderer in its own native window. Scroll with the mouse wheel, arrow keys or Page Up/Down, click links, press Backspace to go back and F5 to reload; the page also reloads when you save it, its imports or its images. External links open in your normal browser.
 
 ## Exit status
 
-`0` when everything compiled, `1` when any file has errors. Scripts and CI can rely on it.
+`0` on success; `1` if checking, export or opening a window fails. In the interactive browser an invalid page appears as an SLML error page. Use `slml check` for automated validation.
 
 [A complete website](website-tutorial.md)
 

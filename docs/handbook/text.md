@@ -69,7 +69,7 @@ Unlike HTML, two spaces are two spaces and a line break is written as \n. What y
 
 ## Selecting and copying
 
-In the browser preview and Firefox extension, drag across text to select it and press `Ctrl+C` (`Cmd+C` on macOS) to copy. `Ctrl+A` selects the document when you are not editing a field or the source.
+In the optional web preview (slml serve --web) and Firefox extension, drag across text to select it and press `Ctrl+C` (`Cmd+C` on macOS) to copy. `Ctrl+A` selects the document when you are not editing a field or the source.
 
 Copying keeps literal spaces, code indentation and explicit newlines. A line wrapped only to fit the screen remains part of the same paragraph; separate text blocks are joined by a newline. Editable form fields keep their normal browser selection and copy behavior.
 

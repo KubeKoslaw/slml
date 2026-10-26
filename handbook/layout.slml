@@ -1,7 +1,7 @@
 slml 0.1
 
 // Shared styles and components for every handbook page.
-// This file has no `page`, so `slml handbook/` treats it as a library.
+// This file has no `page`, so `slml build handbook/` treats it as a library.
 
 style lead(size: 18, color: #3f3f4e)
 style muted(color: #5b5b70)

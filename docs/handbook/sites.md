@@ -1,62 +1,68 @@
 # Building a website
 
-A website is a folder of `.slml` files, images and other files. One command turns it into a folder of plain HTML that any web host can serve.
+A website is a folder of `.slml` files, images and other files. Open the folder directly in SLML's own native browser. HTML export is an optional compatibility step for existing web hosts.
 
 ## A site folder
 
 ```slml
 my-site/
   layout.slml        styles and components (a library: no page)
-  index.slml         → index.html, the home page
-  about.slml         → about.html
+  index.slml         the home page
+  about.slml         another SLML page
   blog/
-    index.slml       → blog/index.html
-    first-post.slml  → blog/first-post.html
+    index.slml       blog home page
+    first-post.slml  blog article
   img/
-    logo.png         copied as it is
+    logo.png         image asset
 ```
 
-- Files with a `page` become HTML pages. Files with only `style` and `define` are libraries for `use`.
-- Every other file (images, PDFs, downloads) is copied unchanged.
+- Files with a `page` are pages read by the native browser. Files with only `style` and `define` are libraries for `use`.
+- Keep images and other assets alongside the pages that use them.
 - Folders whose name starts with `_` or `.` are skipped, so you can keep drafts in `_drafts/`.
 - Hidden files, `target/`, `node_modules/` and common working notes are excluded from builds and direct preview requests. Symbolic links inside the site are skipped during builds and rejected by the preview server and imports; keep shared components inside the site root.
 - Paths starting with `/` mean the folder you build: `/img/logo.png` works from every page.
 
-## Previewing
+## Opening the native site
 
 ```sh
-slml serve my-site --open
+slml my-site
 ```
 
-The browser loads the original SLML sources and runs the same parser, layout engine, painter and fonts as the native viewer through WebAssembly. It draws the document on a canvas instead of compiling its layout to HTML. Errors are shown in the browser, and pages reload when you save a file. The server only listens on your own computer (127.0.0.1).
+SLML opens `my-site/index.slml` in its own native browser. Its Rust parser, layout engine and painter read the original source. Save the page, a shared component or an image to reload the window. Local page links and anchors work inside SLML.
 
-Use `slml serve my-site --html` to explicitly preview the separate HTML export. In the default viewer, Source opens an editor; edits there stay in the tab. If files change on disk while you have browser edits, Reload discards the browser edits and reloads the files.
+For a local source server as well, use `slml serve my-site --open`. It serves original .slml files on 127.0.0.1 and opens the native browser. The native browser reads your local site directly; closing its window stops this command.
 
-The default port is 4000. Use `slml serve my-site --port 8080` to choose another. If it is busy, SLML tries the next 19 ports and prints the address it actually uses. Stop the server with Ctrl+C.
+The default server port is 4000. Use `--port 8080` to choose another. If it is busy, SLML tries the next 19 ports and prints the address it actually uses. Without --open, Ctrl+C stops the server.
 
-**Previewing forms**
+**Current native browser limits**
 
-Fields and browser validation work in the preview. A GET form can navigate to a local page, preserving its query string. The preview server serves files only; it does not process POST submissions or store messages. For those, point your form at a working HTTPS endpoint.
+Native form editing, text selection and remote HTTP(S) document loading are still planned. Local documents, imports, images, links and anchors work in the native browser.
 
-## Building
+## Optional web adapters
+
+Choose `slml serve my-site --web --open` explicitly to use the WebAssembly viewer inside a web browser, or `slml serve my-site --html --open` for the HTML compatibility preview. These paths use the system web browser.
+
+The web adapter provides editable form fields and a Source editor. Edits in Source stay in the tab. The preview server serves files only; POST submissions need a working endpoint.
+
+## Optional HTML compatibility export
 
 ```sh
-slml my-site                 # into my-site/_site
-slml my-site -o public       # into public/
+slml build my-site           # HTML into my-site/_site
+slml build my-site -o public # HTML into public/
 ```
 
 The output contains your pages as `.html`, your other files, and a `_slml` folder with the stylesheet and fonts. Links to `.slml` pages are rewritten to `.html`, and paths are made relative, so the site also works when opened straight from disk or from a sub-folder of a server.
 
 If any page has an error or a broken link, `slml` reports all of them and exits with status 1, which stops automated deployments before a broken site goes live.
 
-## Publishing
+## Publishing the optional HTML export
 
-The output is a static site: upload the output folder to any web host.
+To distribute a native SLML site, keep its .slml pages, imports and assets together; a reader opens the folder with slml. The native browser currently reads local sites. If you explicitly choose HTML compatibility export, upload that output folder to an existing web host.
 
 | Name | Values | Description |
 | --- | --- | --- |
 | `GitHub Pages` | free for public repos | Build in a GitHub Actions workflow and deploy the output folder with actions/deploy-pages. |
-| `Netlify / Cloudflare` | free tiers | Build command: slml . -o public. Publish directory: public. |
+| `Netlify / Cloudflare` | free tiers | Build command: slml build . -o public. Publish directory: public. |
 | `Any server` | FTP, rsync | Copy the output folder to the server's web root. |
 
 **Example: GitHub Pages workflow**
@@ -72,7 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: curl -fsSL https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.sh | sh
-      - run: ~/.local/bin/slml . -o public
+      - run: ~/.local/bin/slml build . -o public
       - uses: actions/upload-pages-artifact@v3
         with: { path: public }
       - uses: actions/deploy-pages@v4

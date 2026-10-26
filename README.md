@@ -41,39 +41,50 @@ Read more in [docs/principles.md](docs/principles.md) and the full
 
 ## Install and use
 
-`slml` is a single compiler program, like `gcc`. No Rust needed to use it:
+`slml` opens documents in its own native browser. No Rust is needed to use a prebuilt release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.sh | sh
 ```
 
-Or from source: install Rust 1.88+, Python 3 and the WebAssembly target
-(`rustup target add wasm32-unknown-unknown`), then run `make install`. Then:
+Or from source: install Rust 1.88+ and run `make install`. The native browser
+does not require a WebAssembly target, a web browser or an HTTP server. Then:
 
 ```bash
-slml page.slml                 # → page.html (+ _slml/ styles and fonts)
-slml site/ -o public/          # build a whole website
-slml serve site/ --open        # SLML's own renderer in your browser (WebAssembly)
-slml serve site/ --html        # explicitly preview the HTML export
+slml page.slml                 # open the original document in SLML's native browser
+slml site/                     # open site/index.slml; site/ is the root for imports and links
+slml handbook/                 # read the handbook in SLML
 slml check site/               # only report errors
-slml view page.slml            # native SLML viewer (own renderer)
+slml serve site/ --open        # serve original .slml files and open the native browser
 ```
 
-**Read the [handbook](handbook/)**, which is itself written in SLML: `slml serve handbook --open`.
+Save a page, a shared component or an image and the native browser reloads.
+Scroll with the mouse wheel or Page Up/Down, click links, use Backspace to go
+back and F5 to reload manually. Close the window to exit.
+
+**Read the [handbook](handbook/)** with `slml handbook/`.
 For GitHub or Obsidian, use the [Markdown handbook](docs/handbook/README.md).
+Open the complete example website with `slml examples/starter/`; the
+[website tutorial](handbook/website-tutorial.slml) explains its shared layout
+and responsive navigation. Native form editing, remote HTTP(S) navigation
+and native text selection are still on the [roadmap](ROADMAP.md).
 
-For a complete four-page website with shared components, responsive navigation
-and a working local form demo, run `slml serve examples/starter --open`.
-The [website tutorial](handbook/website-tutorial.slml) explains how to copy,
-customize and publish it, and connect a real form endpoint.
+### Optional compatibility tools
 
-**Firefox:** `make web` creates `target/slml-firefox-0.1.0.xpi`.
-The [Firefox extension guide](extensions/firefox/README.md) explains temporary
-installation and opening `.slml` URLs directly. The extension and default
-browser preview run the same SLML parser, layout engine, painter and fonts
-as the native viewer. The document layout is drawn on a canvas; HTML export
-is a separate backend. Form controls use browser inputs at positions computed
-by the SLML layout engine.
+These are explicit alternatives to the native browser:
+
+```bash
+slml build page.slml              # export page.html (+ _slml/ styles and fonts)
+slml build site/ -o public/        # HTML compatibility export for existing web hosts
+slml render page.slml -o page.png # native image export
+slml serve site/ --web --open      # opt into a web-hosted WASM viewer
+slml serve site/ --html --open     # opt into an HTML export preview
+```
+
+**Firefox:** the optional [extension](extensions/firefox/README.md) uses the
+SLML engine inside a web browser. Build it with `make web` (requires Python 3
+and Rust's `wasm32-unknown-unknown` target). It is an adapter for existing
+browsers; opening an SLML document normally uses the native SLML browser.
 
 When something is wrong, SLML tells you exactly what and where:
 

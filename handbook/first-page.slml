@@ -3,7 +3,7 @@ slml 0.1
 use "layout.slml"
 
 doc(title: "Your first page") {
-  text.lead "In this chapter you write a small page, preview it in your browser and compile it to HTML."
+  text.lead "In this chapter you write a small page and open it directly in SLML's own browser."
 
   section(id: "write", title: "1. Write the page") {
     text { "Create a folder for your site and a file named " code "index.slml" " in it:" }
@@ -31,20 +31,16 @@ doc(title: "Your first page") {
   }
 
   section(id: "preview", title: "2. Preview it") {
-    text "Open a terminal in the folder and start the preview server:"
-    codeblock "slml serve --open"
-    text { "Your browser opens " code "http://127.0.0.1:4000/" ". Change the text in " code "index.slml" ", save, and the page updates by itself. If you make a mistake, the browser shows the error and where it is." }
+    text "Open a terminal in the folder and start SLML:"
+    codeblock "slml index.slml"
+    text { "The native SLML browser opens your document. Change the text in " code "index.slml" ", save, and the page updates by itself. Errors are drawn as an SLML error page in the same window. Close the window to exit." }
   }
 
-  section(id: "compile", title: "3. Compile it") {
-    text "When you are happy, compile the page:"
-    codeblock "slml index.slml"
-    text { "This writes " code "index.html" " next to your file, plus a " code "_slml" " folder with the stylesheet and fonts. Open " code "index.html" " in any browser, or upload both to a web server." }
-    text { "Like a C compiler, " code "-o" " chooses the output:" }
-    codeblock """
-        slml index.slml -o public/index.html    # HTML somewhere else
-        slml index.slml -o preview.png          # a picture of the page
-        """
+  section(id: "compile", title: "3. Open the site folder") {
+    text "You can also give SLML the whole folder:"
+    codeblock "slml ."
+    text { "This opens " code "index.slml" " and makes the folder the site root. Links to other " code ".slml" " pages stay in SLML. Imported components and images reload when you save them. No HTML files are generated." }
+    text { "Use " code "slml render index.slml -o preview.png" " when you want a picture of the page." }
   }
 
   section(id: "mistakes", title: "4. Make a mistake on purpose") {

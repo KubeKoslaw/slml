@@ -76,7 +76,7 @@ This handbook works exactly like that: look at `handbook/layout.slml` in the rep
 
 ## Imports
 
-`use "file.slml"` loads the `style`s and `define`s of another file. An imported file contains no `meta` or `page`; it is a **library**, and `slml site/` does not turn it into a page.
+`use "file.slml"` loads the `style`s and `define`s of another file. An imported file contains no `meta` or `page`; it is a **library**, and `slml build site/` does not turn it into a page.
 
 - Paths work like links: relative to the file, or from the site root with `/`.
 - Libraries can import other libraries. Each file is loaded once, and import loops are errors.

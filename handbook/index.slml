@@ -6,7 +6,7 @@ doc(title: "The SLML Handbook") {
   text.lead {
     "SLML, the " bold "Strict Layout Markup Language" ", is a language for web pages and documents. "
     "It replaces HTML and CSS with one small, strict grammar in which layout is built in. "
-    "You write " code ".slml" " files and the " code "slml" " compiler turns them into a website."
+    "You write " code ".slml" " files and the " code "slml" " native browser reads and draws them directly."
   }
 
   demo(code: """
@@ -34,15 +34,16 @@ doc(title: "The SLML Handbook") {
       item { bold "One syntax." " Structure, appearance and reusable components share one grammar instead of three languages." }
       item { bold "Predictable." " Fonts are bundled and every default is written down, so a page looks the same everywhere." }
       item { bold "Accessible." " Images must describe themselves and form fields must have labels." }
-      item { bold "Real websites." " Multi-page sites, navigation, forms and responsive layouts compile to plain HTML that works in every browser." }
+      item { bold "Real websites." " Multi-page documents, navigation, reusable components and responsive layouts are written directly in SLML." }
     }
   }
 
   section(id: "how", title: "How it works") {
-    text "SLML documents can be shown in two ways:"
+    text "The native browser is the normal way to use SLML:"
     list(marker: number, gap: 8) {
-      item { bold "In a web browser." " " code "slml serve" " runs SLML's own renderer through WebAssembly while you edit. The Firefox extension can also open .slml URLs directly. For browsers without an extension, " code "slml site/" " exports a separate HTML and CSS site you can upload anywhere." }
-      item { bold "In the native SLML viewer." " SLML also has its own renderer written in Rust, which draws pages without a web browser: " code "slml view page.slml" "." }
+      item { bold "Open a page or site." " Run " code "slml page.slml" " or " code "slml my-site/" ". SLML opens its own window, parses the original source and draws it with its Rust renderer." }
+      item { bold "Edit and save." " The window reloads when the page, an import or an image changes. Local links stay in SLML." }
+      item { bold "Use adapters only when you choose them." " " code "slml build" " explicitly exports HTML. The optional " code "slml serve --web" " runtime and Firefox extension host SLML in existing web browsers." }
     }
   }
 

@@ -90,7 +90,7 @@ doc(title: "Text") {
   }
 
   section(id: "selection", title: "Selecting and copying") {
-    text { "In the browser preview and Firefox extension, drag across text to select it and press " code "Ctrl+C" " (" code "Cmd+C" " on macOS) to copy. " code "Ctrl+A" " selects the document when you are not editing a field or the source." }
+    text { "In the optional web preview (slml serve --web) and Firefox extension, drag across text to select it and press " code "Ctrl+C" " (" code "Cmd+C" " on macOS) to copy. " code "Ctrl+A" " selects the document when you are not editing a field or the source." }
     text "Copying keeps literal spaces, code indentation and explicit newlines. A line wrapped only to fit the screen remains part of the same paragraph; separate text blocks are joined by a newline. Editable form fields keep their normal browser selection and copy behavior."
     text "Text selection is not yet available in the native desktop viewer."
   }

@@ -1,6 +1,6 @@
 # Installing the compiler
 
-SLML is one program, `slml`, like `gcc` for C. It compiles pages, previews them in your browser and checks them for mistakes. You do not need Rust or any other tool to use it.
+SLML is one program, `slml`. It opens pages in SLML's own native browser and checks them for mistakes. You do not need Rust or any other tool to use it.
 
 ## Prebuilt compiler
 
@@ -24,12 +24,11 @@ While the SLML repository is private, downloads need a GitHub login. Install the
 
 ## Building from source
 
-Install [Rust](https://rustup.rs) 1.88 or newer, Python 3 and the WebAssembly standard-library target, then build and install:
+Install [Rust](https://rustup.rs) 1.88 or newer, then build and install the native browser:
 
 ```slml
 git clone https://github.com/KubeKoslaw/slml
 cd slml
-rustup target add wasm32-unknown-unknown
 make install
 ```
 
@@ -50,7 +49,7 @@ slml 0.1.0 (language 0.1)
 
 ## Editor setup
 
-Any text editor works. Save files as UTF-8 with the `.slml` extension. Run `slml serve` in a terminal next to your editor: the browser preview reloads every time you save.
+Any text editor works. Save files as UTF-8 with the `.slml` extension. Run `slml` with your site folder, or run `slml index.slml`: SLML's native browser reloads every time you save.
 
 [Introduction](index.md)
 

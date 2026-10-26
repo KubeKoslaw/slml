@@ -3,47 +3,55 @@ slml 0.1
 use "layout.slml"
 
 doc(title: "Command line") {
-  text.lead { code "slml" " works like a classic compiler: give it input files, get output files. Run " code "slml --help" " or " code "man slml" " for a summary." }
+  text.lead { code "slml" " opens original documents in its own native browser. Run " code "slml --help" " or " code "man slml" " for a summary." }
 
-  section(id: "compile", title: "Compiling") {
+  section(id: "compile", title: "Opening documents") {
     column(gap: 0) {
-      ref(name: "slml page.slml", values: "→ page.html", about: "Compile one or more pages next to themselves.")
-      ref(name: "slml page.slml -o out.html", values: "-o file", about: "Choose the output file.")
-      ref(name: "slml page.slml -o page.png", values: ".png", about: "Render a picture of the page with the native renderer.")
-      ref(name: "slml site/", values: "→ site/_site/", about: "Build a whole site folder.")
-      ref(name: "slml site/ -o public/", values: "-o folder", about: "Build a site into a chosen folder.")
+      ref(name: "slml page.slml", values: "native browser", about: "Read the original SLML document and draw it directly.")
+      ref(name: "slml site/", values: "site/index.slml", about: "Open the site's home page. The folder is the root for absolute paths.")
+      ref(name: "slml handbook/", values: "native handbook", about: "Read this guide in SLML's own browser.")
+    }
+  }
+
+  section(id: "export", title: "Explicit exports") {
+    column(gap: 0) {
+      ref(name: "slml build page.slml", values: "page.html", about: "Optional HTML compatibility export.")
+      ref(name: "slml build site/ -o public/", values: "HTML folder", about: "Export a site for an existing HTML web host.")
+      ref(name: "slml page.slml -o out.html", values: "HTML file", about: "An explicit output path also selects export mode.")
+      ref(name: "slml render page.slml -o page.png", values: "native PNG", about: "Save a picture with SLML's renderer.")
     }
   }
 
   section(id: "commands", title: "Commands") {
     column(gap: 0) {
       ref(name: "slml check …", values: "files or folders", about: "Report errors without writing anything. Exit status 1 on errors.")
-      ref(name: "slml serve [folder]", values: "--port, --open, --html", about: "Live preview with the SLML WebAssembly renderer. --html explicitly selects the HTML export preview.")
-      ref(name: "slml view page.slml", values: "--scale", about: "Open the page in the native SLML viewer window.")
+      ref(name: "slml serve [folder]", values: "--port, --open, --web, --html", about: "Serve original SLML sources. --open launches the native browser; --web or --html explicitly selects a web-browser adapter.")
+      ref(name: "slml view page-or-folder", values: "--scale", about: "Explicit form of the default native browser action.")
       ref(name: "slml render page.slml", values: "-o, --width, --scale", about: "Render to PNG (same as -o page.png).")
     }
   }
 
   section(id: "options", title: "Options") {
     column(gap: 0) {
-      ref(name: "-o, --output", values: "path", about: "Output file or folder.")
+      ref(name: "-o, --output", values: "path", about: "Explicitly export a file or folder; .png uses the native image renderer, other output paths select HTML.")
       ref(name: "--root", values: "folder", about: "What paths starting with / refer to. Default: the current folder if the file is inside it, otherwise the file's folder. When building a folder, that folder.")
       ref(name: "--width", values: "pixels", about: "Page width for PNG output (default 900).")
       ref(name: "--scale", values: "number", about: "Pixel density for PNG and the viewer, e.g. 2 for sharp screens.")
       ref(name: "--port", values: "number", about: "First port serve tries (default 4000).")
-      ref(name: "--open", values: "", about: "serve: open the preview in your browser.")
-      ref(name: "--html", values: "", about: "serve: preview the HTML export instead of drawing SLML with WebAssembly.")
+      ref(name: "--open", values: "", about: "serve: open the native SLML browser. With --web or --html, open the explicitly selected web adapter.")
+      ref(name: "--web", values: "", about: "serve: opt into the optional WebAssembly viewer hosted in a web browser.")
+      ref(name: "--html", values: "", about: "Explicit HTML export or HTML server preview.")
       ref(name: "-q, --quiet", values: "", about: "Print only errors.")
       ref(name: "-V, --version", values: "", about: "Compiler and language version.")
     }
   }
 
-  section(id: "viewer", title: "The native viewer") {
-    text { code "slml view" " shows a page with SLML's own renderer, without a web browser. Scroll with the mouse wheel, arrow keys or Page Up/Down, click links, press Backspace to go back and F5 to reload; the page also reloads when you save it. External links open in your normal browser." }
+  section(id: "viewer", title: "The native browser") {
+    text { code "slml" " shows a page with SLML's own renderer in its own native window. Scroll with the mouse wheel, arrow keys or Page Up/Down, click links, press Backspace to go back and F5 to reload; the page also reloads when you save it, its imports or its images. External links open in your normal browser." }
   }
 
   section(id: "exit", title: "Exit status") {
-    text { code "0" " when everything compiled, " code "1" " when any file has errors. Scripts and CI can rely on it." }
+    text { code "0" " on success; " code "1" " if checking, export or opening a window fails. In the interactive browser an invalid page appears as an SLML error page. Use " code "slml check" " for automated validation." }
   }
 
   pager(prev: "/website-tutorial.slml", prev-label: "A complete website", next: "/errors.slml", next-label: "Understanding errors")

@@ -25,7 +25,7 @@ form(to: "https://formspree.io/f/your-id", method: post, gap: 14) {
 
 **Native viewer**
 
-In the native SLML viewer forms are shown but can't be typed into yet. Use `slml serve` or a compiled site to try them.
+In the native SLML viewer forms are shown but can't be typed into yet. The optional web adapter (`slml serve --web --open`) and HTML exports support editing and submission. Native form interaction remains planned.
 
 ## Fields
 

@@ -1,16 +1,12 @@
 .TH SLML 1 "2026-10-26" "slml 0.1.0" "User Commands"
 .SH NAME
-slml \- compiler for SLML, the Strict Layout Markup Language
+slml \- native browser and tools for the Strict Layout Markup Language
 .SH SYNOPSIS
 .B slml
-.IR file.slml ...
-.RB [ \-o
-.IR output ]
+.I file.slml-or-folder
 .br
-.B slml
-.I folder
-.RB [ \-o
-.IR output-folder ]
+.B slml view
+.I file.slml-or-folder
 .br
 .B slml check
 .IR file-or-folder ...
@@ -20,9 +16,12 @@ slml \- compiler for SLML, the Strict Layout Markup Language
 .RB [ \-\-port
 .IR n ]
 .RB [ \-\-open ]
+.RB [ \-\-web | \-\-html ]
 .br
-.B slml view
-.I file.slml
+.B slml build
+.IR file-or-folder ...
+.RB [ \-o
+.IR output ]
 .br
 .B slml render
 .I file.slml
@@ -30,79 +29,79 @@ slml \- compiler for SLML, the Strict Layout Markup Language
 .IR out.png ]
 .SH DESCRIPTION
 .B slml
-compiles SLML documents. Like a C compiler, it turns each input file into an
-output file next to it:
-.I page.slml
-becomes
-.IR page.html .
-The shared stylesheet and the bundled fonts are written to a
-.I _slml
-folder in the site root.
+opens original SLML documents in its own native browser. It parses, validates,
+lays out and paints the source directly with its Rust renderer and bundled
+fonts. A folder opens its
+.I index.slml
+and becomes the site root for imports and absolute paths.
 .PP
-Given a folder,
-.B slml
-builds a whole site: every page is compiled, files that only contain
-.B style
-and
-.B define
-(component libraries) are skipped, and every other file (images, downloads)
-is copied. The default output folder is
-.IR folder/_site .
+The native browser follows local links and anchors, scrolls, keeps navigation
+history and reloads when a page, import or image changes. It does not generate
+HTML or launch a system web browser to display the document. Close its window
+to exit.
 .PP
-Documents are checked strictly. Any error, including a link to a local file
-that does not exist, is reported with its file, line and column, and no
-output is written for that file.
+HTML export and web-hosted viewers are optional compatibility tools selected
+explicitly. Native form editing, text selection and remote HTTP(S) document
+loading remain planned.
 .SH COMMANDS
 .TP
+.B view
+Open a file or site folder in the native browser. This is the default action.
+A build without the
+.I viewer
+feature reports an error instead of opening another browser.
+.TP
 .B check
-Only report errors. Folders are checked recursively.
+Report errors without opening a window or writing output. Folders are checked
+recursively. Invalid documents and broken local links produce diagnostics.
 .TP
 .B serve
-Start a preview web server on 127.0.0.1 (port 4000 or the next free one).
-Pages are compiled on every request, errors are shown in the browser, and
-open pages reload automatically when a file changes. By default the original
-SLML sources are parsed, laid out and painted by the SLML WebAssembly engine
-in the browser. Use --html to preview the separate HTML export.
+Serve original SLML files and assets on 127.0.0.1 (port 4000 or the next free
+one). The root URL returns index.slml as text/slml. With --open, run the native
+browser against the local site; closing its window stops this command.
+Use --web to explicitly select the web-hosted WebAssembly viewer, or --html
+for an HTML export preview. Only those explicit adapters open a system web
+browser when combined with --open. Without --open, stop with Ctrl+C.
 .TP
-.B view
-Open a file in the native SLML viewer (not available when built without the
-.I viewer
-feature).
+.B build
+Explicitly export HTML. A file writes page.html and shared styles/fonts in
+_slml/. A folder exports pages and assets into folder/_site (or -o output).
+Libraries of styles and components are skipped. Invalid pages and broken
+links are reported instead of writing guessed output.
 .TP
 .B render
 Render a page to a PNG image with the native renderer.
 .SH OPTIONS
 .TP
 .BR \-o ", " \-\-output " " \fIpath\fR
-Output file or folder. An output ending in
-.I .png
-is rendered as an image; anything else is HTML.
+Explicit export file or folder. A .png output uses the native image renderer;
+other output paths select the HTML compatibility exporter. Without an output
+path or export command, the document opens in SLML.
 .TP
 .BI \-\-root " folder"
-Site root for paths that start with
-.IR / .
-Default: the current folder if the file is inside it, otherwise the file's
-folder. When building a folder, the folder is the root.
+Site root for paths starting with /. A folder input is its own root. For a
+file input, default to the current folder if it contains the file, otherwise
+the file's folder.
 .TP
 .BI \-\-width " px"
 Page width for PNG output (default 900).
 .TP
 .BI \-\-scale " n"
-Pixel density for PNG output and the viewer (default 1).
+Pixel density for PNG output and the native browser (default 1).
 .TP
 .BI \-\-port " n"
-First port to try for
-.BR serve .
+First port to try for serve (default 4000).
 .TP
 .B \-\-open
-With
-.BR serve ,
-open the preview in the default browser.
+With serve, open the native SLML browser. With --web or --html, open the
+explicitly selected web adapter instead.
+.TP
+.B \-\-web
+With serve, explicitly use the optional WebAssembly viewer in a web browser.
+Requires make web followed by rebuilding slml.
 .TP
 .B \-\-html
-With
-.BR serve ,
-explicitly preview the HTML export instead of the SLML WebAssembly renderer.
+Explicitly select HTML export, or the HTML server preview with serve.
 .TP
 .BR \-q ", " \-\-quiet
 Print only errors.
@@ -111,19 +110,21 @@ Print only errors.
 Show usage.
 .TP
 .BR \-V ", " \-\-version
-Show the compiler and language version.
+Show the program and language version.
 .SH EXIT STATUS
-0 on success, 1 if any file has errors or cannot be written.
+0 on success, 1 if checking, export or opening the browser fails. Invalid
+pages in the interactive browser appear as SLML error pages.
 .SH EXAMPLES
 .nf
-slml index.slml
-slml index.slml \-o public/index.html
-slml site/ \-o public/
-slml serve site/ \-\-open
-slml check site/
+slml examples/starter/
+slml handbook/
+slml view index.slml
+slml serve my-site/ \-\-open
+slml check my-site/
+slml render index.slml \-o preview.png
+slml build my-site/ \-o public/
+slml serve my-site/ \-\-web \-\-open
 .fi
 .SH SEE ALSO
-The SLML handbook (the
-.I handbook
-folder of the source repository) and
-.IR SPEC.md .
+The SLML handbook (handbook/ or docs/handbook/ in the source repository),
+SPEC.md and ROADMAP.md.

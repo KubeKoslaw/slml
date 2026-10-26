@@ -3,7 +3,7 @@ slml 0.1
 use "layout.slml"
 
 doc(title: "Installing the compiler") {
-  text.lead { "SLML is one program, " code "slml" ", like " code "gcc" " for C. It compiles pages, previews them in your browser and checks them for mistakes. You do not need Rust or any other tool to use it." }
+  text.lead { "SLML is one program, " code "slml" ". It opens pages in SLML's own native browser and checks them for mistakes. You do not need Rust or any other tool to use it." }
 
   section(id: "prebuilt", title: "Prebuilt compiler") {
     text { bold "Linux and macOS:" " run the install script. It puts " code "slml" " into " code "~/.local/bin" "." }
@@ -17,11 +17,10 @@ doc(title: "Installing the compiler") {
   }
 
   section(id: "source", title: "Building from source") {
-    text { "Install " link(to: "https://rustup.rs") "Rust" " 1.88 or newer, Python 3 and the WebAssembly standard-library target, then build and install:" }
+    text { "Install " link(to: "https://rustup.rs") "Rust" " 1.88 or newer, then build and install the native browser:" }
     codeblock """
         git clone https://github.com/KubeKoslaw/slml
         cd slml
-        rustup target add wasm32-unknown-unknown
         make install
         """
     text { code "make install" " copies " code "slml" " to " code "~/.local/bin" " and its manual page to " code "~/.local/share/man" ". For a system-wide install use " code "sudo make install PREFIX=/usr/local" ". On a server without a graphical desktop, add " code "VIEWER=0" " to leave out the native viewer window." }
@@ -37,7 +36,7 @@ doc(title: "Installing the compiler") {
   }
 
   section(id: "editor", title: "Editor setup") {
-    text { "Any text editor works. Save files as UTF-8 with the " code ".slml" " extension. Run " code "slml serve" " in a terminal next to your editor: the browser preview reloads every time you save." }
+    text { "Any text editor works. Save files as UTF-8 with the " code ".slml" " extension. Run " code "slml" " with your site folder, or run " code "slml index.slml" ": SLML's native browser reloads every time you save." }
   }
 
   pager(prev: "/index.slml", prev-label: "Introduction", next: "/first-page.slml", next-label: "Your first page")

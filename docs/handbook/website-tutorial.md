@@ -8,10 +8,10 @@ From a checkout of the SLML repository:
 
 ```sh
 cp -R examples/starter my-site
-slml serve my-site --open
+slml my-site
 ```
 
-On Windows, copy the examples/starter folder in File Explorer and run the same slml serve command. Keep the terminal open while editing. The browser reloads after each save; an invalid page shows an error with the file, line and a hint.
+On Windows, copy the examples/starter folder in File Explorer and run the same slml command. SLML opens its own native browser. Keep that window open while editing. It reloads after each save; an invalid page shows an error with the file, line and a hint.
 
 ```slml
 my-site/
@@ -42,7 +42,7 @@ The service grid uses `grid(columns: 3, cell-width: 260, gap: 16)`: up to three 
 
 ## 3. Try the form, then connect a real endpoint
 
-Open Contact from the menu. Submit it empty first: the browser should focus a required field. Enter made-up details, select a service, write a message and check the demo box. Submitting should take you to the local preview page.
+Contact shows the declared form layout in the native browser. Native field editing is still planned. To test editing and submission in the optional web adapter, explicitly run slml serve my-site --web --open. In that adapter, submit it empty first: the browser should focus a required field. Enter made-up details, select a service, write a message and check the demo box. Submitting should take you to the local preview page.
 
 **What the demo does**
 
@@ -67,8 +67,8 @@ See [Forms](forms.md) for the available field types and validation rules.
 
 1. Follow every menu link from every page, including the Services anchor.
 2. Make the browser narrow: the menu should wrap and the services should form one column.
-3. Use Tab, Shift+Tab and Enter to navigate links and fields without a mouse.
-4. Try an empty form, an invalid email and a complete submission.
+3. In the optional web adapter, use Tab, Shift+Tab and Enter to navigate links and fields without a mouse.
+4. In the optional web adapter, try an empty form, an invalid email and a complete submission.
 5. Save an invalid element name and confirm that the preview shows a useful error. Fix it and confirm that the page returns.
 
 ```sh
@@ -77,15 +77,19 @@ slml check my-site
 
 This checks every page and local link. A failed check exits with status 1. It does not contact external websites or verify that a form service accepts your data.
 
-## 5. Build and publish
+## 5. Share the native site or export explicitly
+
+Share the my-site folder with its .slml pages, imports and assets. Its reader opens it with slml my-site. The native browser currently loads local sites; remote HTTP(S) navigation remains planned.
+
+For an existing HTML web host, explicitly select the compatibility exporter:
 
 ```sh
-slml my-site -o public
+slml build my-site -o public
 ```
 
 Upload the contents of `public/`, including `_slml/`, to your static web host. Your shared layout file is a library and does not become an extra page. The output contains HTML, CSS and bundled fonts, with no JavaScript.
 
-See [Building a website](sites.md#publishing) for hosting examples. Keep the source folder: edit the .slml files and rebuild whenever you update the site.
+See [Building a website](sites.md#publishing-the-optional-html-export) for hosting examples. Keep the source folder: edit the .slml files and rebuild whenever you update the site.
 
 [Building a website](sites.md)
 

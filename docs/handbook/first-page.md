@@ -1,6 +1,6 @@
 # Your first page
 
-In this chapter you write a small page, preview it in your browser and compile it to HTML.
+In this chapter you write a small page and open it directly in SLML's own browser.
 
 ## 1. Write the page
 
@@ -26,30 +26,25 @@ Every SLML file has the same three parts:
 
 ## 2. Preview it
 
-Open a terminal in the folder and start the preview server:
-
-```sh
-slml serve --open
-```
-
-Your browser opens `http://127.0.0.1:4000/`. Change the text in `index.slml`, save, and the page updates by itself. If you make a mistake, the browser shows the error and where it is.
-
-## 3. Compile it
-
-When you are happy, compile the page:
+Open a terminal in the folder and start SLML:
 
 ```sh
 slml index.slml
 ```
 
-This writes `index.html` next to your file, plus a `_slml` folder with the stylesheet and fonts. Open `index.html` in any browser, or upload both to a web server.
+The native SLML browser opens your document. Change the text in `index.slml`, save, and the page updates by itself. Errors are drawn as an SLML error page in the same window. Close the window to exit.
 
-Like a C compiler, `-o` chooses the output:
+## 3. Open the site folder
+
+You can also give SLML the whole folder:
 
 ```sh
-slml index.slml -o public/index.html    # HTML somewhere else
-slml index.slml -o preview.png          # a picture of the page
+slml .
 ```
+
+This opens `index.slml` and makes the folder the site root. Links to other `.slml` pages stay in SLML. Imported components and images reload when you save them. No HTML files are generated.
+
+Use `slml render index.slml -o preview.png` when you want a picture of the page.
 
 ## 4. Make a mistake on purpose
 

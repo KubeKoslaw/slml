@@ -37,7 +37,7 @@ doc(title: "Forms") {
   section(id: "sending", title: "Where the data goes") {
     text { code "to" " is the address that receives the form, and " code "method" " is " code "get" " (the default, for searches) or " code "post" " (for messages). A static website can't store messages itself, so use a form service such as Formspree, Basin or Netlify Forms, or your own server." }
     note(title: "Native viewer") {
-      text { "In the native SLML viewer forms are shown but can't be typed into yet. Use " code "slml serve" " or a compiled site to try them." }
+      text { "In the native SLML viewer forms are shown but can't be typed into yet. The optional web adapter (" code "slml serve --web --open" ") and HTML exports support editing and submission. Native form interaction remains planned." }
     }
   }
 

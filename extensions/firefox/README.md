@@ -5,7 +5,7 @@ and software painter compiled to WebAssembly. Documents are not translated
 into HTML elements and CSS layouts. A small extension page supplies the
 canvas, navigation, source editor, interactive form controls and a
 transparent text layer positioned by the Rust renderer. The same
-runtime is used by `slml serve`.
+runtime is used by `slml serve --web`.
 
 ## Build and load
 
@@ -38,13 +38,14 @@ and [signing guide](https://extensionworkshop.com/documentation/publish/signing-
 
 ```sh
 make install
-slml serve examples/starter --open
+slml serve examples/starter --web --open
 ```
 
-The default preview already uses the WASM renderer, even without an extension.
+The explicit `--web` preview uses the WASM renderer. Ordinary `slml` launches
+the native SLML browser.
 With the extension installed, opening
 `http://127.0.0.1:4000/index.slml` directly also invokes the SLML viewer.
-Use the actual port printed by `slml serve`.
+Use the actual port printed by `slml serve --web`.
 
 For an ordinary static HTTP server, serve the original `.slml` files and
 images, not the generated `.html` output. The extension handles `.slml`

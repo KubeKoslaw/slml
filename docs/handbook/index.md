@@ -1,6 +1,6 @@
 # The SLML Handbook
 
-SLML, the **Strict Layout Markup Language**, is a language for web pages and documents. It replaces HTML and CSS with one small, strict grammar in which layout is built in. You write `.slml` files and the `slml` compiler turns them into a website.
+SLML, the **Strict Layout Markup Language**, is a language for web pages and documents. It replaces HTML and CSS with one small, strict grammar in which layout is built in. You write `.slml` files and the `slml` native browser reads and draws them directly.
 
 ```slml
 slml 0.1
@@ -21,14 +21,15 @@ page {
 - **One syntax.** Structure, appearance and reusable components share one grammar instead of three languages.
 - **Predictable.** Fonts are bundled and every default is written down, so a page looks the same everywhere.
 - **Accessible.** Images must describe themselves and form fields must have labels.
-- **Real websites.** Multi-page sites, navigation, forms and responsive layouts compile to plain HTML that works in every browser.
+- **Real websites.** Multi-page documents, navigation, reusable components and responsive layouts are written directly in SLML.
 
 ## How it works
 
-SLML documents can be shown in two ways:
+The native browser is the normal way to use SLML:
 
-1. **In a web browser.** `slml serve` runs SLML's own renderer through WebAssembly while you edit. The Firefox extension can also open .slml URLs directly. For browsers without an extension, `slml site/` exports a separate HTML and CSS site you can upload anywhere.
-2. **In the native SLML viewer.** SLML also has its own renderer written in Rust, which draws pages without a web browser: `slml view page.slml`.
+1. **Open a page or site.** Run `slml page.slml` or `slml my-site/`. SLML opens its own window, parses the original source and draws it with its Rust renderer.
+2. **Edit and save.** The window reloads when the page, an import or an image changes. Local links stay in SLML.
+3. **Use adapters only when you choose them.** `slml build` explicitly exports HTML. The optional `slml serve --web` runtime and Firefox extension host SLML in existing web browsers.
 
 ## Where to start
 
