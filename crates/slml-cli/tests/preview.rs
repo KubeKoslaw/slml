@@ -13,8 +13,9 @@ struct Preview {
 }
 
 impl Preview {
-    fn start() -> Self {
-        let root = std::env::temp_dir().join(format!("slml-http-preview-{}", std::process::id()));
+    fn start(mode: &str) -> Self {
+        let root =
+            std::env::temp_dir().join(format!("slml-http-preview-{mode}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("a folder")).unwrap();
         std::fs::write(
@@ -40,9 +41,12 @@ impl Preview {
         let occupied = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let first_port = occupied.local_addr().unwrap().port();
         assert!(first_port < 65535);
-        let mut child = Command::new(env!("CARGO_BIN_EXE_slml"))
-            .arg("serve")
-            .arg("--html")
+        let mut command = Command::new(env!("CARGO_BIN_EXE_slml"));
+        command.arg("serve");
+        if !mode.is_empty() {
+            command.arg(mode);
+        }
+        let mut child = command
             .arg(&root)
             .arg("--port")
             .arg(first_port.to_string())
@@ -122,7 +126,7 @@ impl Drop for Preview {
 
 #[test]
 fn browser_preview_serves_live_pages_assets_and_errors() {
-    let preview = Preview::start();
+    let preview = Preview::start("--html");
     let (headers, body) = preview.request("GET", "/?search=hello");
     assert!(headers.starts_with("HTTP/1.1 200 OK"));
     assert!(headers.contains("text/html; charset=utf-8"));
@@ -207,5 +211,61 @@ fn preview_rejects_port_zero() {
     assert_eq!(output.status.code(), Some(1));
     assert!(
         String::from_utf8_lossy(&output.stderr).contains("--port must be a number from 1 to 65535")
+    );
+}
+
+#[test]
+fn default_preview_serves_slml_without_an_html_shell() {
+    let preview = Preview::start("");
+    for path in ["/", "/index.slml", "/a%20folder/"] {
+        let (headers, body) = preview.request("GET", path);
+        assert!(headers.starts_with("HTTP/1.1 200 OK"));
+        assert!(headers.contains("text/slml; charset=utf-8"));
+        assert!(body.starts_with(b"slml 0.1"));
+        assert!(!String::from_utf8(body).unwrap().contains("<html"));
+    }
+    assert!(preview.request("HEAD", "/").1.is_empty());
+    assert!(
+        preview
+            .request("GET", "/parts.slml")
+            .1
+            .starts_with(b"slml 0.1 define")
+    );
+    let (headers, _) = preview.request("GET", "/a%20folder?x=1");
+    assert!(headers.contains("Location: /a%20folder/?x=1"));
+    for (method, path) in [
+        ("GET", "/missing.slml"),
+        ("GET", "/index.html"),
+        ("GET", "/.git/config"),
+        ("POST", "/"),
+    ] {
+        let (headers, body) = preview.request(method, path);
+        assert!(headers.contains("text/plain; charset=utf-8"));
+        assert!(!body.contains(&b'<'));
+    }
+    assert!(!preview.root.join("_slml").exists());
+    assert!(!preview.root.join("index.html").exists());
+}
+
+#[cfg(slml_web_built)]
+#[test]
+fn explicit_web_flag_selects_the_optional_web_shell() {
+    let preview = Preview::start("--web");
+    let (headers, body) = preview.request("GET", "/");
+    assert!(headers.contains("text/html; charset=utf-8"));
+    let shell = String::from_utf8(body).unwrap();
+    assert!(shell.contains("<canvas"));
+    assert!(!shell.contains("First version"));
+    assert!(
+        preview
+            .request("GET", "/index.slml")
+            .1
+            .starts_with(b"slml 0.1")
+    );
+    assert!(
+        preview
+            .request("GET", "/_slml/web/slml.wasm")
+            .1
+            .starts_with(b"\0asm")
     );
 }

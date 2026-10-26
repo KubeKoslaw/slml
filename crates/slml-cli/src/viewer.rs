@@ -2,7 +2,7 @@
 //! and live reload on save.
 
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 use minifb::{CursorStyle, Key, KeyRepeat, MouseButton, MouseMode, Window, WindowOptions};
 use slml_render::images::ImageStore;
@@ -16,7 +16,7 @@ const LINE_STEP: f32 = 48.0;
 struct Page {
     path: PathBuf,
     doc: Document,
-    modified: Option<SystemTime>,
+    revision: String,
 }
 
 /// What clicking a link does.
@@ -41,7 +41,7 @@ fn classify(to: &str, page: &Path, root: &Path) -> Target {
 }
 
 fn open(path: &Path, root: &Path) -> Page {
-    let modified = std::fs::metadata(path).and_then(|m| m.modified()).ok();
+    let revision = crate::serve::version(root);
     let doc = compile_file(path, root).unwrap_or_else(|errors| {
         eprintln!("{errors}");
         error_page(path, &errors)
@@ -49,7 +49,7 @@ fn open(path: &Path, root: &Path) -> Page {
     Page {
         path: path.to_path_buf(),
         doc,
-        modified,
+        revision,
     }
 }
 
@@ -146,10 +146,7 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
         let mut reload = window.is_key_pressed(Key::F5, KeyRepeat::No);
         if last_poll.elapsed() > Duration::from_millis(300) {
             last_poll = Instant::now();
-            let modified = std::fs::metadata(&page.path)
-                .and_then(|m| m.modified())
-                .ok();
-            reload |= modified != page.modified;
+            reload |= crate::serve::version(&root) != page.revision;
         }
         if reload {
             page = open(&page.path, &root);
@@ -266,6 +263,28 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_reload_tracks_shared_components_and_images() {
+        let root = std::env::temp_dir().join(format!("slml-native-reload-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("index.slml");
+        let shared = root.join("parts.slml");
+        std::fs::write(&file, "slml 0.1 use \"parts.slml\" page { shared }").unwrap();
+        std::fs::write(&shared, "slml 0.1 define shared { text \"First\" }").unwrap();
+        let first = open(&file, &root);
+        std::fs::write(
+            &shared,
+            "slml 0.1 define shared { text \"Updated shared component\" }",
+        )
+        .unwrap();
+        assert_ne!(crate::serve::version(&root), first.revision);
+        let second = open(&file, &root);
+        assert!(format!("{:?}", second.doc).contains("Updated shared component"));
+        std::fs::write(root.join("image.png"), b"changed asset").unwrap();
+        assert_ne!(crate::serve::version(&root), second.revision);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn error_page_survives_any_message() {

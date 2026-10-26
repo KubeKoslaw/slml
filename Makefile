@@ -1,4 +1,4 @@
-# Build and install the `slml` compiler from source, like any C compiler:
+# Build and install the native SLML browser and tools from source:
 #
 #   make                      build
 #   make install              install to ~/.local (bin + man page)
@@ -22,7 +22,7 @@ all: build
 web:
 	sh scripts/build-web.sh
 
-build: web
+build:
 	$(CARGO) build --release -p slml-cli $(FEATURES)
 
 test:

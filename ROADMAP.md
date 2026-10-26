@@ -15,6 +15,8 @@ before work starts. Items marked **good first issue** are self-contained.
 
 ## Also done
 
+- [x] Native SLML browser as the default for files, site folders and `serve --open`; HTML and web-hosted previews require explicit commands
+
 - [x] HTML backend, `slml serve` live preview, `slml site/` builds, broken-link errors
 - [x] gcc-style compiler, release binaries, install scripts, man page
 - [x] Handbook written in SLML; lists, codeblock, wrapping rows, imports (`use`)

@@ -35,8 +35,10 @@ are binding; in short:
   `alt` or a form field's `label`, is enforced.
 - **Efficient.** The grammar is LL(1), single pass, no backtracking.
 
-Backends: SLML documents can be rendered by the native renderer or compiled
-to HTML+CSS. Both must follow this spec.
+The primary client is the native SLML browser, which reads `.slml` files
+and renders them directly. HTML+CSS export and web-hosted WebAssembly are
+optional compatibility backends, selected explicitly by the user. Every
+backend must follow this spec.
 
 ## 2. Lexical structure
 

@@ -1,10 +1,5 @@
-//! `slml serve`: a local web server for previewing a site in any browser.
-//!
-//! Pages are compiled on every request, so the browser always shows the
-//! current files. A tiny script (added only by this preview server, never
-//! to built sites) polls `/_slml/version` and reloads the page when any file
-//! changes. Errors are shown in the browser with the same messages as the
-//! command line. The server only listens on 127.0.0.1.
+//! `slml serve`: original SLML sources over local HTTP. The native browser is
+//! the default launcher. WebAssembly and HTML previews require explicit flags.
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{BufRead, BufReader, Write};
@@ -25,31 +20,71 @@ const WASM: &[u8] = include_bytes!(env!("SLML_WASM_PATH"));
 #[cfg(not(slml_web_built))]
 const WASM: &[u8] = &[];
 
-pub fn run(root: PathBuf, port: u16, open: bool, html: bool) -> Result<(), String> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Mode {
+    Native,
+    Web,
+    Html,
+}
+
+pub fn run(
+    root: PathBuf,
+    entry: PathBuf,
+    port: u16,
+    mode: Mode,
+    open: bool,
+    scale: f32,
+) -> Result<(), String> {
     if !root.is_dir() {
         return Err(format!("error: {} is not a folder", root.display()));
     }
-    if !html && WASM.is_empty() {
-        return Err("error: the SLML browser renderer is not built; run `make web` and rebuild slml, or use `--html` to explicitly preview HTML output".into());
+    if mode == Mode::Web && WASM.is_empty() {
+        return Err(
+            "error: the optional web viewer is not built; run `make web` and rebuild slml".into(),
+        );
+    }
+    if mode == Mode::Native && open {
+        if !cfg!(feature = "viewer") {
+            return Err("error: this slml was built without the native browser; rebuild with the `viewer` feature enabled".into());
+        }
+        if !entry.is_file() {
+            return Err(format!(
+                "error: {} does not exist; create an `index.slml` page in this folder",
+                entry.display()
+            ));
+        }
     }
     let (listener, port) = (port..=port.saturating_add(19))
         .find_map(|p| TcpListener::bind(("127.0.0.1", p)).ok().map(|l| (l, p)))
         .ok_or_else(|| format!("error: no free port from {port}"))?;
     let url = format!("http://127.0.0.1:{port}/");
-    println!("SLML preview of {} at {url}", root.display());
-    println!("Pages reload automatically when you save. Press Ctrl+C to stop.");
+    println!("SLML sources from {} at {url}", root.display());
+    if mode == Mode::Native && open {
+        println!(
+            "Opening the native SLML browser. Save files to reload; close the window to stop."
+        );
+        let server_root = root.clone();
+        // Native windowing must stay on the main thread (including on macOS).
+        std::thread::spawn(move || listen(listener, server_root, mode));
+        return crate::open_native(entry, root, scale);
+    }
+    println!("Press Ctrl+C to stop.");
     if open {
         crate::project::open_external(&url);
     }
+    listen(listener, root, mode);
+    Ok(())
+}
+
+fn listen(listener: TcpListener, root: PathBuf, mode: Mode) {
     for stream in listener.incoming().flatten() {
         let root = root.clone();
         std::thread::spawn(move || {
-            if let Err(e) = handle(stream, &root, html) {
+            if let Err(e) = handle(stream, &root, mode) {
                 eprintln!("slml serve: {e}");
             }
         });
     }
-    Ok(())
 }
 
 struct Response {
@@ -65,6 +100,15 @@ impl Response {
             status: "200 OK",
             content_type,
             body,
+            location: None,
+        }
+    }
+
+    fn text(status: &'static str, body: String) -> Self {
+        Self {
+            status,
+            content_type: "text/plain; charset=utf-8",
+            body: body.into_bytes(),
             location: None,
         }
     }
@@ -86,7 +130,7 @@ impl Response {
     }
 }
 
-fn handle(stream: TcpStream, root: &Path, html: bool) -> std::io::Result<()> {
+fn handle(stream: TcpStream, root: &Path, mode: Mode) -> std::io::Result<()> {
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
     reader.read_line(&mut request_line)?;
@@ -99,13 +143,13 @@ fn handle(stream: TcpStream, root: &Path, html: bool) -> std::io::Result<()> {
     let method = parts.next().unwrap_or("");
     let target = parts.next().unwrap_or("/");
     let response = if method == "GET" || method == "HEAD" {
-        if html {
-            respond(target, root)
-        } else {
-            respond_native(target, root)
+        match mode {
+            Mode::Native => respond_source(target, root),
+            Mode::Web => respond_web(target, root),
+            Mode::Html => respond(target, root),
         }
     } else {
-        Response::html("405 Method Not Allowed", "only GET is supported".into())
+        Response::text("405 Method Not Allowed", "only GET is supported".into())
     };
     let mut out = &stream;
     let location = response
@@ -125,8 +169,50 @@ fn handle(stream: TcpStream, root: &Path, html: bool) -> std::io::Result<()> {
     out.flush()
 }
 
+/// The default wire representation is the original file, even for `/`.
+/// It does not compile HTML, inject scripts or send an HTML error page.
+fn respond_source(target: &str, root: &Path) -> Response {
+    let raw_path = target.split(['?', '#']).next().unwrap_or("/");
+    let Some(path) = decode(raw_path) else {
+        return Response::text("400 Bad Request", "invalid URL path".into());
+    };
+    if path.split('/').any(|p| p == "..")
+        || path.contains('\\')
+        || path.chars().any(char::is_control)
+    {
+        return Response::text("403 Forbidden", "forbidden".into());
+    }
+    if path == "/_slml/version" {
+        return Response::ok("text/plain", version(root).into_bytes());
+    }
+    let rel = path.trim_start_matches('/');
+    let rel = if rel.is_empty() || rel.ends_with('/') {
+        format!("{rel}index.slml")
+    } else {
+        rel.to_string()
+    };
+    if !public_path(Path::new(&rel)) {
+        return Response::text("404 Not Found", format!("not found: {path}"));
+    }
+    let Ok(file) = confined_path(root, &root.join(&rel)) else {
+        return Response::text("403 Forbidden", "forbidden".into());
+    };
+    if file.is_dir() {
+        let query = target
+            .split_once('?')
+            .map_or(String::new(), |(_, q)| format!("?{q}"));
+        let mut response = Response::text("301 Moved Permanently", String::new());
+        response.location = Some(format!("{raw_path}/{query}"));
+        return response;
+    }
+    match std::fs::read(&file) {
+        Ok(bytes) => Response::ok(content_type(&file), bytes),
+        Err(_) => Response::text("404 Not Found", format!("not found: {path}")),
+    }
+}
+
 /// Browser chrome is HTML; the document stays SLML and is rendered in WASM.
-fn respond_native(target: &str, root: &Path) -> Response {
+fn respond_web(target: &str, root: &Path) -> Response {
     let raw_path = target.split(['?', '#']).next().unwrap_or("/");
     let Some(path) = decode(raw_path) else {
         return not_found(target);
@@ -208,7 +294,7 @@ fn respond_native(target: &str, root: &Path) -> Response {
             );
         return Response::html("200 OK", html);
     }
-    respond(target, root)
+    respond_source(target, root)
 }
 
 fn respond(target: &str, root: &Path) -> Response {
@@ -329,7 +415,7 @@ fn not_found(path: &str) -> Response {
 }
 
 /// Changes whenever any file in the site changes.
-fn version(root: &Path) -> String {
+pub(crate) fn version(root: &Path) -> String {
     let mut h = DefaultHasher::new();
     for file in site_files(root, &root.join("_site")) {
         file.hash(&mut h);
@@ -386,7 +472,8 @@ fn content_type(path: &Path) -> &'static str {
         Some("woff") => "font/woff",
         Some("woff2") => "font/woff2",
         Some("pdf") => "application/pdf",
-        Some("txt" | "slml" | "md") => "text/plain; charset=utf-8",
+        Some("slml") => "text/slml; charset=utf-8",
+        Some("txt" | "md") => "text/plain; charset=utf-8",
         _ => "application/octet-stream",
     }
 }
@@ -426,12 +513,12 @@ mod tests {
     }
 
     #[test]
-    fn native_preview_serves_source_and_canvas_without_html_translation() {
+    fn explicit_web_preview_serves_source_and_canvas_without_html_translation() {
         let site = Site::new("native");
         let source = "slml 0.1 page { heading \"Drawn by SLML\" }";
         site.write("index.slml", source);
         site.write("parts.slml", "slml 0.1 style card(padding: 12)");
-        let shell = respond_native("/", &site.0);
+        let shell = respond_web("/", &site.0);
         let shell = String::from_utf8(shell.body).unwrap();
         assert!(shell.contains("<canvas"));
         assert!(shell.contains("data-source=\"/index.slml\""));
@@ -439,29 +526,61 @@ mod tests {
             !shell.contains("Drawn by SLML"),
             "no document is compiled into HTML"
         );
-        let raw = respond_native("/index.slml", &site.0);
+        let raw = respond_web("/index.slml", &site.0);
         assert_eq!(raw.content_type, "text/slml; charset=utf-8");
         assert_eq!(raw.body, source.as_bytes());
         assert!(
-            respond_native("/parts.slml", &site.0)
+            respond_web("/parts.slml", &site.0)
                 .body
                 .starts_with(b"slml 0.1")
         );
-        assert_eq!(respond_native("/_slml/version", &site.0).status, "200 OK");
+        assert_eq!(respond_web("/_slml/version", &site.0).status, "200 OK");
+        assert_eq!(respond_web("/.git/config", &site.0).status, "404 Not Found");
         assert_eq!(
-            respond_native("/.git/config", &site.0).status,
-            "404 Not Found"
-        );
-        assert_eq!(
-            respond_native("/_slml/web/text.mjs", &site.0).content_type,
+            respond_web("/_slml/web/text.mjs", &site.0).content_type,
             "text/javascript; charset=utf-8"
         );
         #[cfg(slml_web_built)]
         assert!(
-            respond_native("/_slml/web/slml.wasm", &site.0)
+            respond_web("/_slml/web/slml.wasm", &site.0)
                 .body
                 .starts_with(b"\0asm")
         );
+    }
+
+    #[test]
+    fn default_server_returns_original_slml_and_plain_errors() {
+        let site = Site::new("sources");
+        let source = "slml 0.1 page { text \"Original source\" }";
+        site.write("index.slml", source);
+        site.write("parts.slml", "slml 0.1 define shared { text \"Shared\" }");
+        site.write("nested/index.slml", source);
+        for path in ["/", "/index.slml", "/nested/"] {
+            let r = respond_source(path, &site.0);
+            assert_eq!(r.status, "200 OK");
+            assert_eq!(r.content_type, "text/slml; charset=utf-8");
+            assert_eq!(r.body, source.as_bytes());
+        }
+        assert!(
+            respond_source("/parts.slml", &site.0)
+                .body
+                .starts_with(b"slml 0.1")
+        );
+        assert_eq!(
+            respond_source("/nested?x=1", &site.0).location.as_deref(),
+            Some("/nested/?x=1")
+        );
+        for path in [
+            "/missing.slml",
+            "/index.html",
+            "/_slml/web/viewer.mjs",
+            "/.git/config",
+            "/../secret",
+        ] {
+            let r = respond_source(path, &site.0);
+            assert_eq!(r.content_type, "text/plain; charset=utf-8");
+            assert!(!String::from_utf8(r.body).unwrap().contains("<"));
+        }
     }
 
     #[test]
@@ -486,9 +605,13 @@ mod tests {
             "notes/plan.md",
         ] {
             site.write(path, "private data");
-            let response = respond(&format!("/{path}"), &site.0);
-            assert_eq!(response.status, "404 Not Found", "{path}");
-            assert!(!String::from_utf8_lossy(&response.body).contains("private data"));
+            for response in [
+                respond(&format!("/{path}"), &site.0),
+                respond_source(&format!("/{path}"), &site.0),
+            ] {
+                assert_eq!(response.status, "404 Not Found", "{path}");
+                assert!(!String::from_utf8_lossy(&response.body).contains("private data"));
+            }
         }
         assert_eq!(respond("/%2egit/config", &site.0).status, "404 Not Found");
         let discovered = site_files(&site.0, &site.0.join("_site"));

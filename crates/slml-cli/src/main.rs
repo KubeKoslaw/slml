@@ -1,7 +1,4 @@
-//! `slml`: the SLML compiler, preview server and viewer.
-//!
-//! Works like a classic compiler: `slml page.slml` writes `page.html`,
-//! `-o` chooses the output and its extension chooses the format.
+//! `slml`: the native SLML browser, source server and explicit exporters.
 
 mod build;
 mod project;
@@ -16,33 +13,37 @@ use slml_render::Renderer;
 use slml_render::images::ImageStore;
 
 const USAGE: &str = "\
-slml — compiler for SLML, the Strict Layout Markup Language
+slml — native browser for SLML, the Strict Layout Markup Language
 
 USAGE:
-    slml <file.slml>... [-o <output>]     compile pages to HTML (page.slml → page.html)
-    slml <folder> [-o <output-folder>]    compile a whole site (default output: <folder>/_site)
-    slml check <file-or-folder>...        only check for errors
-    slml serve [<folder>] [--port 4000]   preview with the SLML WebAssembly renderer
-    slml view <file.slml>                 open in the native SLML viewer
-    slml render <file.slml> [-o out.png]  render to an image with the native renderer
+    slml <file.slml-or-folder>           open in the native SLML browser
+    slml view <file.slml-or-folder>      same as the default action
+    slml check <file-or-folder>...       only check for errors
+    slml serve [<folder>] [--open]       serve SLML sources; --open uses the native browser
+    slml build <file-or-folder>...       explicitly export HTML (page.slml → page.html)
+    slml <file-or-folder> -o <output>    explicitly export HTML or PNG
+    slml render <file.slml> [-o out.png] render to an image with the native renderer
 
 OPTIONS:
-    -o, --output <path>   output file or folder; `.png` renders an image, anything else is HTML
+    -o, --output <path>   export file or folder; `.png` renders an image, anything else is HTML
         --root <folder>   site root for paths starting with `/`
-                          (default: the current folder if the file is inside it, else the file's folder)
+                          (default: folder input, else the current folder if it contains the file)
         --width <px>      page width for PNG output (default 900)
-        --scale <n>       pixel density for PNG output and the viewer (default 1)
+        --scale <n>       pixel density for PNG output and the native browser (default 1)
         --port <n>        first port to try for `serve` (default 4000)
-        --open            `serve`: also open the page in your browser
-        --html            `serve`: preview the HTML export instead of the SLML renderer
+        --open            `serve`: also open the native SLML browser
+        --web             `serve`: explicitly use the web-hosted WebAssembly viewer
+        --html            explicitly select HTML export / HTML server preview
     -q, --quiet           print only errors
     -h, --help            show this help
     -V, --version         show the version
 
 EXAMPLES:
-    slml index.slml                       writes index.html (+ _slml/ with styles and fonts)
-    slml site/ -o public/                 builds every page of site/ into public/
-    slml serve site/ --open               live preview at http://127.0.0.1:4000/
+    slml index.slml                     open the original document in SLML
+    slml my-site/                       open my-site/index.slml with my-site as the root
+    slml serve my-site/ --open          serve sources and open the native SLML browser
+    slml build my-site/ -o public/      optional HTML compatibility export
+    slml serve my-site/ --web --open    optional web-hosted WASM preview
 
 Exit status is 0 on success and 1 if any file has errors.
 Handbook: https://github.com/KubeKoslaw/slml (handbook/ folder)";
@@ -59,6 +60,7 @@ struct Args {
     open: bool,
     quiet: bool,
     html: bool,
+    web: bool,
 }
 
 fn parse_args(raw: Vec<String>) -> Result<Args, String> {
@@ -108,6 +110,7 @@ fn parse_args(raw: Vec<String>) -> Result<Args, String> {
             }
             "--open" => a.open = true,
             "--html" => a.html = true,
+            "--web" => a.web = true,
             "-q" | "--quiet" => a.quiet = true,
             flag if flag.starts_with('-') && flag.len() > 1 => {
                 return Err(format!("error: unknown option {flag}\n\n{USAGE}"));
@@ -115,7 +118,40 @@ fn parse_args(raw: Vec<String>) -> Result<Args, String> {
             input => a.inputs.push(input.into()),
         }
     }
+    if a.web && a.html {
+        return Err("error: choose either `--web` or `--html`".into());
+    }
+    if a.web && a.command.as_deref() != Some("serve") {
+        return Err("error: `--web` is only supported by `serve`".into());
+    }
+    if a.open && a.command.as_deref() != Some("serve") {
+        return Err("error: `--open` is only supported by `serve`; use `slml <file-or-folder>` to open a page".into());
+    }
+    if a.html && matches!(a.command.as_deref(), Some("view" | "check" | "render")) {
+        return Err("error: `--html` is only supported by exports and `serve`".into());
+    }
     Ok(a)
+}
+
+#[derive(Debug, PartialEq)]
+enum Action {
+    View,
+    Check,
+    Serve,
+    Render,
+    Build,
+}
+
+fn action(a: &Args) -> Action {
+    match a.command.as_deref() {
+        Some("check") => Action::Check,
+        Some("serve") => Action::Serve,
+        Some("render") => Action::Render,
+        Some("build") => Action::Build,
+        Some("view") => Action::View,
+        _ if a.output.is_some() || a.html => Action::Build,
+        _ => Action::View,
+    }
 }
 
 fn main() -> ExitCode {
@@ -135,12 +171,12 @@ fn main() -> ExitCode {
         }
         _ => {}
     }
-    let result = parse_args(raw).and_then(|args| match args.command.as_deref() {
-        Some("check") => check(&args),
-        Some("serve") => serve(&args),
-        Some("view") => view(&args),
-        Some("render") => render(&args),
-        _ => compile(&args),
+    let result = parse_args(raw).and_then(|args| match action(&args) {
+        Action::Check => check(&args),
+        Action::Serve => serve(&args),
+        Action::View => view(&args),
+        Action::Render => render(&args),
+        Action::Build => compile(&args),
     });
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -180,7 +216,7 @@ fn root_for(a: &Args, file: &Path) -> PathBuf {
         .unwrap_or_else(|| project::default_root(file))
 }
 
-/// The default action, like `cc file.c`: compile to HTML (or PNG).
+/// Explicit compatibility export to HTML, or native PNG when requested.
 fn compile(a: &Args) -> Result<(), String> {
     need_inputs(a)?;
     if let [dir] = a.inputs.as_slice()
@@ -296,15 +332,42 @@ fn render(a: &Args) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(feature = "viewer")]
+/// Resolve a native launch without starting a window or touching HTML output.
+fn view_target(a: &Args) -> Result<(PathBuf, PathBuf), String> {
+    need_inputs(a)?;
+    let [input] = a.inputs.as_slice() else {
+        return Err("error: the native browser takes one file or folder".into());
+    };
+    let (file, default_root) = if input.is_dir() {
+        (input.join("index.slml"), input.clone())
+    } else {
+        (input.clone(), project::default_root(input))
+    };
+    if !file.is_file() {
+        return Err(format!(
+            "error: {} does not exist; create an `index.slml` page in this folder",
+            file.display()
+        ));
+    }
+    Ok((file, a.root.clone().unwrap_or(default_root)))
+}
+
 fn view(a: &Args) -> Result<(), String> {
-    let file = single(a, "view")?;
-    viewer::run(file.clone(), root_for(a, &file), a.scale)
+    if a.output.is_some() {
+        return Err("error: `view` does not export files; use `build` or `render`".into());
+    }
+    let (file, root) = view_target(a)?;
+    open_native(file, root, a.scale)
+}
+
+#[cfg(feature = "viewer")]
+fn open_native(file: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
+    viewer::run(file, root, scale)
 }
 
 #[cfg(not(feature = "viewer"))]
-fn view(_: &Args) -> Result<(), String> {
-    Err("error: this slml was built without the native viewer; use `slml serve` instead".into())
+fn open_native(_: PathBuf, _: PathBuf, _: f32) -> Result<(), String> {
+    Err("error: this slml was built without the native browser; rebuild with the `viewer` feature enabled".into())
 }
 
 fn serve(a: &Args) -> Result<(), String> {
@@ -312,7 +375,62 @@ fn serve(a: &Args) -> Result<(), String> {
         [] => PathBuf::from("."),
         [dir] if dir.is_dir() => dir.clone(),
         [file] if file.is_file() => project::base_dir(file),
-        _ => return Err("error: serve takes one folder".into()),
+        _ => return Err("error: serve takes one existing folder or file".into()),
     };
-    serve::run(root, a.port, a.open, a.html)
+    let entry = match a.inputs.as_slice() {
+        [file] if file.is_file() => file.clone(),
+        _ => root.join("index.slml"),
+    };
+    let mode = if a.html {
+        serve::Mode::Html
+    } else if a.web {
+        serve::Mode::Web
+    } else {
+        serve::Mode::Native
+    };
+    serve::run(root, entry, a.port, mode, a.open, a.scale)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(words: &[&str]) -> Args {
+        parse_args(words.iter().map(|s| s.to_string()).collect()).unwrap()
+    }
+
+    #[test]
+    fn original_documents_open_natively_and_exports_are_explicit() {
+        for words in [&["index.slml"][..], &["site/"], &["view", "site/"]] {
+            assert_eq!(action(&args(words)), Action::View);
+        }
+        for words in [
+            &["build", "index.slml"][..],
+            &["site/", "-o", "public/"],
+            &["index.slml", "-o", "page.png"],
+            &["index.slml", "--html"],
+        ] {
+            assert_eq!(action(&args(words)), Action::Build);
+        }
+        let native = args(&["serve", "site/", "--open"]);
+        assert!(!native.web && !native.html && native.open);
+        assert!(args(&["serve", "site/", "--web", "--open"]).web);
+        assert!(args(&["serve", "site/", "--html", "--open"]).html);
+        assert!(parse_args(vec!["serve".into(), "--web".into(), "--html".into()]).is_err());
+    }
+
+    #[test]
+    fn folder_launch_uses_its_index_and_site_root() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/starter");
+        let a = args(&[root.to_str().unwrap()]);
+        assert_eq!(view_target(&a).unwrap(), (root.join("index.slml"), root));
+        let library_folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/fonts");
+        let a = args(&[library_folder.to_str().unwrap()]);
+        assert!(
+            view_target(&a)
+                .unwrap_err()
+                .contains("create an `index.slml`")
+        );
+        assert!(view_target(&args(&["a.slml", "b.slml"])).is_err());
+    }
 }

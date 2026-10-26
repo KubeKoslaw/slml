@@ -52,11 +52,19 @@ fn builds_a_site() {
 }
 
 #[test]
-fn compiles_like_a_c_compiler() {
+fn html_export_requires_an_explicit_request() {
     let dir = temp_dir("single");
     let page = dir.join("page.slml");
     std::fs::write(&page, "slml 0.1\npage { text \"hi\" }\n").unwrap();
-    assert!(slml().arg(&page).arg("-q").status().unwrap().success());
+    assert!(
+        slml()
+            .arg("build")
+            .arg(&page)
+            .arg("-q")
+            .status()
+            .unwrap()
+            .success()
+    );
     assert!(dir.join("page.html").is_file());
     assert!(dir.join("_slml/slml.css").is_file());
 
@@ -93,7 +101,7 @@ fn errors_fail_with_exit_code_1() {
         "slml 0.1\npage { text { link(to: \"missing.slml\") \"x\" } }\n",
     )
     .unwrap();
-    let out = slml().arg(&page).output().unwrap();
+    let out = slml().arg("build").arg(&page).output().unwrap();
     assert_eq!(out.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&out.stderr).contains("broken link"));
     assert!(
@@ -122,7 +130,15 @@ fn imports_and_root_paths() {
     )
     .unwrap();
     let out = dir.join("_site");
-    assert!(slml().arg(&dir).arg("-q").status().unwrap().success());
+    assert!(
+        slml()
+            .arg("build")
+            .arg(&dir)
+            .arg("-q")
+            .status()
+            .unwrap()
+            .success()
+    );
     let post = std::fs::read_to_string(out.join("blog/post.html")).unwrap();
     assert!(post.contains("href=\"../index.html\""), "{post}");
     assert!(!out.join("parts.html").exists(), "libraries are not pages");
@@ -176,7 +192,7 @@ fn site_links_preserve_literal_file_names() {
     .unwrap();
     std::fs::write(dir.join("index.slml"), "slml 0.1 page { button(to: \"report 100%.txt\") \"Report\" button(to: \"żółć.slml\") \"Read\" }").unwrap();
     let out = dir.join("_site");
-    let result = slml().arg(&dir).arg("-q").output().unwrap();
+    let result = slml().arg("build").arg(&dir).arg("-q").output().unwrap();
     assert!(
         result.status.success(),
         "{}",
@@ -187,4 +203,62 @@ fn site_links_preserve_literal_file_names() {
     let html = std::fs::read_to_string(out.join("index.html")).unwrap();
     assert!(html.contains("href=\"report%20100%25.txt\""));
     assert!(html.contains("href=\"%C5%BC%C3%B3%C5%82%C4%87.html\""));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn bare_documents_do_not_export_html_or_launch_a_web_browser() {
+    let dir = temp_dir("native-default");
+    let page = dir.join("index.slml");
+    std::fs::write(&page, "slml 0.1 page { text \"Native SLML\" }").unwrap();
+    for input in [&page, &dir] {
+        let output = slml()
+            .arg(input)
+            // Force a predictable window-creation error instead of opening a
+            // real desktop window in the test runner. An HTML route would
+            // succeed and write output, so this exercises the actual dispatch.
+            .env_remove("WAYLAND_SOCKET")
+            .env("WAYLAND_DISPLAY", "")
+            .env("DISPLAY", "")
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            error.contains("cannot open a window")
+                || error.contains("built without the native browser"),
+            "{error}"
+        );
+        assert!(!dir.join("index.html").exists());
+        assert!(!dir.join("_site").exists());
+        assert!(!dir.join("_slml").exists());
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn serve_open_uses_the_native_browser() {
+    let dir = temp_dir("serve-native-open");
+    std::fs::write(
+        dir.join("index.slml"),
+        "slml 0.1 page { text \"Native preview\" }",
+    )
+    .unwrap();
+    let output = slml()
+        .args(["serve", "--open"])
+        .arg(&dir)
+        .env_remove("WAYLAND_SOCKET")
+        .env("WAYLAND_DISPLAY", "")
+        .env("DISPLAY", "")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        error.contains("cannot open a window")
+            || error.contains("built without the native browser"),
+        "{error}"
+    );
+    assert!(!dir.join("index.html").exists());
+    assert!(!dir.join("_site").exists());
 }

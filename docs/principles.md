@@ -56,3 +56,11 @@ its own directory.
 
 Prefer a few composable primitives over many special elements. New features
 go through [ROADMAP.md](../ROADMAP.md) and the spec first, then the code.
+
+## 9. Native SLML first
+
+The normal way to read a document is SLML's own browser and renderer. Opening
+an SLML file or site must not compile it to HTML or launch a system web
+browser. HTML export and web-hosted runtimes are optional compatibility tools
+and require an explicit command or option. The native client must build and
+run without a WebAssembly toolchain.
