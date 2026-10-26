@@ -47,22 +47,33 @@ Read more in [docs/principles.md](docs/principles.md) and the full
 curl -fsSL https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.sh | sh
 ```
 
-Or from source: `make install` (needs Rust 1.88+). Then:
+Or from source: install Rust 1.88+, Python 3 and the WebAssembly target
+(`rustup target add wasm32-unknown-unknown`), then run `make install`. Then:
 
 ```bash
 slml page.slml                 # → page.html (+ _slml/ styles and fonts)
 slml site/ -o public/          # build a whole website
-slml serve site/ --open        # live preview in your browser
+slml serve site/ --open        # SLML's own renderer in your browser (WebAssembly)
+slml serve site/ --html        # explicitly preview the HTML export
 slml check site/               # only report errors
 slml view page.slml            # native SLML viewer (own renderer)
 ```
 
 **Read the [handbook](handbook/)**, which is itself written in SLML: `slml serve handbook --open`.
+For GitHub or Obsidian, use the [Markdown handbook](docs/handbook/README.md).
 
 For a complete four-page website with shared components, responsive navigation
 and a working local form demo, run `slml serve examples/starter --open`.
 The [website tutorial](handbook/website-tutorial.slml) explains how to copy,
 customize and publish it, and connect a real form endpoint.
+
+**Firefox:** `make web` creates `target/slml-firefox-0.1.0.xpi`.
+The [Firefox extension guide](extensions/firefox/README.md) explains temporary
+installation and opening `.slml` URLs directly. The extension and default
+browser preview run the same SLML parser, layout engine, painter and fonts
+as the native viewer. The document layout is drawn on a canvas; HTML export
+is a separate backend. Form controls use browser inputs at positions computed
+by the SLML layout engine.
 
 When something is wrong, SLML tells you exactly what and where:
 
