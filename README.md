@@ -39,27 +39,25 @@ text) without the historical accidents:
 Read more in [docs/principles.md](docs/principles.md) and the full
 [language spec](SPEC.md).
 
-## Try it
+## Install and use
 
-You need [Rust](https://rustup.rs) (1.85 or newer).
-
-```bash
-git clone https://github.com/KubeKoslaw/slml && cd slml
-cargo run --release -- examples/site/index.slml
-```
-
-Other commands:
+`slml` is a single compiler program, like `gcc`. No Rust needed to use it:
 
 ```bash
-cargo run --release -- check examples/hello.slml
+curl -fsSL https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.sh | sh
 ```
+
+Or from source: `make install` (needs Rust 1.88+). Then:
 
 ```bash
-cargo run --release -- render examples/site/index.slml -o page.png --width 1000
+slml page.slml                 # → page.html (+ _slml/ styles and fonts)
+slml site/ -o public/          # build a whole website
+slml serve site/ --open        # live preview in your browser
+slml check site/               # only report errors
+slml view page.slml            # native SLML viewer (own renderer)
 ```
 
-The viewer reloads the page automatically when you save the file. Click
-links to navigate, and press Backspace to go back.
+**Read the [handbook](handbook/)**, which is itself written in SLML: `slml serve handbook --open`.
 
 When something is wrong, SLML tells you exactly what and where:
 
@@ -85,8 +83,10 @@ error: `image` requires `alt`
 crates/
   slml-syntax/   lexer → parser → validator → typed model (no dependencies)
   slml-render/   layout engine + CPU renderer (fontdue, tiny-skia)
-  slml-cli/      the `slml` binary: check, render, view (minifb window)
+  slml-html/     HTML+CSS backend (no JavaScript in output)
+  slml-cli/      the `slml` compiler: compile, build sites, serve, check, view
 examples/        sample documents (every one is tested in CI)
+handbook/        the user guide, written in SLML
 SPEC.md          the language specification: the source of truth
 ROADMAP.md       what comes next
 AGENTS.md        instructions for AI coding agents

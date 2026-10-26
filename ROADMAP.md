@@ -13,33 +13,41 @@ before work starts. Items marked **good first issue** are self-contained.
 - [x] `slml view` window with scrolling, links, history, live reload
 - [x] `slml render` to PNG, `slml check`
 
+## Also done
+
+- [x] HTML backend, `slml serve` live preview, `slml site/` builds, broken-link errors
+- [x] gcc-style compiler, release binaries, install scripts, man page
+- [x] Handbook written in SLML; lists, codeblock, wrapping rows, imports (`use`)
+- [ ] Typing into form fields in the native viewer
+- [ ] CJK fonts
+
 ## 0.2 — make it pleasant to write
 
-- [ ] **Font fallback** for glyphs missing from Noto Sans (arrows, emoji, CJK). **good first issue**
+- [x] **Font fallback** for glyphs missing from Noto Sans (arrows, emoji, CJK). **good first issue**
 - [ ] `slml fmt`: canonical formatter (one attribute style, normalized commas). **good first issue**
 - [ ] Syntax highlighting: VS Code extension + tree-sitter grammar. **good first issue**
 - [ ] Language server (LSP): diagnostics, completion of elements and attributes
-- [ ] Components: `define card(title) { column.card { heading $title  slot } }`
-- [ ] `grid(columns: 3)` container
+- [x] Components: `define card(title) { column.card { heading $title  slot } }`
+- [x] `grid(columns: 3)` container
 - [ ] `stack` container (children on top of each other) instead of absolute positioning
 - [ ] Percent and `fr` units, `min-width`, `min-height`
 - [ ] Per-side padding (`padding-top` …) or a 2/4-value form (decide in spec)
-- [ ] Multi-line string literal for prose, e.g. `"""…"""` with defined whitespace rules
+- [x] Multi-line string literal for prose, e.g. `"""…"""` with defined whitespace rules
 
 ## 0.3 — a real browser
 
 - [ ] Text selection and copy
 - [ ] Find in page
 - [ ] HiDPI detection (instead of `--scale`)
-- [ ] JPEG/WebP/SVG images
+- [x] JPEG/WebP/SVG images
 - [ ] Load documents over HTTPS (`slml view https://…`) with a sandbox: a document may only read files under its own origin
-- [ ] Anchors: `#id` links within a page
+- [x] Anchors: `#id` links within a page
 - [ ] Accessibility tree export via AccessKit (screen readers)
 - [ ] Complex text shaping (rustybuzz): Arabic, Devanagari, ligatures; bidi text
 
 ## 0.4 — interactivity without scripts
 
-- [ ] Forms: `input`, `checkbox`, `select`, `form(to: …)` with required labels
+- [x] Forms: `input`, `checkbox`, `select`, `form(to: …)` with required labels
 - [ ] Declarative state: `toggle`, `tabs`, `details` without JavaScript
 - [ ] Themes: dark mode via named color tokens
 

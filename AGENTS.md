@@ -57,7 +57,11 @@ cargo run --release -- render examples/site/index.slml -o /tmp/page.png
 | New element or attribute | `analyze.rs` (`ELEMENTS`, `attr_groups`, `apply_attr`) + `model.rs` + `SPEC.md` §4 |
 | Layout behavior | `crates/slml-render/src/layout.rs` + `SPEC.md` §5 |
 | Drawing | `crates/slml-render/src/paint.rs` |
-| Viewer window, CLI | `crates/slml-cli/src/` |
+| HTML output | `crates/slml-html/src/lib.rs` (must follow SPEC §5 like the native renderer) |
+| Components / imports | `crates/slml-syntax/src/expand.rs`, `lib.rs` |
+| Compiler CLI, site builds, preview server | `crates/slml-cli/src/{main,build,serve}.rs` |
+| Native viewer | `crates/slml-cli/src/viewer.rs` |
+| User documentation | `handbook/*.slml` (must pass `slml check handbook`) |
 
 ## Style
 
