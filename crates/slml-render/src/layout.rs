@@ -126,6 +126,14 @@ pub struct ControlArea {
     pub path: Vec<usize>,
     pub rect: Rect,
     pub input_rect: Rect,
+    /// Where the control's text goes, inside its padding. Hosts that edit
+    /// values natively put their caret here. Equal to `input_rect` for
+    /// checkboxes and submit buttons.
+    pub text_rect: Rect,
+    /// An `input`'s or `textarea`'s value as drawn (bullets for passwords),
+    /// with its runs. `None` when the control shows a placeholder or
+    /// nothing. Never part of [`Layout::text`].
+    pub value: Option<TextArea>,
     pub size: f32,
     pub color: Color,
     pub bold: bool,
@@ -258,6 +266,12 @@ impl Fragment {
             control.rect.y += dy;
             control.input_rect.x += dx;
             control.input_rect.y += dy;
+            control.text_rect.x += dx;
+            control.text_rect.y += dy;
+            for run in control.value.iter_mut().flat_map(|v| &mut v.runs) {
+                run.rect.x += dx;
+                run.rect.y += dy;
+            }
             self.controls.push(control);
         }
         for mut element in child.elements {
@@ -342,6 +356,8 @@ fn control_area(rect: Rect, input_rect: Rect, style: Computed) -> ControlArea {
         path: Vec::new(),
         rect,
         input_rect,
+        text_rect: input_rect,
+        value: None,
         size: style.size,
         color: style.color,
         bold: style.bold,
@@ -1427,14 +1443,28 @@ impl Engine<'_> {
                 }
             }
         }
+        let has_value = matches!(
+            &field.kind,
+            FieldKind::Input { value: Some(_), .. } | FieldKind::TextArea { value: Some(_), .. }
+        );
+        let mut value = None;
         if let Some((text, s)) = shown {
             let frag = self.paragraph(&[Inline::Text(text)], s, inner_w, TextAlign::Start);
+            if has_value && let Some(mut area) = frag.text.first().cloned() {
+                for run in &mut area.runs {
+                    run.rect.x += pad_x;
+                    run.rect.y += y + pad_y;
+                }
+                value = Some(area);
+            }
             out.place(frag, pad_x, y + pad_y);
         }
+        let mut control = control_area(Rect::new(0.0, 0.0, w, y + box_h), rect, style);
+        control.text_rect = Rect::new(pad_x, y + pad_y, inner_w, box_h - 2.0 * pad_y);
+        control.value = value;
         y += box_h;
         out.h = y;
-        out.controls
-            .push(control_area(Rect::new(0.0, 0.0, w, y), rect, style));
+        out.controls.push(control);
         if let Some(id) = &f.id {
             out.anchors.push((id.clone(), 0.0));
         }
@@ -1972,6 +2002,47 @@ mod tests {
         assert_eq!(wide.controls[0].rect.y, wide.controls[1].rect.y);
         assert!(narrow.controls[1].rect.y > narrow.controls[0].rect.y);
         assert!(narrow.controls[3].rect.x > narrow.controls[2].rect.x);
+    }
+
+    #[test]
+    fn controls_expose_their_value_and_text_box() {
+        let l = lay(
+            r#"slml 0.1 page(padding: 10) { form(to: "send") {
+            input(name: "a", label: "A", value: "hello")
+            input(name: "p", label: "P", kind: password, value: "abc")
+            input(name: "b", label: "B", placeholder: "type here")
+            textarea(name: "t", label: "T", rows: 3, width: 120, value: "one two three four five six")
+            checkbox(name: "c", label: "C")
+        } }"#,
+            400.0,
+        );
+        let [a, p, b, t, c] = &l.controls[..] else {
+            panic!("{:?}", l.controls)
+        };
+        let value = a.value.as_ref().unwrap();
+        assert_eq!(value.text, "hello");
+        let run = value.runs[0].rect;
+        assert!(
+            a.text_rect.contains(run.x, run.y + 1.0),
+            "{run:?} in {:?}",
+            a.text_rect
+        );
+        assert!(a.input_rect.contains(a.text_rect.x, a.text_rect.y));
+        assert!(a.text_rect.x > a.input_rect.x, "padding");
+        assert_eq!(p.value.as_ref().unwrap().text, "•••");
+        assert!(b.value.is_none(), "placeholders are not values");
+        let lines: Vec<f32> = t
+            .value
+            .as_ref()
+            .unwrap()
+            .runs
+            .iter()
+            .map(|r| r.rect.y)
+            .collect();
+        assert!(lines.last() > lines.first(), "the textarea's value wraps");
+        assert!(c.value.is_none());
+        assert_eq!(c.text_rect, c.input_rect);
+        assert!(l.text.iter().all(|t| !t.text.contains("hello")));
     }
 
     #[test]
