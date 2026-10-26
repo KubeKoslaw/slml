@@ -61,6 +61,17 @@ doc(title: "Text") {
         text(bold: true) "Also blue, and bold"
       }
     }
+    demo(code: """
+        column(font: mono, gap: 8) {
+          text "This paragraph inherits the monospace font."
+          text(font: sans) "This paragraph switches back to sans."
+        }
+        """) {
+      column(font: mono, gap: 8) {
+        text "This paragraph inherits the monospace font."
+        text(font: sans) "This paragraph switches back to sans."
+      }
+    }
   }
 
   section(id: "align", title: "Alignment and line breaks") {

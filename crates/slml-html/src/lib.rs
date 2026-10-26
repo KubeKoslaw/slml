@@ -870,9 +870,14 @@ fn text_css(t: &TextStyle, style: &mut Vec<String>) {
             if u { "underline" } else { "none" }
         ));
     }
-    if t.mono == Some(false) {
+    if let Some(mono) = t.mono {
+        let (family, generic) = if mono {
+            ("SLML Mono", "monospace")
+        } else {
+            ("SLML Sans", "sans-serif")
+        };
         style.push(format!(
-            "font-family:\"SLML Sans\",{FALLBACK_FAMILIES},sans-serif"
+            "font-family:\"{family}\",{FALLBACK_FAMILIES},{generic}"
         ));
     }
 }
@@ -990,6 +995,28 @@ mod tests {
         let css = stylesheet(&[]);
         assert!(!css.contains("font-family:inherit"));
         assert!(!css.contains("code{font:inherit}"));
+    }
+
+    #[test]
+    fn font_choices_apply_to_containers_lists_and_fields() {
+        let out = html(
+            r#"slml 0.1 page(font: mono) {
+            column(font: mono) { text "Inherited mono" text(font: sans) "Sans override" }
+            list(font: mono) { item "Monospaced list" }
+            form(to: "https://example.com") {
+                input(name: "code", label: "Code", font: mono)
+                checkbox(name: "check", label: "Check", font: mono)
+            }
+        }"#,
+        );
+        let mono = "font-family:&quot;SLML Mono&quot;";
+        let sans = "font-family:&quot;SLML Sans&quot;";
+        assert_eq!(out.matches(mono).count(), 5, "{out}");
+        assert_eq!(out.matches(sans).count(), 1, "{out}");
+        assert!(
+            out.contains("<p class=\"s-text\">Inherited mono</p>"),
+            "inherit from column"
+        );
     }
 
     #[test]
