@@ -1,0 +1,77 @@
+slml 0.1
+
+meta(title: "SLML — a stricter web", lang: "en")
+
+// Reusable styles: named attribute sets, applied with `.name`.
+style card(fill: #ffffff, padding: 20, radius: 12, border: 1, border-color: #e4e4ea, gap: 8, width: fill)
+style muted(color: #5b5b66)
+style pill(fill: #eef2ff, color: #2944a8, padding-x: 10, padding-y: 4, radius: 99, size: 13)
+
+page(fill: #f6f6f9, padding: 0, gap: 0) {
+
+  // Top bar
+  row(fill: #ffffff, padding-x: 32, padding-y: 14, align: center, gap: 12, border: 1, border-color: #e4e4ea) {
+    image(src: "logo.png", alt: "SLML logo", width: 32, radius: 8)
+    text(bold: true, size: 18) "SLML"
+    spacer
+    text { link(to: "index.slml") "Home" }
+    text { link(to: "about.slml") "Why not HTML?" }
+  }
+
+  // Content, centered and limited in width
+  column(padding: 32, align: center) {
+    column(width: fill, max-width: 880, gap: 24) {
+
+      column(gap: 12, padding-y: 24) {
+        row { text.pill "version 0.1 — experimental" }
+        heading(size: 40) "Documents without the guesswork"
+        text.muted(size: 18) {
+          "SLML is a small, strict language for documents and interfaces, with its own "
+          "renderer written in Rust. One syntax for structure " italic "and" " style, "
+          "layout built in, and errors instead of silent guessing."
+        }
+        row(gap: 12, padding-y: 8) {
+          button(to: "about.slml") "Why not HTML?"
+          button(to: "index.slml", fill: #ffffff, color: #1b1b1f, border: 1, border-color: #d4d4d8) "Reload"
+        }
+      }
+
+      row(gap: 16) {
+        column.card {
+          heading(level: 3) "Strict"
+          text.muted "Unknown elements, misspelled attributes and missing alt texts are errors with line numbers — never silently ignored."
+        }
+        column.card {
+          heading(level: 3) "Layout first"
+          text.muted { code "row" ", " code "column" ", " code "fill" " and " code "gap" " are part of the language. No floats, no hacks." }
+        }
+        column.card {
+          heading(level: 3) "One syntax"
+          text.muted "Structure, style and reusable styles share one grammar. Nothing to switch between."
+        }
+      }
+
+      column.card(gap: 12) {
+        heading(level: 2) "What it looks like"
+        text(font: mono, size: 14, fill: #f6f6f9, padding: 16, radius: 8) {
+          "slml 0.1\n\n"
+          "style card(padding: 20, radius: 12, fill: #ffffff)\n\n"
+          "page {\n"
+          "  heading \"Hello\"\n"
+          "  row(gap: 16) {\n"
+          "    column.card { text \"Left\" }\n"
+          "    column.card(width: fill) { text \"Right\" }\n"
+          "  }\n"
+          "}"
+        }
+      }
+
+      divider
+      row(align: center) {
+        text.muted(size: 14) { "Made with " bold "SLML" " · MIT OR Apache-2.0" }
+        spacer
+        text(size: 14) { link(to: "about.slml") "Read the design notes" }
+      }
+    }
+  }
+}

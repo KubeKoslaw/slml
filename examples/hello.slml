@@ -1,0 +1,9 @@
+slml 0.1
+
+// The smallest useful SLML document.
+meta(title: "Hello")
+
+page {
+  heading "Hello, SLML!"
+  text "This page is written in SLML, not HTML."
+}

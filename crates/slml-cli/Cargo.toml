@@ -1,0 +1,16 @@
+[package]
+name = "slml-cli"
+description = "The `slml` command: check, render and view SLML documents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "slml"
+path = "src/main.rs"
+
+[dependencies]
+slml-syntax.workspace = true
+slml-render.workspace = true
+minifb = "0.29.0"

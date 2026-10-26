@@ -1,0 +1,9 @@
+[package]
+name = "slml-syntax"
+description = "Lexer, parser and validator for the SLML document language"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
