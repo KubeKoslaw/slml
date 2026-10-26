@@ -854,14 +854,15 @@ impl<'a> Analyzer<'a> {
                 self.errors.push(e);
             }
         }
-        if let Some(id) = &p.id {
-            if let Some(prev) = self.ids.insert(id.clone(), p.id_span) {
-                self.errors.push(
-                    Diagnostic::new(p.id_span, format!("id `{id}` is used twice")).with_hint(
-                        format!("ids must be unique; the first one is on line {}", prev.line),
-                    ),
-                );
-            }
+        if let Some(id) = &p.id
+            && let Some(prev) = self.ids.insert(id.clone(), p.id_span)
+        {
+            self.errors.push(
+                Diagnostic::new(p.id_span, format!("id `{id}` is used twice")).with_hint(format!(
+                    "ids must be unique; the first one is on line {}",
+                    prev.line
+                )),
+            );
         }
         if let Some(to) = &p.to
             && let Some(fragment) = to.strip_prefix('#')

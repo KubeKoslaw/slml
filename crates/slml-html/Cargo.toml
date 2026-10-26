@@ -1,0 +1,10 @@
+[package]
+name = "slml-html"
+description = "Compiles SLML documents to HTML and CSS"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+slml-syntax.workspace = true

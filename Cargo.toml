@@ -1,13 +1,14 @@
 [workspace]
 resolver = "3"
-members = ["crates/slml-syntax", "crates/slml-render", "crates/slml-cli"]
+members = ["crates/slml-syntax", "crates/slml-render", "crates/slml-html", "crates/slml-cli"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.88"
 
 [workspace.dependencies]
 slml-syntax = { path = "crates/slml-syntax" }
 slml-render = { path = "crates/slml-render" }
+slml-html = { path = "crates/slml-html" }

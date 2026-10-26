@@ -80,7 +80,7 @@ fn load_jpeg(data: &[u8]) -> Option<Pixmap> {
     let info = decoder.info()?;
     let (w, h) = (info.width as u32, info.height as u32);
     let mut pixmap = Pixmap::new(w, h)?;
-    for (dst, px) in pixmap.pixels_mut().iter_mut().zip(rgb.chunks_exact(3)) {
+    for (dst, px) in pixmap.pixels_mut().iter_mut().zip(rgb.as_chunks::<3>().0) {
         *dst = PremultipliedColorU8::from_rgba(px[0], px[1], px[2], 255)?;
     }
     Some(pixmap)

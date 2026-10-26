@@ -622,6 +622,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "slml-html"
+version = "0.1.0"
+dependencies = [
+ "slml-syntax",
+]
+
+[[package]]
 name = "slml-render"
 version = "0.1.0"
 dependencies = [
