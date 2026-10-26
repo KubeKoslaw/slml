@@ -14,8 +14,8 @@ use std::time::UNIX_EPOCH;
 
 use slml_render::fonts::FONT_FILES;
 
-use crate::build::{broken_links, page_html, site_files, stylesheet};
-use crate::project::compile_file;
+use crate::build::{broken_links, page_html, public_path, site_files, stylesheet};
+use crate::project::{compile_file, confined_path};
 
 const RELOAD_SCRIPT: &str = r#"<script>/* SLML preview: reload on change */(function(){var v=null;setInterval(function(){fetch("/_slml/version",{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){if(v!==null&&t!==v){location.reload()}v=t}).catch(function(){})},500)})();</script>
 "#;
@@ -142,7 +142,12 @@ fn respond(target: &str, root: &Path) -> Response {
     } else {
         rel.to_string()
     };
-    let file = root.join(&rel);
+    if !public_path(Path::new(&rel)) {
+        return not_found(&path);
+    }
+    let Ok(file) = confined_path(root, &root.join(&rel)) else {
+        return Response::html("403 Forbidden", "forbidden".into());
+    };
 
     // A page: `x.html` (or `x.slml`) is compiled from `x.slml`.
     let source = match file.extension().and_then(|e| e.to_str()) {
@@ -150,9 +155,14 @@ fn respond(target: &str, root: &Path) -> Response {
         None if file.with_extension("slml").is_file() => Some(file.with_extension("slml")),
         _ => None,
     };
-    if let Some(source) = source.filter(|s| s.is_file()) {
-        let depth = Path::new(&rel).components().count().saturating_sub(1);
-        return page(&source, root, &"../".repeat(depth));
+    if let Some(source) = source {
+        let Ok(source) = confined_path(root, &source) else {
+            return Response::html("403 Forbidden", "forbidden".into());
+        };
+        if source.is_file() {
+            let depth = Path::new(&rel).components().count().saturating_sub(1);
+            return page(&source, root, &"../".repeat(depth));
+        }
     }
     if file.is_dir() {
         return Response::redirect(format!("{path}/"));
@@ -277,6 +287,30 @@ fn content_type(path: &Path) -> &'static str {
 mod tests {
     use super::*;
 
+    struct Site(PathBuf);
+
+    impl Site {
+        fn new(name: &str) -> Self {
+            let dir =
+                std::env::temp_dir().join(format!("slml-preview-{name}-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).unwrap();
+            Self(dir)
+        }
+
+        fn write(&self, name: &str, body: &str) {
+            let file = self.0.join(name);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, body).unwrap();
+        }
+    }
+
+    impl Drop for Site {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
     #[test]
     fn decodes_urls() {
         assert_eq!(decode("/a%20b/%C5%BC.slml").as_deref(), Some("/a b/ż.slml"));
@@ -289,5 +323,72 @@ mod tests {
         assert_eq!(r.status, "403 Forbidden");
         let r = respond("/%2e%2e/etc/passwd", Path::new("."));
         assert_eq!(r.status, "403 Forbidden");
+    }
+
+    #[test]
+    fn private_files_are_neither_served_nor_discovered() {
+        let site = Site::new("private");
+        site.write("index.slml", "slml 0.1 page { text \"public\" }");
+        site.write("docs/readme.txt", "public asset");
+        for path in [
+            ".env",
+            ".git/config",
+            "_drafts/a.txt",
+            "target/a.txt",
+            "CLAUDE.md",
+            "notes/plan.md",
+        ] {
+            site.write(path, "private data");
+            let response = respond(&format!("/{path}"), &site.0);
+            assert_eq!(response.status, "404 Not Found", "{path}");
+            assert!(!String::from_utf8_lossy(&response.body).contains("private data"));
+        }
+        assert_eq!(respond("/%2egit/config", &site.0).status, "404 Not Found");
+        let discovered = site_files(&site.0, &site.0.join("_site"));
+        assert_eq!(
+            discovered,
+            vec![site.0.join("docs/readme.txt"), site.0.join("index.slml")]
+        );
+        assert_eq!(respond("/", &site.0).status, "200 OK");
+        assert_eq!(respond("/docs/readme.txt", &site.0).body, b"public asset");
+        assert_eq!(respond("/_slml/slml.css", &site.0).status, "200 OK");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinks_cannot_publish_or_import_files() {
+        use std::os::unix::fs::symlink;
+        let site = Site::new("symlinks");
+        let outside = Site::new("outside");
+        outside.write("secret.txt", "private data");
+        outside.write("page.slml", "slml 0.1 page { text \"private page\" }");
+        outside.write(
+            "parts.slml",
+            "slml 0.1 define secret { text \"private component\" }",
+        );
+        symlink(outside.0.join("secret.txt"), site.0.join("secret.txt")).unwrap();
+        symlink(outside.0.join("page.slml"), site.0.join("page.slml")).unwrap();
+        symlink(outside.0.join("parts.slml"), site.0.join("parts.slml")).unwrap();
+        symlink(&outside.0, site.0.join("outside")).unwrap();
+        symlink(&site.0, site.0.join("loop")).unwrap();
+        for path in [
+            "/secret.txt",
+            "/page.html",
+            "/page.slml",
+            "/outside/secret.txt",
+            "/loop/secret.txt",
+        ] {
+            assert_eq!(respond(path, &site.0).status, "403 Forbidden", "{path}");
+        }
+        assert!(site_files(&site.0, &site.0.join("_site")).is_empty());
+        site.write("index.slml", "slml 0.1 use \"parts.slml\" page { secret }");
+        let response = respond("/", &site.0);
+        assert_eq!(response.status, "500 Internal Server Error");
+        let error = String::from_utf8(response.body).unwrap();
+        assert!(
+            error.contains("symlinks inside the site are not supported"),
+            "{error}"
+        );
+        assert!(!error.contains("private component"));
     }
 }

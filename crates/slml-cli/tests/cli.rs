@@ -139,3 +139,19 @@ fn handbook_builds_without_errors() {
         "layout.slml is a library"
     );
 }
+
+#[test]
+fn links_cannot_target_private_site_files() {
+    let dir = temp_dir("private-links");
+    std::fs::create_dir_all(dir.join("_drafts")).unwrap();
+    std::fs::write(dir.join("_drafts/secret.txt"), "private").unwrap();
+    let page = dir.join("index.slml");
+    std::fs::write(
+        &page,
+        "slml 0.1 page { button(to: \"_drafts/secret.txt\") \"Draft\" }",
+    )
+    .unwrap();
+    let output = slml().arg("check").arg(&dir).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("broken link"));
+}

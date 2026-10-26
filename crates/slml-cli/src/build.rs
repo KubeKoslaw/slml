@@ -130,7 +130,11 @@ pub fn broken_links(doc: &Document, page: &Path, root: &Path) -> Vec<String> {
         .filter(|to| !is_external(to) && !to.starts_with('#'))
         .filter(|to| {
             let path = to.split('#').next().unwrap_or("");
-            !resolve(root, page, path).is_file()
+            let target = resolve(root, page, path);
+            let public = normalize(&target)
+                .strip_prefix(normalize(root))
+                .is_ok_and(public_path);
+            !public || crate::project::confined_path(root, &target).is_err() || !target.is_file()
         })
         .map(|to| {
             format!(
@@ -194,6 +198,26 @@ fn skipped(name: &str) -> bool {
     name.starts_with('.') || name.starts_with('_') || name == "target" || name == "node_modules"
 }
 
+/// Only public site files are built or served. Working notes are private.
+pub fn public_path(path: &Path) -> bool {
+    let parts: Vec<_> = path.components().collect();
+    parts.iter().enumerate().all(|(i, part)| {
+        let Component::Normal(name) = part else {
+            return false;
+        };
+        let name = name.to_string_lossy();
+        if i + 1 < parts.len() {
+            !skipped(&name)
+        } else {
+            !name.starts_with('.')
+                && !matches!(
+                    name.to_ascii_lowercase().as_str(),
+                    "claude.md" | "plan.md" | "progress.md"
+                )
+        }
+    })
+}
+
 /// All files in a site, in a stable order.
 pub fn site_files(dir: &Path, exclude: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -206,11 +230,14 @@ pub fn site_files(dir: &Path, exclude: &Path) -> Vec<PathBuf> {
         for entry in entries.flatten() {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().into_owned();
-            if path.is_dir() {
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            if kind.is_dir() {
                 if !skipped(&name) && normalize(&path) != exclude {
                     stack.push(path);
                 }
-            } else if !name.starts_with('.') {
+            } else if kind.is_file() && public_path(path.strip_prefix(dir).unwrap_or(&path)) {
                 out.push(path);
             }
         }
@@ -289,6 +316,26 @@ mod tests {
             Some("../../".into())
         );
         assert_eq!(prefix_to(Path::new("/a"), Path::new("/x")), None);
+    }
+
+    #[test]
+    fn working_files_are_not_public() {
+        for path in [
+            ".env",
+            "a/.git/config",
+            "_drafts/a.slml",
+            "target/a.txt",
+            "node_modules/pkg/a.js",
+            "CLAUDE.md",
+            "notes/Plan.md",
+            "progress.md",
+            "../outside.txt",
+        ] {
+            assert!(!public_path(Path::new(path)), "{path}");
+        }
+        for path in ["index.slml", "docs/guide.md", "img/logo.png", "_redirects"] {
+            assert!(public_path(Path::new(path)), "{path}");
+        }
     }
 
     #[test]

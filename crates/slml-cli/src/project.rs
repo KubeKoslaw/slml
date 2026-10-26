@@ -35,13 +35,36 @@ pub fn resolve(root: &Path, from_file: &Path, path: &str) -> PathBuf {
     }
 }
 
+/// Checks an on-disk path without following symlinks inside the site.
+/// The chosen root itself may be a symlink; its contents form the boundary.
+pub fn confined_path(root: &Path, path: &Path) -> Result<PathBuf, String> {
+    let root_abs = crate::build::normalize(root);
+    let path_abs = crate::build::normalize(path);
+    let rel = path_abs
+        .strip_prefix(&root_abs)
+        .map_err(|_| "path is outside the site root".to_string())?;
+    let mut checked = std::fs::canonicalize(root).map_err(|e| e.to_string())?;
+    for part in rel.components() {
+        checked.push(part);
+        match std::fs::symlink_metadata(&checked) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                return Err("symlinks inside the site are not supported".into());
+            }
+            Ok(_) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.to_string()),
+        }
+    }
+    Ok(path_abs)
+}
+
 struct FsLoader<'a> {
     root: &'a Path,
 }
 
 impl Loader for FsLoader<'_> {
     fn load(&mut self, from: &str, path: &str) -> Result<(String, String), String> {
-        let full = resolve(self.root, Path::new(from), path);
+        let full = confined_path(self.root, &resolve(self.root, Path::new(from), path))?;
         let src = std::fs::read_to_string(&full).map_err(|e| e.to_string())?;
         Ok((full.display().to_string(), src))
     }
