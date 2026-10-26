@@ -21,7 +21,7 @@ doc(title: "Building a website") {
       item { "Files with a " code "page" " become HTML pages. Files with only " code "style" " and " code "define" " are libraries for " code "use" "." }
       item { "Every other file (images, PDFs, downloads) is copied unchanged." }
       item { "Folders whose name starts with " code "_" " or " code "." " are skipped, so you can keep drafts in " code "_drafts/" "." }
-      item { "Hidden files, " code "target/" ", " code "node_modules/" " and working notes named " code "plan.md" ", " code "progress.md" " or " code "CLAUDE.md" " are excluded from builds and direct preview requests. Symbolic links inside the site are skipped during builds and rejected by the preview server and imports; keep shared components inside the site root." }
+      item { "Hidden files, " code "target/" ", " code "node_modules/" " and common working notes are excluded from builds and direct preview requests. Symbolic links inside the site are skipped during builds and rejected by the preview server and imports; keep shared components inside the site root." }
       item { "Paths starting with " code "/" " mean the folder you build: " code "/img/logo.png" " works from every page." }
     }
   }

@@ -34,7 +34,7 @@ documents mean must:
 ## Using AI agents
 
 You are welcome to use AI agents. The agent instructions live in
-[AGENTS.md](AGENTS.md); `CLAUDE.md` points to the same file. You are
+[AGENTS.md](AGENTS.md). You are
 responsible for what you submit: read the diff before opening a pull
 request.
 

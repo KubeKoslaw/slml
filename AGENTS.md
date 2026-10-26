@@ -1,7 +1,7 @@
 # Instructions for AI coding agents
 
-This file is for AI agents (Claude, Codex, Copilot, Gemini, Cursor, …)
-working on this repository. Human contributors may find it useful too.
+This file contains instructions for automated coding tools working on this
+repository. Human contributors may find it useful too.
 
 ## What this project is
 

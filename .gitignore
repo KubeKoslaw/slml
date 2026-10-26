@@ -2,4 +2,3 @@
 *.png
 !examples/**/*.png
 !docs/**/*.png
-/.claude/launch.json
