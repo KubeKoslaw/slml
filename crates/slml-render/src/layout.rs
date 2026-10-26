@@ -10,6 +10,8 @@
 //! Each function returns a [`Fragment`] positioned at (0, 0); parents move
 //! fragments into place. There are no global passes and no floats.
 
+use std::ops::Range;
+
 use slml_syntax::model::*;
 
 use crate::fonts::{Face, Fonts, Glyph, LINE_HEIGHT};
@@ -126,6 +128,28 @@ pub struct ControlArea {
     pub mono: bool,
 }
 
+/// Original paragraph text and its visible runs, in document reading order.
+/// Soft wrapping never changes `text`. Hosts can use this metadata for selection
+/// without reconstructing source characters from font glyph ids.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextArea {
+    pub text: String,
+    pub runs: Vec<TextRun>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextRun {
+    pub rect: Rect,
+    /// Offsets into `TextArea::text`, measured in UTF-16 code units for browser
+    /// Range interoperability. Rust strings themselves remain UTF-8.
+    pub range: Range<usize>,
+    pub size: f32,
+    pub bold: bool,
+    pub italic: bool,
+    pub mono: bool,
+    pub link: Option<String>,
+}
+
 /// A laid-out page, ready to paint.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Layout {
@@ -137,6 +161,7 @@ pub struct Layout {
     /// Element ids and the y position of their top edge.
     pub anchors: Vec<(String, f32)>,
     pub controls: Vec<ControlArea>,
+    pub text: Vec<TextArea>,
 }
 
 impl Layout {
@@ -161,6 +186,7 @@ struct Fragment {
     links: Vec<LinkArea>,
     anchors: Vec<(String, f32)>,
     controls: Vec<ControlArea>,
+    text: Vec<TextArea>,
 }
 
 impl Fragment {
@@ -184,6 +210,13 @@ impl Fragment {
         }
         for (id, y) in child.anchors {
             self.anchors.push((id, y + dy));
+        }
+        for mut area in child.text {
+            for run in &mut area.runs {
+                run.rect.x += dx;
+                run.rect.y += dy;
+            }
+            self.text.push(area);
         }
         for mut control in child.controls {
             control.rect.x += dx;
@@ -303,6 +336,7 @@ pub fn layout(
         links: frag.links,
         anchors: frag.anchors,
         controls: frag.controls,
+        text: frag.text,
     }
 }
 
@@ -422,6 +456,11 @@ impl Engine<'_> {
             });
         }
         if let Some(to) = &f.link {
+            for area in &mut out.text {
+                for run in &mut area.runs {
+                    run.link = Some(to.clone());
+                }
+            }
             out.links.push(LinkArea {
                 rect,
                 target: to.clone(),
@@ -847,6 +886,7 @@ impl Engine<'_> {
         }
         let mut out = Self::framed(f, w, h, content);
         if t.kind == TextKind::Submit {
+            out.text.clear();
             let rect = Rect::new(0.0, 0.0, w, h);
             out.controls.push(control_area(rect, rect, style));
         }
@@ -854,7 +894,7 @@ impl Engine<'_> {
     }
 
     fn text_max_content(&mut self, content: &[Inline], style: Computed) -> f32 {
-        let atoms = self.atoms(content, style);
+        let (_, atoms) = self.atoms(content, style);
         let mut best: f32 = 0.0;
         let mut line = 0.0;
         for atom in &atoms {
@@ -871,12 +911,17 @@ impl Engine<'_> {
 
     /// Splits inline content into words, spaces and line breaks. A word may
     /// consist of several differently styled parts (`"Hel" bold "lo"`).
-    fn atoms(&mut self, content: &[Inline], style: Computed) -> Vec<Atom> {
+    fn atoms(&mut self, content: &[Inline], style: Computed) -> (String, Vec<Atom>) {
         let mut pieces = Vec::new();
         flatten(content, style, None, &mut pieces);
         let mut atoms: Vec<Atom> = Vec::new();
+        let mut source = String::new();
+        let mut offset = 0;
         for piece in pieces {
+            source.push_str(&piece.text);
             for (kind, text) in segments(&piece.text) {
+                let start = offset;
+                offset += text.encode_utf16().count();
                 if kind == AtomKind::Break {
                     atoms.push(Atom {
                         kind,
@@ -887,6 +932,7 @@ impl Engine<'_> {
                 let face = piece.style.face();
                 let (glyphs, width) = self.fonts.shape(face, piece.style.size, text);
                 let part = Part {
+                    range: start..offset,
                     face,
                     style: piece.style,
                     link: piece.link.clone(),
@@ -905,7 +951,7 @@ impl Engine<'_> {
                 }
             }
         }
-        atoms
+        (source, atoms)
     }
 
     fn paragraph(
@@ -915,7 +961,7 @@ impl Engine<'_> {
         max_w: f32,
         align: TextAlign,
     ) -> Fragment {
-        let atoms = self.atoms(content, style);
+        let (text, atoms) = self.atoms(content, style);
 
         // Greedy line breaking.
         let mut lines: Vec<Vec<&Atom>> = vec![Vec::new()];
@@ -950,6 +996,10 @@ impl Engine<'_> {
         }
 
         let mut out = Fragment::new(max_w, 0.0);
+        let mut area = TextArea {
+            text,
+            runs: Vec::new(),
+        };
         let mut y = 0.0;
         for mut line in lines {
             while line.last().is_some_and(|a| a.kind == AtomKind::Space) {
@@ -970,6 +1020,20 @@ impl Engine<'_> {
             };
             for part in parts() {
                 let s = part.style;
+                area.runs.push(TextRun {
+                    rect: Rect::new(
+                        x,
+                        y + baseline - self.fonts.baseline(part.face, s.size),
+                        part.width,
+                        s.size * LINE_HEIGHT,
+                    ),
+                    range: part.range.clone(),
+                    size: s.size,
+                    bold: s.bold,
+                    italic: s.italic,
+                    mono: s.mono,
+                    link: part.link.clone(),
+                });
                 if part.visible {
                     out.items.push(Item::Glyphs {
                         face: part.face,
@@ -1003,6 +1067,7 @@ impl Engine<'_> {
             y += line_h;
         }
         out.h = y;
+        out.text.push(area);
         out
     }
 
@@ -1084,7 +1149,7 @@ impl Engine<'_> {
                 y += l.gap;
             }
             let body_w = (inner_w - indent).max(0.0);
-            let frag = match entry {
+            let mut frag = match entry {
                 ListEntry::Item(t) => {
                     let s = style.with(&t.text);
                     let marker = &markers[k];
@@ -1103,6 +1168,31 @@ impl Engine<'_> {
                 }
                 ListEntry::List(sub) => self.list(sub, style, WidthMode::Exact(body_w), None),
             };
+            if let (ListEntry::Item(t), Some(area)) = (entry, frag.text.first_mut()) {
+                let marker = &markers[k];
+                if !marker.is_empty() {
+                    let s = style.with(&t.text);
+                    let prefix = format!("{marker} ");
+                    let count = prefix.encode_utf16().count();
+                    for run in &mut area.runs {
+                        run.range = (run.range.start + count)..(run.range.end + count);
+                    }
+                    area.text.insert_str(0, &prefix);
+                    let mw = self.fonts.width(s.face(), s.size, marker);
+                    area.runs.insert(
+                        0,
+                        TextRun {
+                            rect: Rect::new(marker_w - mw - indent, 0.0, mw, s.size * LINE_HEIGHT),
+                            range: 0..marker.encode_utf16().count(),
+                            size: s.size,
+                            bold: s.bold,
+                            italic: s.italic,
+                            mono: s.mono,
+                            link: None,
+                        },
+                    );
+                }
+            }
             let h = frag.h;
             content.place(frag, indent, y);
             y += h;
@@ -1166,6 +1256,7 @@ impl Engine<'_> {
             }
             out.controls
                 .push(control_area(Rect::new(0.0, 0.0, w, h), rect, style));
+            out.text.clear();
             return out;
         }
 
@@ -1259,6 +1350,9 @@ impl Engine<'_> {
         if let Some(id) = &f.id {
             out.anchors.push((id.clone(), 0.0));
         }
+        // Hosts own editable controls. Never duplicate their values or
+        // placeholders in the selectable document text.
+        out.text.clear();
         out
     }
 
@@ -1417,6 +1511,7 @@ enum AtomKind {
 }
 
 struct Part {
+    range: Range<usize>,
     face: Face,
     style: Computed,
     link: Option<String>,
@@ -1484,6 +1579,102 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    #[test]
+    fn selectable_text_keeps_original_characters_and_final_geometry() {
+        let l = lay(
+            r#"slml 0.1 page(padding: 10) {
+            column(padding: 5) {
+                text(width: 70, size: 16) { "Hel" bold "lo" "  ż😀\nnext words wrap here" }
+            }
+        }"#,
+            200.0,
+        );
+        assert_eq!(l.text.len(), 1);
+        let area = &l.text[0];
+        assert_eq!(area.text, "Hello  ż😀\nnext words wrap here");
+        let utf16: Vec<u16> = area.text.encode_utf16().collect();
+        let parts: Vec<_> = area
+            .runs
+            .iter()
+            .map(|r| String::from_utf16(&utf16[r.range.clone()]).unwrap())
+            .collect();
+        assert_eq!(&parts[..2], &["Hel", "lo"]);
+        assert_eq!(area.runs[0].rect.x, 15.0);
+        assert_eq!(area.runs[0].rect.y, 15.0);
+        assert!((area.runs[1].rect.x - area.runs[0].rect.x - area.runs[0].rect.w).abs() < 0.001);
+        assert!(area.runs[1].bold);
+        assert!(parts.contains(&"ż😀".to_string()));
+        assert!(area.runs.last().unwrap().rect.y > area.runs[0].rect.y + 16.0 * LINE_HEIGHT);
+        for pair in area.runs.windows(2) {
+            assert!(pair[0].range.end <= pair[1].range.start);
+        }
+        assert!(area.runs.iter().all(|r| r.rect.w >= 0.0 && r.rect.h > 0.0));
+        // Reflow changes rectangles, never the text to put on the clipboard.
+        let wide = lay(
+            r#"slml 0.1 page(padding: 0) { text "one  two three" }"#,
+            500.0,
+        );
+        let narrow = lay(
+            r#"slml 0.1 page(padding: 0) { text "one  two three" }"#,
+            40.0,
+        );
+        assert_eq!(wide.text[0].text, narrow.text[0].text);
+        assert!(narrow.text[0].runs.last().unwrap().rect.y > 0.0);
+    }
+
+    #[test]
+    fn selectable_text_has_markers_links_and_no_control_values() {
+        let l = lay(
+            r#"slml 0.1 page(padding: 10) {
+            list(marker: number) { item "First" list { item "Nested" } item "Second" }
+            column(to: "next.slml", padding: 4) { text "Linked card" }
+            text { link(to: "next.slml") "Inline" }
+            form(to: "send.slml") {
+                input(name: "secret", label: "Password", kind: password, value: "secret")
+                input(name: "email", label: "Email", placeholder: "private placeholder")
+                textarea(name: "message", label: "Message", value: "private value")
+                checkbox(name: "yes", label: "Consent")
+                select(name: "topic", label: "Topic") { option(value: "a") "Private option" }
+                submit "Send"
+            }
+        }"#,
+            300.0,
+        );
+        let texts: Vec<_> = l.text.iter().map(|a| a.text.as_str()).collect();
+        assert_eq!(
+            texts,
+            ["1. First", "• Nested", "2. Second", "Linked card", "Inline"]
+        );
+        let first = &l.text[0].runs;
+        assert_eq!(first[0].rect.x, 10.0);
+        assert!(first[1].rect.x > first[0].rect.x + first[0].rect.w);
+        assert_eq!(first[0].rect.y, first[1].rect.y);
+        assert!(
+            l.text[3]
+                .runs
+                .iter()
+                .all(|r| r.link.as_deref() == Some("next.slml"))
+        );
+        assert_eq!(l.text[4].runs[0].link.as_deref(), Some("next.slml"));
+    }
+
+    #[test]
+    fn selectable_text_survives_grid_measurement_without_duplicates() {
+        let l = lay(
+            r#"slml 0.1 page(padding: 10) {
+            grid(columns: 2, gap: 8) { text "A" text "B" text "C" }
+        }"#,
+            200.0,
+        );
+        assert_eq!(
+            l.text.iter().map(|a| a.text.as_str()).collect::<Vec<_>>(),
+            ["A", "B", "C"]
+        );
+        assert_eq!(l.text[0].runs[0].rect.x, 10.0);
+        assert_eq!(l.text[1].runs[0].rect.x, 104.0);
+        assert!(l.text[2].runs[0].rect.y > l.text[0].runs[0].rect.y);
     }
 
     #[test]

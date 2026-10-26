@@ -150,6 +150,42 @@ impl Engine {
                 let _ = write!(self.info, "{}:{y}", json_string(id));
             }
             self.info.push('}');
+            self.info.push_str(",\"text\":[");
+            for (i, area) in layout.text.iter().enumerate() {
+                if i > 0 {
+                    self.info.push(',');
+                }
+                let _ = write!(
+                    self.info,
+                    "{{\"text\":{},\"runs\":[",
+                    json_string(&area.text)
+                );
+                for (j, run) in area.runs.iter().enumerate() {
+                    if j > 0 {
+                        self.info.push(',');
+                    }
+                    let r = run.rect;
+                    let _ = write!(
+                        self.info,
+                        "{{\"x\":{},\"y\":{},\"w\":{},\"h\":{},\"start\":{},\"end\":{},\"size\":{},\"bold\":{},\"italic\":{},\"mono\":{},\"to\":{}}}",
+                        r.x,
+                        r.y,
+                        r.w,
+                        r.h,
+                        run.range.start,
+                        run.range.end,
+                        run.size,
+                        run.bold,
+                        run.italic,
+                        run.mono,
+                        run.link
+                            .as_deref()
+                            .map_or_else(|| "null".into(), json_string)
+                    );
+                }
+                self.info.push_str("]}");
+            }
+            self.info.push(']');
             self.info.push_str(",\"controls\":[");
             for (i, area) in layout.controls.iter().enumerate() {
                 if i > 0 {

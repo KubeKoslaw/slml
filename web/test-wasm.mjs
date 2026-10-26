@@ -61,6 +61,27 @@ assert.equal(controls[1].options[1].selected, true);
 assert.equal(controls[3].value, "żółć");
 assert.equal(controls[4].label, "Send");
 assert.ok(engine.wasm.slml_font_len(0) > 1000);
+assert.deepEqual(engine.info().text, [], "editable values and placeholders stay out of the document text layer");
+
+await loadDocument(engine, page.url.href, fetcher, `slml 0.1 page(padding: 10) {
+  text(width: 100) { "Hel" bold "lo" "  ż😀\\nnext line wraps across the viewport" }
+  codeblock "a  b\\n  c\\n"
+  list(marker: number) { item "One" item "Two" }
+  column(to: "next.slml") { text "Linked card" }
+}`);
+engine.render(320, 240, 1, 0);
+const text = engine.info().text;
+assert.equal(text[0].text, "Hello  ż😀\nnext line wraps across the viewport");
+assert.equal(text[1].text, "a  b\n  c\n");
+assert.deepEqual(text.slice(2,4).map(a=>a.text), ["1. One", "2. Two"]);
+assert.equal(text[0].runs[0].x, 10);
+assert.equal(text[0].runs[0].y, 10);
+assert.equal(text[0].runs[1].bold, true);
+assert.ok(text[0].runs.some(run => text[0].text.slice(run.start, run.end) === "ż😀"));
+assert.ok(text[0].runs.at(-1).y > text[0].runs[0].y);
+assert.ok(text[4].runs.every(run => run.to === "next.slml"));
+assert.ok(text.every(area => area.runs.every(run => run.start < run.end && run.end <= area.text.length)));
+
 
 assert.equal(targetURL("żółć 100%.slml#end", page.url).href, "https://site.test/site/%C5%BC%C3%B3%C5%82%C4%87%20100%25.slml#end");
 assert.equal(targetURL("/index.slml", page.url).href, "https://site.test/index.slml");
