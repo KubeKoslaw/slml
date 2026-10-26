@@ -16,7 +16,15 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build browser runtime and Firefox package
+        run: sh scripts/build-web.sh
+      - name: Test actual WebAssembly renderer
+        run: node web/test-wasm.mjs
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
@@ -27,3 +35,5 @@ jobs:
         run: cargo build -p slml-cli --no-default-features
       - name: Check examples and handbook
         run: cargo run --quiet -- check examples handbook
+      - name: Check Markdown handbook stays in sync
+        run: python3 scripts/sync-handbook-markdown.py --check
