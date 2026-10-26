@@ -1,6 +1,8 @@
 //! A minimal browser window for SLML documents: scrolling, links, history
 //! and live reload on save.
 
+mod cursor;
+
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -108,6 +110,7 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
     let mut pending_anchor: Option<String> = None;
     let mut history: Vec<PathBuf> = Vec::new();
 
+    let hotspots = cursor::prepare();
     let mut window = Window::new(
         &title_of(&page),
         1000,
@@ -128,7 +131,7 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
     let mut dirty = true;
     let mut last_poll = Instant::now();
     let mut mouse_was_down = false;
-    let mut over_link = false;
+    let mut cursor_style = CursorStyle::Arrow;
 
     while window.is_open() {
         let (w, h) = window.get_size();
@@ -189,20 +192,24 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
         scroll = scroll.clamp(0.0, max_scroll);
         dirty |= scroll != before;
 
-        // Links.
-        let mouse = window.get_mouse_pos(MouseMode::Discard);
-        let target = mouse.and_then(|(mx, my)| {
-            lay.link_at(mx / scale, my / scale + scroll)
-                .map(str::to_string)
-        });
-        if target.is_some() != over_link {
-            over_link = target.is_some();
-            window.set_cursor_style(if over_link {
-                CursorStyle::ClosedHand
-            } else {
-                CursorStyle::Arrow
-            });
+        // Links. The pointer is where the user sees the cursor's hot point.
+        let raw = window.get_mouse_pos(MouseMode::Discard);
+        let at = |style: CursorStyle| {
+            let (hx, hy) = hotspots.offset(style);
+            raw.map(|(mx, my)| ((mx + hx) / scale, (my + hy) / scale + scroll))
+        };
+        let style_at = |p: Option<(f32, f32)>| match p {
+            Some((x, y)) if lay.link_at(x, y).is_some() => CursorStyle::ClosedHand,
+            _ => CursorStyle::Arrow,
+        };
+        // Switch only when the new cursor's own hot point agrees, so the
+        // cursor never flickers between two shapes at an edge.
+        let wanted = style_at(at(cursor_style));
+        if wanted != cursor_style && style_at(at(wanted)) == wanted {
+            cursor_style = wanted;
+            window.set_cursor_style(cursor_style);
         }
+        let target = at(cursor_style).and_then(|(x, y)| lay.link_at(x, y).map(str::to_string));
         let down = window.get_mouse_down(MouseButton::Left);
         let clicked = down && !mouse_was_down;
         mouse_was_down = down;
