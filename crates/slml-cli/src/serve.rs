@@ -1,0 +1,293 @@
+//! `slml serve`: a local web server for previewing a site in any browser.
+//!
+//! Pages are compiled on every request, so the browser always shows the
+//! current files. A tiny script (added only by this preview server, never
+//! to built sites) polls `/_slml/version` and reloads the page when any file
+//! changes. Errors are shown in the browser with the same messages as the
+//! command line. The server only listens on 127.0.0.1.
+
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::io::{BufRead, BufReader, Write};
+use std::net::{TcpListener, TcpStream};
+use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
+
+use slml_render::fonts::FONT_FILES;
+
+use crate::build::{broken_links, page_html, site_files, stylesheet};
+use crate::project::compile_file;
+
+const RELOAD_SCRIPT: &str = r#"<script>/* SLML preview: reload on change */(function(){var v=null;setInterval(function(){fetch("/_slml/version",{cache:"no-store"}).then(function(r){return r.text()}).then(function(t){if(v!==null&&t!==v){location.reload()}v=t}).catch(function(){})},500)})();</script>
+"#;
+
+pub fn run(root: PathBuf, port: u16, open: bool) -> Result<(), String> {
+    if !root.is_dir() {
+        return Err(format!("error: {} is not a folder", root.display()));
+    }
+    let (listener, port) = (port..port.saturating_add(20))
+        .find_map(|p| TcpListener::bind(("127.0.0.1", p)).ok().map(|l| (l, p)))
+        .ok_or_else(|| format!("error: no free port from {port}"))?;
+    let url = format!("http://127.0.0.1:{port}/");
+    println!("SLML preview of {} at {url}", root.display());
+    println!("Pages reload automatically when you save. Press Ctrl+C to stop.");
+    if open {
+        crate::viewer::open_external(&url);
+    }
+    for stream in listener.incoming().flatten() {
+        let root = root.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = handle(stream, &root) {
+                eprintln!("slml serve: {e}");
+            }
+        });
+    }
+    Ok(())
+}
+
+struct Response {
+    status: &'static str,
+    content_type: &'static str,
+    body: Vec<u8>,
+    location: Option<String>,
+}
+
+impl Response {
+    fn ok(content_type: &'static str, body: Vec<u8>) -> Self {
+        Self {
+            status: "200 OK",
+            content_type,
+            body,
+            location: None,
+        }
+    }
+
+    fn html(status: &'static str, body: String) -> Self {
+        Self {
+            status,
+            content_type: "text/html; charset=utf-8",
+            body: body.into_bytes(),
+            location: None,
+        }
+    }
+
+    fn redirect(to: String) -> Self {
+        Self {
+            location: Some(to),
+            ..Self::html("301 Moved Permanently", String::new())
+        }
+    }
+}
+
+fn handle(stream: TcpStream, root: &Path) -> std::io::Result<()> {
+    let mut reader = BufReader::new(&stream);
+    let mut request_line = String::new();
+    reader.read_line(&mut request_line)?;
+    // Drain the headers; the server needs nothing from them.
+    let mut line = String::new();
+    while reader.read_line(&mut line)? > 2 {
+        line.clear();
+    }
+    let mut parts = request_line.split_whitespace();
+    let method = parts.next().unwrap_or("");
+    let target = parts.next().unwrap_or("/");
+    let response = if method == "GET" || method == "HEAD" {
+        respond(target, root)
+    } else {
+        Response::html("405 Method Not Allowed", "only GET is supported".into())
+    };
+    let mut out = &stream;
+    let location = response
+        .location
+        .map(|l| format!("Location: {l}\r\n"))
+        .unwrap_or_default();
+    write!(
+        out,
+        "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\n{location}Cache-Control: no-store\r\nConnection: close\r\n\r\n",
+        response.status,
+        response.content_type,
+        response.body.len()
+    )?;
+    if method != "HEAD" {
+        out.write_all(&response.body)?;
+    }
+    out.flush()
+}
+
+fn respond(target: &str, root: &Path) -> Response {
+    let path = target.split(['?', '#']).next().unwrap_or("/");
+    let Some(path) = decode(path) else {
+        return not_found(target);
+    };
+    if path.split('/').any(|c| c == "..") || path.contains('\\') {
+        return Response::html("403 Forbidden", "forbidden".into());
+    }
+
+    match path.as_str() {
+        "/_slml/version" => return Response::ok("text/plain", version(root).into_bytes()),
+        "/_slml/slml.css" => {
+            return Response::ok("text/css; charset=utf-8", stylesheet().into_bytes());
+        }
+        _ => {}
+    }
+    if let Some(font) = path.strip_prefix("/_slml/fonts/") {
+        return match FONT_FILES.iter().find(|f| f.0 == font) {
+            Some(f) => Response::ok("font/ttf", f.4.to_vec()),
+            None => not_found(&path),
+        };
+    }
+
+    let rel = path.trim_start_matches('/');
+    let rel = if rel.is_empty() || rel.ends_with('/') {
+        format!("{rel}index.html")
+    } else {
+        rel.to_string()
+    };
+    let file = root.join(&rel);
+
+    // A page: `x.html` (or `x.slml`) is compiled from `x.slml`.
+    let source = match file.extension().and_then(|e| e.to_str()) {
+        Some("html") | Some("slml") => Some(file.with_extension("slml")),
+        None if file.with_extension("slml").is_file() => Some(file.with_extension("slml")),
+        _ => None,
+    };
+    if let Some(source) = source.filter(|s| s.is_file()) {
+        let depth = Path::new(&rel).components().count().saturating_sub(1);
+        return page(&source, root, &"../".repeat(depth));
+    }
+    if file.is_dir() {
+        return Response::redirect(format!("{path}/"));
+    }
+    match std::fs::read(&file) {
+        Ok(body) => Response::ok(content_type(&file), body),
+        Err(_) => not_found(&path),
+    }
+}
+
+fn page(source: &Path, root: &Path, prefix: &str) -> Response {
+    if !source.is_file() {
+        return not_found(&source.display().to_string());
+    }
+    let result = compile_file(source, root).and_then(|doc| {
+        let broken = broken_links(&doc, source, root);
+        if broken.is_empty() {
+            Ok(doc)
+        } else {
+            Err(broken.join("\n"))
+        }
+    });
+    match result {
+        Ok(doc) => Response::html("200 OK", page_html(&doc, prefix, RELOAD_SCRIPT)),
+        Err(errors) => {
+            eprintln!("{errors}\n");
+            Response::html("500 Internal Server Error", error_page(source, &errors))
+        }
+    }
+}
+
+fn error_page(source: &Path, errors: &str) -> String {
+    format!(
+        r#"<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Error — SLML</title><link rel="stylesheet" href="/_slml/slml.css"></head>
+<body style="background:#fff8f7"><main class="s-page s-col s-v" style="padding:32px;gap:14px">
+<h2 class="s-text" style="color:#b42318;font-size:24px;font-weight:700">This page has errors</h2>
+<p class="s-text" style="color:#55555f">{}</p>
+<pre class="s-text s-mono" style="font-size:13px;background:#fff;padding:16px;border-radius:8px;border:1px solid #f1c4c0;overflow:auto">{}</pre>
+<p class="s-text" style="color:#55555f">Fix the file and save it; this page reloads automatically.</p>
+</main>{RELOAD_SCRIPT}</body></html>"#,
+        slml_html::escape(&source.display().to_string()),
+        slml_html::escape(errors)
+    )
+}
+
+fn not_found(path: &str) -> Response {
+    Response::html(
+        "404 Not Found",
+        format!(
+            "<!doctype html><meta charset=\"utf-8\"><title>Not found</title><p style=\"font-family:sans-serif;padding:32px\">Not found: <code>{}</code></p>{RELOAD_SCRIPT}",
+            slml_html::escape(path)
+        ),
+    )
+}
+
+/// Changes whenever any file in the site changes.
+fn version(root: &Path) -> String {
+    let mut h = DefaultHasher::new();
+    for file in site_files(root, &root.join("_site")) {
+        file.hash(&mut h);
+        if let Ok(meta) = std::fs::metadata(&file) {
+            meta.len().hash(&mut h);
+            if let Ok(modified) = meta.modified() {
+                modified
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_nanos())
+                    .unwrap_or(0)
+                    .hash(&mut h);
+            }
+        }
+    }
+    format!("{:x}", h.finish())
+}
+
+/// Percent-decoding of a URL path.
+fn decode(path: &str) -> Option<String> {
+    let bytes = path.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let hex = std::str::from_utf8(bytes.get(i + 1..i + 3)?).ok()?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+fn content_type(path: &Path) -> &'static str {
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("html") => "text/html; charset=utf-8",
+        Some("css") => "text/css; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("json") => "application/json",
+        Some("png") => "image/png",
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("gif") => "image/gif",
+        Some("svg") => "image/svg+xml",
+        Some("webp") => "image/webp",
+        Some("ico") => "image/x-icon",
+        Some("ttf") => "font/ttf",
+        Some("woff") => "font/woff",
+        Some("woff2") => "font/woff2",
+        Some("pdf") => "application/pdf",
+        Some("txt" | "slml" | "md") => "text/plain; charset=utf-8",
+        _ => "application/octet-stream",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decodes_urls() {
+        assert_eq!(decode("/a%20b/%C5%BC.slml").as_deref(), Some("/a b/ż.slml"));
+        assert_eq!(decode("/bad%2"), None);
+    }
+
+    #[test]
+    fn refuses_to_leave_the_root() {
+        let r = respond("/../etc/passwd", Path::new("."));
+        assert_eq!(r.status, "403 Forbidden");
+        let r = respond("/%2e%2e/etc/passwd", Path::new("."));
+        assert_eq!(r.status, "403 Forbidden");
+    }
+}

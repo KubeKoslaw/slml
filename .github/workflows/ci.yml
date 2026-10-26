@@ -24,4 +24,4 @@ jobs:
       - name: Test
         run: cargo test --all
       - name: Check examples
-        run: cargo run --quiet -- check $(find examples -name '*.slml')
+        run: cargo run --quiet -- check examples

@@ -617,6 +617,7 @@ name = "slml-cli"
 version = "0.1.0"
 dependencies = [
  "minifb",
+ "slml-html",
  "slml-render",
  "slml-syntax",
 ]

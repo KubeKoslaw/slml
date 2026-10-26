@@ -60,8 +60,7 @@ body{font-family:"SLML Sans","SLML Symbols 2","SLML Symbols","SLML Math","SLML E
 .s-v>*{flex-shrink:0}
 .s-text{margin:0;white-space:pre-wrap;line-height:1.45;font-size:inherit;font-weight:inherit}
 .s-mono{font-family:"SLML Mono","SLML Symbols 2","SLML Symbols","SLML Math","SLML Emoji",monospace}
-pre.s-text{font-family:inherit}
-.s-text strong{font-weight:700}.s-text em{font-style:italic}.s-text code{font:inherit}
+.s-text strong{font-weight:700}.s-text em{font-style:italic}.s-text code{font-size:inherit}
 a.s-linkbox{color:inherit;text-decoration:none}
 .s-button{display:flex;align-items:center;cursor:pointer;border:0;font:inherit;text-decoration:none}
 .s-img{display:block;max-width:100%}
@@ -626,7 +625,11 @@ impl Writer<'_> {
             }
             _ => {}
         }
-        sizing_css(&f.frame, parent, &mut style, Some(Align::Start));
+        sizing_css(&f.frame, parent, &mut style, None);
+        // Fields keep their own height in rows and grids (SPEC.md §5).
+        if matches!(parent, Parent::Row | Parent::Grid) {
+            style.push("align-self:flex-start".into());
+        }
         text_css(&f.text, &mut style);
         let required = if f.required {
             "<span aria-hidden=\"true\"> *</span>"
@@ -980,6 +983,13 @@ mod tests {
         ] {
             assert!(out.contains(needle), "missing {needle}\n{out}");
         }
+    }
+
+    #[test]
+    fn monospace_is_not_overridden() {
+        let css = stylesheet(&[]);
+        assert!(!css.contains("font-family:inherit"));
+        assert!(!css.contains("code{font:inherit}"));
     }
 
     #[test]

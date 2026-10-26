@@ -13,4 +13,5 @@ path = "src/main.rs"
 [dependencies]
 slml-syntax.workspace = true
 slml-render.workspace = true
+slml-html.workspace = true
 minifb = "0.29.0"

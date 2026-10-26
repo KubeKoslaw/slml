@@ -40,7 +40,7 @@ fn classify(to: &str, page: &Path, root: &Path) -> Target {
     }
 }
 
-fn open_external(url: &str) {
+pub fn open_external(url: &str) {
     let result = if cfg!(target_os = "macos") {
         std::process::Command::new("open").arg(url).spawn()
     } else if cfg!(windows) {

@@ -70,7 +70,6 @@ pub fn errors_text(errors: &[slml_syntax::Diagnostic], sources: &SourceMap) -> S
 }
 
 /// Is this file a page (as opposed to a library of styles and components)?
-#[allow(dead_code)] // used by `slml build` (next commit)
 pub fn is_page(path: &Path) -> bool {
     std::fs::read_to_string(path).is_ok_and(|src| !slml_syntax::is_library(&src))
 }
