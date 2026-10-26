@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "SLML Viewer",
+  "version": "0.1.0",
+  "description": "Open .slml pages with the SLML parser and renderer, without converting their layout to HTML.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "viewer@slml.local",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": { "required": ["none"] }
+    },
+    "gecko_android": { "strict_min_version": "142.0" }
+  },
+  "permissions": ["webRequest", "webRequestBlocking"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "scripts": ["background.mjs"], "type": "module" },
+  "action": { "default_title": "Open an SLML page" },
+  "web_accessible_resources": [{ "resources": ["viewer.html"], "matches": ["http://*/*", "https://*/*"] }],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'none'; form-action http: https:"
+  }
+}

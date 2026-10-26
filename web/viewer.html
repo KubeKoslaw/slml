@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SLML viewer</title>
+  <link rel="stylesheet" href="viewer.css">
+  <script type="module" src="viewer.mjs"></script>
+</head>
+<body>
+  <header id="toolbar">
+    <strong>SLML</strong>
+    <form id="location"><input id="address" aria-label="SLML page address" type="url" placeholder="https://example.com/index.slml" required><button>Open</button></form>
+    <button id="reload" type="button">Reload</button>
+    <button id="source" type="button" aria-expanded="false">Source</button>
+  </header>
+  <p id="status" role="status">Starting the SLML renderer…</p>
+  <pre id="error" role="alert" hidden></pre>
+  <aside id="editor" hidden><label for="code">SLML source · edits stay in this tab</label><textarea id="code" spellcheck="false" aria-label="SLML source"></textarea></aside>
+  <main id="stage" hidden aria-label="SLML document"><canvas id="canvas" aria-label="Page drawn by the SLML renderer"></canvas><div id="links"></div><div id="controls"></div></main>
+</body>
+</html>
