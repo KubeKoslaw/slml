@@ -113,6 +113,10 @@ impl Item {
 pub struct LinkArea {
     pub rect: Rect,
     pub target: String,
+    /// Areas of the same link element share this number: a text link that
+    /// wraps has one area per line piece. Two links to the same target do
+    /// not.
+    pub id: usize,
 }
 
 /// A form control's stable child-index path and geometry. Hosts supply input
@@ -391,7 +395,11 @@ pub fn layout(
         mono: false,
         underline: false,
     };
-    let mut engine = Engine { fonts, images };
+    let mut engine = Engine {
+        fonts,
+        images,
+        next_link: 0,
+    };
     let page = &doc.page;
     let mut frag = engine.container(page, root, WidthMode::Stretch(width), None);
     if frag.h < min_height {
@@ -415,6 +423,8 @@ pub fn layout(
 struct Engine<'a> {
     fonts: &'a Fonts,
     images: &'a mut ImageStore,
+    /// The next [`LinkArea::id`].
+    next_link: usize,
 }
 
 impl Engine<'_> {
@@ -496,7 +506,7 @@ impl Engine<'_> {
 
     /// Paints a frame's shadow, background and border around already
     /// laid-out content, and registers its link and anchor.
-    fn framed(f: &Frame, w: f32, h: f32, content: Fragment) -> Fragment {
+    fn framed(&mut self, f: &Frame, w: f32, h: f32, content: Fragment) -> Fragment {
         let mut out = Fragment::new(w, h);
         let rect = Rect::new(0.0, 0.0, w, h);
         let shadow = match f.shadow {
@@ -538,7 +548,9 @@ impl Engine<'_> {
             out.links.push(LinkArea {
                 rect,
                 target: to.clone(),
+                id: self.next_link,
             });
+            self.next_link += 1;
         }
         if let Some(id) = &f.id {
             out.anchors.push((id.clone(), 0.0));
@@ -581,7 +593,7 @@ impl Engine<'_> {
             }
         };
         let h = explicit_h.unwrap_or(content.h + 2.0 * iy);
-        Self::framed(f, w, h, content)
+        self.framed(f, w, h, content)
     }
 
     fn column(
@@ -958,7 +970,7 @@ impl Engine<'_> {
             shifted.place(content, 0.0, extra);
             content = shifted;
         }
-        let mut out = Self::framed(f, w, h, content);
+        let mut out = self.framed(f, w, h, content);
         if t.kind == TextKind::Submit {
             out.text.clear();
             let rect = Rect::new(0.0, 0.0, w, h);
@@ -987,7 +999,7 @@ impl Engine<'_> {
     /// consist of several differently styled parts (`"Hel" bold "lo"`).
     fn atoms(&mut self, content: &[Inline], style: Computed) -> (String, Vec<Atom>) {
         let mut pieces = Vec::new();
-        flatten(content, style, None, &mut pieces);
+        flatten(content, style, None, &mut self.next_link, &mut pieces);
         let mut atoms: Vec<Atom> = Vec::new();
         let mut source = String::new();
         let mut offset = 0;
@@ -1106,7 +1118,7 @@ impl Engine<'_> {
                     bold: s.bold,
                     italic: s.italic,
                     mono: s.mono,
-                    link: part.link.clone(),
+                    link: part.link.as_ref().map(|(_, to)| to.clone()),
                 });
                 if part.visible {
                     out.items.push(Item::Glyphs {
@@ -1130,10 +1142,11 @@ impl Engine<'_> {
                         radius: 0.0,
                     });
                 }
-                if let Some(target) = &part.link {
+                if let Some((id, target)) = &part.link {
                     out.links.push(LinkArea {
                         rect: Rect::new(x, y, part.width, line_h),
                         target: target.clone(),
+                        id: *id,
                     });
                 }
                 x += part.width;
@@ -1274,7 +1287,7 @@ impl Engine<'_> {
         }
         content.h = y;
         let h = Self::explicit_height(f, forced_h).unwrap_or(y + 2.0 * iy);
-        Self::framed(f, w, h, content)
+        self.framed(f, w, h, content)
     }
 
     // ---- form fields ---------------------------------------------------------
@@ -1497,7 +1510,7 @@ impl Engine<'_> {
             let ty = ((inner.h - text.h) / 2.0).max(0.0);
             content.place(text, 8.0, ty);
         }
-        Self::framed(f, w, h, content)
+        self.framed(f, w, h, content)
     }
 }
 
@@ -1557,23 +1570,34 @@ fn distribute(justify: Justify, free: f32, count: usize) -> (f32, f32) {
 struct Piece {
     text: String,
     style: Computed,
-    link: Option<String>,
+    /// [`LinkArea::id`] and target.
+    link: Option<(usize, String)>,
 }
 
-fn flatten(content: &[Inline], style: Computed, link: Option<&str>, out: &mut Vec<Piece>) {
+fn flatten(
+    content: &[Inline],
+    style: Computed,
+    link: Option<(usize, &str)>,
+    next_link: &mut usize,
+    out: &mut Vec<Piece>,
+) {
     for inline in content {
         match inline {
             Inline::Text(s) => out.push(Piece {
                 text: s.clone(),
                 style,
-                link: link.map(str::to_string),
+                link: link.map(|(id, to)| (id, to.to_string())),
             }),
-            Inline::Span(span) => flatten(
-                &span.content,
-                style.with(&span.text),
-                span.link.as_deref().or(link),
-                out,
-            ),
+            Inline::Span(span) => {
+                let link = match &span.link {
+                    Some(to) => {
+                        *next_link += 1;
+                        Some((*next_link - 1, to.as_str()))
+                    }
+                    None => link,
+                };
+                flatten(&span.content, style.with(&span.text), link, next_link, out)
+            }
         }
     }
 }
@@ -1589,7 +1613,7 @@ struct Part {
     range: Range<usize>,
     face: Face,
     style: Computed,
-    link: Option<String>,
+    link: Option<(usize, String)>,
     glyphs: Vec<Glyph>,
     width: f32,
     visible: bool,
@@ -2004,6 +2028,29 @@ mod tests {
                 "{e:?}"
             );
         }
+    }
+
+    #[test]
+    fn link_areas_of_one_link_share_an_id() {
+        let l = lay(
+            r#"slml 0.1 page(padding: 0) {
+            text(width: 90) { link(to: "a.slml") { "one two " bold "three" " four" } " " link(to: "a.slml") "again" }
+            button(to: "a.slml") "Go"
+        }"#,
+            400.0,
+        );
+        let ids: Vec<usize> = l.links.iter().map(|a| a.id).collect();
+        let first = ids[0];
+        let pieces = ids.iter().filter(|&&id| id == first).count();
+        assert!(
+            pieces > 2,
+            "the wrapped link has several areas: {:?}",
+            l.links
+        );
+        let others: Vec<usize> = ids.iter().copied().filter(|&id| id != first).collect();
+        assert_eq!(others.len(), 2, "{:?}", l.links);
+        assert_ne!(others[0], others[1], "same target, different links");
+        assert!(l.links.iter().all(|a| a.target == "a.slml"));
     }
 
     #[test]
