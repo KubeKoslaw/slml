@@ -52,14 +52,24 @@ pub struct Token {
 
 /// Tokenizes `src`; `file` is recorded in every span (see [`Span::file`]).
 pub fn tokenize(src: &str, file: u32) -> Result<Vec<Token>, Diagnostic> {
-    Lexer {
+    tokenize_with_comments(src, file).map(|(tokens, _)| tokens)
+}
+
+/// Comments with their positions.
+pub type Comments = Vec<(Span, String)>;
+
+/// Like [`tokenize`], also returning the comments.
+pub fn tokenize_with_comments(src: &str, file: u32) -> Result<(Vec<Token>, Comments), Diagnostic> {
+    let mut lexer = Lexer {
         src,
         file,
         pos: 0,
         line: 1,
         col: 1,
-    }
-    .run()
+        comments: Vec::new(),
+    };
+    let tokens = lexer.run()?;
+    Ok((tokens, lexer.comments))
 }
 
 struct Lexer<'a> {
@@ -68,6 +78,7 @@ struct Lexer<'a> {
     pos: usize,
     line: u32,
     col: u32,
+    comments: Vec<(Span, String)>,
 }
 
 impl Lexer<'_> {
@@ -107,7 +118,7 @@ impl Lexer<'_> {
         self.span(start, self.pos, line, col)
     }
 
-    fn run(mut self) -> Result<Vec<Token>, Diagnostic> {
+    fn run(&mut self) -> Result<Vec<Token>, Diagnostic> {
         let mut tokens = Vec::new();
         loop {
             self.skip_trivia()?;
@@ -181,12 +192,16 @@ impl Lexer<'_> {
                     self.bump();
                 }
                 Some('/') if self.peek2() == Some('/') => {
+                    let (start, line, col) = (self.pos, self.line, self.col);
                     while let Some(c) = self.peek() {
                         if c == '\n' {
                             break;
                         }
                         self.bump();
                     }
+                    let span = self.span_from(start, line, col);
+                    self.comments
+                        .push((span, self.src[start..self.pos].to_string()));
                 }
                 Some('/') if self.peek2() == Some('*') => {
                     let (start, line, col) = (self.pos, self.line, self.col);
@@ -196,6 +211,9 @@ impl Lexer<'_> {
                         match self.bump() {
                             Some('*') if self.peek() == Some('/') => {
                                 self.bump();
+                                let span = self.span_from(start, line, col);
+                                self.comments
+                                    .push((span, self.src[start..self.pos].to_string()));
                                 break;
                             }
                             Some(_) => {}
@@ -352,7 +370,7 @@ impl Lexer<'_> {
     }
 }
 
-fn dedent(body: &str) -> String {
+pub(crate) fn dedent(body: &str) -> String {
     let body = body
         .strip_prefix("\r\n")
         .or_else(|| body.strip_prefix('\n'))

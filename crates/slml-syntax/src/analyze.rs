@@ -12,8 +12,12 @@ use std::collections::{HashMap, HashSet};
 use crate::ast::{self, Child, Value};
 use crate::diagnostic::{Diagnostic, Span, suggest};
 use crate::model::*;
+use crate::names::{self, Dialect};
 
-pub const SUPPORTED_VERSION: &str = "0.1";
+/// The newest language version (written by `slml upgrade`).
+pub const SUPPORTED_VERSION: &str = "0.2";
+/// Every version this build reads: 0.1 (long syntax) and 0.2 (compact).
+pub const SUPPORTED_VERSIONS: &[&str] = &["0.1", "0.2"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Kind {
@@ -106,14 +110,6 @@ const TEXT: &[&str] = &["color", "size", "bold", "italic", "font", "underline"];
 const FIELD: &[&str] = &["name", "label", "required"];
 
 impl Kind {
-    fn name(self) -> &'static str {
-        ELEMENTS
-            .iter()
-            .find(|(_, k)| *k == self)
-            .map(|(n, _)| *n)
-            .unwrap_or("?")
-    }
-
     fn category(self) -> Category {
         match self {
             Kind::Meta => Category::Meta,
@@ -170,7 +166,7 @@ impl Kind {
     }
 }
 
-fn all_attr_names() -> Vec<&'static str> {
+pub fn all_attr_names() -> Vec<&'static str> {
     let mut names: Vec<&'static str> = ELEMENTS.iter().flat_map(|(_, k)| k.attr_names()).collect();
     names.sort_unstable();
     names.dedup();
@@ -309,6 +305,16 @@ impl Props {
     }
 }
 
+/// An element's name as written (`c` in 0.2), for messages.
+fn shown(n: &ast::Node) -> &str {
+    n.shown().trim_start_matches('\u{0}')
+}
+
+/// An attribute's name as written (`p` in `p20`), for messages.
+fn shown_attr(a: &ast::Attr) -> &str {
+    a.shown().trim_start_matches('\u{0}')
+}
+
 // ---- value conversion -------------------------------------------------------
 
 fn type_error(a: &ast::Attr, expected: &str) -> Diagnostic {
@@ -316,7 +322,7 @@ fn type_error(a: &ast::Attr, expected: &str) -> Diagnostic {
         a.value_span,
         format!(
             "`{}` expects {expected}, found {}",
-            a.name,
+            shown_attr(a),
             a.value.describe()
         ),
     )
@@ -334,7 +340,10 @@ fn whole(a: &ast::Attr, min: u32, max: u32) -> Result<u32, Diagnostic> {
     if n.fract() != 0.0 || n < min as f32 || n > max as f32 {
         return Err(Diagnostic::new(
             a.value_span,
-            format!("`{}` must be a whole number from {min} to {max}", a.name),
+            format!(
+                "`{}` must be a whole number from {min} to {max}",
+                shown_attr(a)
+            ),
         ));
     }
     Ok(n as u32)
@@ -384,7 +393,7 @@ fn choice(a: &ast::Attr, options: &[&'static str]) -> Result<&'static str, Diagn
         Value::Ident(i) => options.iter().find(|o| **o == i).copied().ok_or_else(|| {
             Diagnostic::new(
                 a.value_span,
-                format!("`{i}` is not a valid value for `{}`", a.name),
+                format!("`{i}` is not a valid value for `{}`", shown_attr(a)),
             )
             .with_hint(format!("use one of {list}"))
         }),
@@ -470,7 +479,7 @@ fn non_empty(a: &ast::Attr) -> Result<String, Diagnostic> {
     if s.trim().is_empty() {
         return Err(Diagnostic::new(
             a.value_span,
-            format!("`{}` cannot be empty", a.name),
+            format!("`{}` cannot be empty", shown_attr(a)),
         ));
     }
     Ok(s)
@@ -538,7 +547,7 @@ fn apply_attr(p: &mut Props, kind: Kind, a: &ast::Attr) -> Result<(), Diagnostic
             if n <= 0.0 {
                 return Err(Diagnostic::new(
                     a.value_span,
-                    "`cell-width` must be greater than 0",
+                    format!("`{}` must be greater than 0", shown_attr(a)),
                 ));
             }
             p.cell_width = Some(n);
@@ -562,7 +571,7 @@ fn apply_attr(p: &mut Props, kind: Kind, a: &ast::Attr) -> Result<(), Diagnostic
             if n <= 0.0 {
                 return Err(Diagnostic::new(
                     a.value_span,
-                    "`size` must be greater than 0",
+                    format!("`{}` must be greater than 0", shown_attr(a)),
                 ));
             }
             p.text.size = Some(n);
@@ -648,6 +657,7 @@ struct Ctx {
 
 pub fn analyze(input: Input<'_>, mut errors: Vec<Diagnostic>) -> Result<Document, Vec<Diagnostic>> {
     let mut an = Analyzer {
+        dialect: Dialect::of_version(input.version),
         styles: HashMap::new(),
         errors: Vec::new(),
         ids: HashMap::new(),
@@ -655,13 +665,13 @@ pub fn analyze(input: Input<'_>, mut errors: Vec<Diagnostic>) -> Result<Document
     };
     an.errors.append(&mut errors);
 
-    if input.version != SUPPORTED_VERSION {
+    if !SUPPORTED_VERSIONS.contains(&input.version) {
         an.errors.push(
             Diagnostic::new(
                 input.version_span,
                 format!("unsupported SLML version `{}`", input.version),
             )
-            .with_hint(format!("this build understands `slml {SUPPORTED_VERSION}`")),
+            .with_hint("this build understands `slml 0.1` and `slml 0.2`"),
         );
     }
 
@@ -685,9 +695,14 @@ pub fn analyze(input: Input<'_>, mut errors: Vec<Diagnostic>) -> Result<Document
                     page = Some(an.container(node, Kind::Page, Ctx::default()));
                 }
             }
-            Some(k) => an.errors.push(
-                Diagnostic::new(node.span, format!("`{}` must be inside `page`", k.name()))
-                    .with_hint("the top level may only contain `meta`, `use`, `style`, `define` and `page`"),
+            Some(_) => an.errors.push(
+                Diagnostic::new(
+                    node.span,
+                    format!("`{}` must be inside `page`", shown(node)),
+                )
+                .with_hint(
+                    "the top level may only contain `meta`, `use`, `style`, `define` and `page`",
+                ),
             ),
             None => {}
         }
@@ -732,6 +747,7 @@ pub fn analyze(input: Input<'_>, mut errors: Vec<Diagnostic>) -> Result<Document
 }
 
 struct Analyzer<'a> {
+    dialect: Dialect,
     styles: HashMap<&'a str, &'a ast::StyleDef>,
     errors: Vec<Diagnostic>,
     ids: HashMap<String, Span>,
@@ -759,13 +775,19 @@ impl<'a> Analyzer<'a> {
             let mut seen = HashSet::new();
             for a in &def.attrs {
                 if !known.contains(&a.name.as_str()) {
-                    let mut d = Diagnostic::new(a.span, format!("unknown attribute `{}`", a.name));
-                    if let Some(s) = suggest(&a.name, &known) {
+                    let mut d =
+                        Diagnostic::new(a.span, format!("unknown attribute `{}`", shown_attr(a)));
+                    let keys = if self.dialect == Dialect::Compact {
+                        names::all_attr_keys()
+                    } else {
+                        known.clone()
+                    };
+                    if let Some(s) = suggest(shown_attr(a), &keys) {
                         d = d.with_hint(format!("did you mean `{s}`?"));
                     }
                     self.errors.push(d);
                 } else if !seen.insert(a.name.as_str()) {
-                    self.err(a.span, format!("`{}` is set twice", a.name));
+                    self.err(a.span, format!("`{}` is set twice", shown_attr(a)));
                 }
                 if let Value::Param(p) = &a.value {
                     self.err(a.value_span, format!("`${p}` cannot be used in a style"));
@@ -778,13 +800,33 @@ impl<'a> Analyzer<'a> {
         if let Some((_, k)) = ELEMENTS.iter().find(|(n, _)| *n == node.name) {
             return Some(*k);
         }
-        let mut d = Diagnostic::new(node.span, format!("unknown element `{}`", node.name));
-        if matches!(node.name.as_str(), "style" | "define" | "use") {
-            d = d.with_hint(format!("`{}` is only allowed at the top level", node.name));
-        } else if let Some(s) = suggest(&node.name, &element_names()) {
+        let word = shown(node);
+        let mut d = Diagnostic::new(node.span, format!("unknown element `{word}`"));
+        let compact = self.dialect == Dialect::Compact;
+        let candidates = if compact {
+            names::all_elements()
+        } else {
+            element_names()
+        };
+        let html = if compact {
+            html_equivalent_compact(word)
+        } else {
+            html_equivalent(word)
+        };
+        if matches!(word, "style" | "define" | "use") {
+            d = d.with_hint(format!("`{word}` is only allowed at the top level"));
+        } else if let Some(s) = suggest(word, &candidates) {
             d = d.with_hint(format!("did you mean `{s}`?"));
-        } else if let Some(k) = html_equivalent(&node.name) {
+        } else if let Some(k) = html {
             d = d.with_hint(format!("in SLML this is `{k}`"));
+        } else if let Some((short, _)) = names::ELEMENTS
+            .iter()
+            .chain(names::SYMBOLS)
+            .find(|(_, long)| compact && *long == word)
+        {
+            d = d.with_hint(format!("in `slml 0.2` this is `{short}`"));
+        } else if compact {
+            d = d.with_hint("components must be defined with `@name(…){…}` before they are used");
         } else {
             d = d.with_hint("components must be defined with `define` before they can be used");
         }
@@ -813,11 +855,15 @@ impl<'a> Analyzer<'a> {
                             *cspan,
                             format!(
                                 "style `{class}` sets `{}`, which `{}` does not accept",
-                                a.name,
-                                kind.name()
+                                shown_attr(a),
+                                shown(node)
                             ),
                         )
-                        .with_hint(format!("`{}` is set on line {}", a.name, a.span.line)),
+                        .with_hint(format!(
+                            "`{}` is set on line {}",
+                            shown_attr(a),
+                            a.span.line
+                        )),
                     );
                 } else if !matches!(a.value, Value::Param(_)) {
                     p.given.insert(a.name.clone());
@@ -830,21 +876,25 @@ impl<'a> Analyzer<'a> {
         let mut seen = HashSet::new();
         for a in &node.attrs {
             if !seen.insert(a.name.as_str()) {
-                self.err(a.span, format!("`{}` is set twice", a.name));
+                self.err(a.span, format!("`{}` is set twice", shown_attr(a)));
                 continue;
             }
             if !kind.accepts(&a.name) {
                 let mut d = Diagnostic::new(
                     a.span,
-                    format!("`{}` has no attribute `{}`", kind.name(), a.name),
+                    format!("`{}` has no attribute `{}`", shown(node), shown_attr(a)),
                 );
-                let own = kind.attr_names();
-                if let Some(s) = suggest(&a.name, &own) {
+                let mut own = kind.attr_names();
+                if self.dialect == Dialect::Compact {
+                    own = own.into_iter().map(names::attr_compact).collect();
+                    own.dedup();
+                }
+                if let Some(s) = suggest(shown_attr(a), &own) {
                     d = d.with_hint(format!("did you mean `{s}`?"));
                 } else if !own.is_empty() {
-                    d = d.with_hint(format!("`{}` accepts: {}", kind.name(), own.join(", ")));
+                    d = d.with_hint(format!("`{}` accepts: {}", shown(node), own.join(", ")));
                 } else {
-                    d = d.with_hint(format!("`{}` takes no attributes", kind.name()));
+                    d = d.with_hint(format!("`{}` takes no attributes", shown(node)));
                 }
                 self.errors.push(d);
                 continue;
@@ -884,8 +934,12 @@ impl<'a> Analyzer<'a> {
         hint: &str,
     ) -> Option<T> {
         if value.is_none() && !p.given.contains(attr) {
+            let hint = match self.dialect {
+                Dialect::Compact => compact_require_hint(shown(node), attr).unwrap_or(hint),
+                Dialect::Long => hint,
+            };
             self.errors.push(
-                Diagnostic::new(node.span, format!("`{}` requires `{attr}`", node.name))
+                Diagnostic::new(node.span, format!("`{}` requires `{attr}`", shown(node)))
                     .with_hint(hint.to_string()),
             );
         }
@@ -899,7 +953,7 @@ impl<'a> Analyzer<'a> {
                 Child::Text(_, s) | Child::Param(_, s) => *s,
             };
             self.errors.push(
-                Diagnostic::new(span, format!("`{}` cannot have content", node.name))
+                Diagnostic::new(span, format!("`{}` cannot have content", shown(node)))
                     .with_hint(hint.to_string()),
             );
         }
@@ -910,7 +964,7 @@ impl<'a> Analyzer<'a> {
         if ctx.interactive && is_interactive {
             self.err(
                 node.span,
-                format!("`{}` cannot be placed inside a link or button", node.name),
+                format!("`{}` cannot be placed inside a link or button", shown(node)),
             );
         }
     }
@@ -1027,12 +1081,12 @@ impl<'a> Analyzer<'a> {
                 Child::Text(_, span) | Child::Param(_, span) => self.errors.push(
                     Diagnostic::new(
                         *span,
-                        format!("text cannot be placed directly in `{}`", node.name),
+                        format!("text cannot be placed directly in `{}`", shown(node)),
                     )
                     .with_hint("wrap it in an element: `text \"...\"`"),
                 ),
                 Child::Node(n) => {
-                    if let Some(c) = self.block(n, &node.name, inner) {
+                    if let Some(c) = self.block(n, shown(node), inner) {
                         children.push(c);
                     }
                 }
@@ -1050,10 +1104,13 @@ impl<'a> Analyzer<'a> {
     /// After reporting an unknown element, keep checking its content as the
     /// element it most likely was, so one typo doesn't hide other errors.
     fn recover(&mut self, n: &ast::Node, ctx: Ctx) {
-        let guess = suggest(&n.name, &element_names())
-            .or_else(|| html_equivalent(&n.name).map(|h| h.split('(').next().unwrap_or(h)))
-            .and_then(|name| ELEMENTS.iter().find(|(e, _)| *e == name))
-            .map(|(_, k)| *k);
+        let guess = match self.dialect {
+            Dialect::Compact => suggest(shown(n), &names::all_elements()).and_then(names::element),
+            Dialect::Long => suggest(shown(n), &element_names())
+                .or_else(|| html_equivalent(shown(n)).map(|h| h.split('(').next().unwrap_or(h))),
+        }
+        .and_then(|name| ELEMENTS.iter().find(|(e, _)| *e == name))
+        .map(|(_, k)| *k);
         let Some(k) = guess else { return };
         let ctx = Ctx {
             in_form: true,
@@ -1076,7 +1133,7 @@ impl<'a> Analyzer<'a> {
                 self.field(n, k, ctx);
             }
             Category::Inline => {
-                self.inlines(&n.children, &n.name, ctx);
+                self.inlines(&n.children, shown(n), ctx);
             }
             Category::Meta | Category::Option => {}
         }
@@ -1106,7 +1163,7 @@ impl<'a> Analyzer<'a> {
                 self.errors.push(
                     Diagnostic::new(
                         n.span,
-                        format!("`{}` cannot be placed directly in `{parent}`", n.name),
+                        format!("`{}` cannot be placed directly in `{parent}`", shown(n)),
                     )
                     .with_hint(format!(
                         "inline elements go inside text: `text {{ {} \"...\" }}`",
@@ -1122,7 +1179,7 @@ impl<'a> Analyzer<'a> {
             _ => {
                 self.err(
                     n.span,
-                    format!("`{}` can only appear at the top level", n.name),
+                    format!("`{}` can only appear at the top level", shown(n)),
                 );
                 None
             }
@@ -1151,7 +1208,7 @@ impl<'a> Analyzer<'a> {
                     Some(_) => self.errors.push(
                         Diagnostic::new(
                             c.span,
-                            format!("`{}` cannot be placed inside `list`", c.name),
+                            format!("`{}` cannot be placed inside `list`", shown(c)),
                         )
                         .with_hint("a list contains `item`s and nested `list`s"),
                     ),
@@ -1263,7 +1320,7 @@ impl<'a> Analyzer<'a> {
             } else {
                 TextAlign::Start
             });
-        let content = self.inlines(&n.children, &n.name, inner);
+        let content = self.inlines(&n.children, shown(n), inner);
         TextBlock {
             kind: tkind,
             frame,
@@ -1290,7 +1347,7 @@ impl<'a> Analyzer<'a> {
                         self.errors.push(
                             Diagnostic::new(
                                 n.span,
-                                format!("`{}` cannot be placed inside `{parent}`", n.name),
+                                format!("`{}` cannot be placed inside `{parent}`", shown(n)),
                             )
                             .with_hint(
                                 "text may only contain strings and bold, italic, code, link, span",
@@ -1335,7 +1392,7 @@ impl<'a> Analyzer<'a> {
                     } else {
                         None
                     };
-                    let content = self.inlines(&n.children, &n.name, inner);
+                    let content = self.inlines(&n.children, shown(n), inner);
                     out.push(Inline::Span(InlineSpan {
                         text: p.text_or(defaults),
                         link,
@@ -1404,9 +1461,10 @@ impl<'a> Analyzer<'a> {
         let p = self.props(n, kind);
         if !ctx.in_form {
             self.errors.push(
-                Diagnostic::new(n.span, format!("`{}` must be inside a `form`", n.name)).with_hint(
-                    "e.g. `form(to: \"...\") { input(name: \"email\", label: \"E-mail\") }`",
-                ),
+                Diagnostic::new(n.span, format!("`{}` must be inside a `form`", shown(n)))
+                    .with_hint(
+                        "e.g. `form(to: \"...\") { input(name: \"email\", label: \"E-mail\") }`",
+                    ),
             );
         }
         self.check_interactive(n, ctx, true);
@@ -1472,7 +1530,7 @@ impl<'a> Analyzer<'a> {
                         Child::Node(o) => self.errors.push(
                             Diagnostic::new(
                                 o.span,
-                                format!("`{}` cannot be placed inside `select`", o.name),
+                                format!("`{}` cannot be placed inside `select`", shown(o)),
                             )
                             .with_hint("a select contains `option \"...\"` entries"),
                         ),
@@ -1503,6 +1561,49 @@ impl<'a> Analyzer<'a> {
             kind: field_kind,
         }
     }
+}
+
+/// Hints for missing required attributes in the compact dialect.
+fn compact_require_hint(element: &str, attr: &str) -> Option<&'static str> {
+    Some(match (element, attr) {
+        ("img", "src") => "write the path first: `img{/logo.png \"Logo\"}`",
+        ("img", "alt") => {
+            "describe the image for people who cannot see it: `img{/a.png \"Description\"}`; use \"\" only for decoration"
+        }
+        ("btn", "to") => "e.g. `btn{>/contact.slml \"Contact\"}`",
+        ("form", "to") => "where the form is sent, e.g. `form{>https://formspree.io/f/abc post …}`",
+        (_, "name") => "the name the value is sent under, e.g. `n:email`",
+        (_, "label") => "every field needs a visible label string, e.g. `in{n:email \"E-mail\"}`",
+        _ => return None,
+    })
+}
+
+/// HTML names → the compact SLML spelling.
+fn html_equivalent_compact(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "div" | "section" | "main" | "article" | "body" | "header" | "footer" | "nav" | "aside" => {
+            "c{…} or r{…}; SLML has no landmark elements, layout is just boxes"
+        }
+        "p" | "label" | "span" => "t\"…\" or just a string",
+        "h1" => "#\"…\"",
+        "h2" => "##\"…\"",
+        "h3" => "###\"…\"",
+        "h4" | "h5" | "h6" => "####\"…\"",
+        "a" => "[text](target) inside text, or >target on a box",
+        "hr" => "|",
+        "b" | "strong" => "*bold* inside text",
+        "i" | "em" => "_italic_ inside text",
+        "ul" => "-{\"one\" \"two\"}",
+        "ol" => "+{\"one\" \"two\"}",
+        "li" => "a string inside -{…}",
+        "pre" => "code\"\"\"…\"\"\"",
+        "table" => "grid{cols3 …}",
+        "button" => "btn{>target \"…\"}",
+        "input" => "in{n:name \"Label\"}",
+        "textarea" => "area{n:name \"Label\"}",
+        "select" => "sel{n:name \"Label\" opt\"…\"}",
+        _ => return None,
+    })
 }
 
 /// Helps people coming from HTML find the SLML equivalent.

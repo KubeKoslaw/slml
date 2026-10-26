@@ -13,11 +13,14 @@
 
 pub mod analyze;
 pub mod ast;
+pub mod compact;
 pub mod diagnostic;
 pub mod expand;
 pub mod lexer;
 pub mod model;
+pub mod names;
 pub mod parser;
+pub mod print;
 
 use std::collections::HashSet;
 

@@ -15,6 +15,9 @@ pub struct Document {
     pub defines: Vec<Define>,
     /// Top-level nodes: `meta` and `page`.
     pub nodes: Vec<Node>,
+    /// `//` and `/* */` comments with their positions, so tools that print
+    /// documents (`slml upgrade`) can keep them.
+    pub comments: Vec<(Span, String)>,
 }
 
 /// `style card(padding: 16, fill: #eee)`
@@ -44,7 +47,11 @@ pub struct ParamDef {
 /// `row.card(gap: 8) { ... }` or `text "Hello"`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Node {
+    /// Canonical element name (`column`), whatever the dialect.
     pub name: String,
+    /// The spelling in the source when it differs (`c` in `slml 0.2`);
+    /// used in error messages.
+    pub written: Option<String>,
     pub span: Span,
     /// Style names applied with `.name`, in order.
     pub classes: Vec<(String, Span)>,
@@ -62,7 +69,10 @@ pub enum Child {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Attr {
+    /// Canonical attribute name (`padding`), whatever the dialect.
     pub name: String,
+    /// The spelling in the source when it differs (`p` in `p20`).
+    pub written: Option<String>,
     pub span: Span,
     pub value: Value,
     pub value_span: Span,
@@ -88,5 +98,19 @@ impl Value {
             Value::Ident(_) => "a name",
             Value::Param(_) => "a parameter",
         }
+    }
+}
+
+impl Node {
+    /// The element name as the author wrote it.
+    pub fn shown(&self) -> &str {
+        self.written.as_deref().unwrap_or(&self.name)
+    }
+}
+
+impl Attr {
+    /// The attribute name as the author wrote it.
+    pub fn shown(&self) -> &str {
+        self.written.as_deref().unwrap_or(&self.name)
     }
 }

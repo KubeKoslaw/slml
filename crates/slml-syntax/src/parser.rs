@@ -5,12 +5,17 @@
 
 use crate::ast::*;
 use crate::diagnostic::{Diagnostic, Span};
-use crate::lexer::{Token, TokenKind, tokenize};
+use crate::lexer::{Token, TokenKind, tokenize_with_comments};
 
 /// Parses `src`. `file` is the index recorded in spans (0 for a single file).
 pub fn parse(src: &str, file: u32) -> Result<Document, Diagnostic> {
-    let tokens = tokenize(src, file)?;
-    Parser { tokens, pos: 0 }.document()
+    if crate::compact::is_compact(src) {
+        return crate::compact::parse(src, file);
+    }
+    let (tokens, comments) = tokenize_with_comments(src, file)?;
+    let mut doc = Parser { tokens, pos: 0 }.document()?;
+    doc.comments = comments;
+    Ok(doc)
 }
 
 struct Parser {
@@ -91,6 +96,7 @@ impl Parser {
             styles: Vec::new(),
             defines: Vec::new(),
             nodes: Vec::new(),
+            comments: Vec::new(),
         };
         loop {
             match &self.peek().kind {
@@ -203,6 +209,7 @@ impl Parser {
         }
         Ok(Node {
             name,
+            written: None,
             span,
             classes,
             attrs,
@@ -274,6 +281,7 @@ impl Parser {
             let value = self.value(tok.kind, &name, tok.span)?;
             attrs.push(Attr {
                 name,
+                written: None,
                 span,
                 value,
                 value_span: tok.span,
