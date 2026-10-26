@@ -55,6 +55,18 @@ impl ImageStore {
         self.get(src).map(|p| (p.width() as f32, p.height() as f32))
     }
 
+    /// Supplies image bytes from a host (for example a browser's fetch API).
+    pub fn insert_encoded(&mut self, src: &str, data: &[u8]) -> bool {
+        let image = if data.starts_with(b"\x89PNG\r\n\x1a\n") {
+            Pixmap::decode_png(data).ok()
+        } else {
+            load_jpeg(data)
+        };
+        let loaded = image.is_some();
+        self.cache.insert(src.to_string(), image);
+        loaded
+    }
+
     /// Forget cached images, e.g. when the document is reloaded.
     pub fn clear(&mut self) {
         self.cache.clear();
@@ -84,4 +96,19 @@ fn load_jpeg(data: &[u8]) -> Option<Pixmap> {
         *dst = PremultipliedColorU8::from_rgba(px[0], px[1], px[2], 255)?;
     }
     Some(pixmap)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_supplied_images_are_used_without_file_access() {
+        let bytes = include_bytes!("../../../examples/site/logo.png");
+        let mut images = ImageStore::new("/not-a-real-directory");
+        assert!(images.insert_encoded("logo.png", bytes));
+        assert!(images.natural_size("logo.png").is_some());
+        assert!(!images.insert_encoded("logo.png", b"not an image"));
+        assert!(images.get("logo.png").is_none());
+    }
 }
