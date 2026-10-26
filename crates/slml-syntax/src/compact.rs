@@ -1018,6 +1018,16 @@ impl Parser {
                         _ => return Err(self.unexpected("a name after `@`")),
                     };
                     if self.peek().k == K::LParen {
+                        if names::element(&name).is_some()
+                            || names::flag(&name).is_some()
+                            || name == "on"
+                        {
+                            return Err(Diagnostic::new(
+                                span,
+                                format!("`{name}` is a built-in name in slml 0.2"),
+                            )
+                            .with_hint("choose another component name"));
+                        }
                         doc.defines.push(self.define(name, span)?);
                     } else if self.peek().k == K::LBrace {
                         doc.styles.push(self.style(name, span)?);
@@ -1783,6 +1793,16 @@ mod tests {
         assert_eq!(link.link.as_deref(), Some("/a.slml"));
         assert_eq!(link.text.underline, Some(false));
         assert_eq!(t.content[1], Inline::Text(" and Homes".into()));
+    }
+
+    #[test]
+    fn components_cannot_shadow_elements() {
+        assert!(
+            crate::parse("slml 0.2 @c(){t\"x\"} page{}")
+                .unwrap_err()
+                .message
+                .contains("built-in")
+        );
     }
 
     #[test]
