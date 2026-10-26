@@ -1,11 +1,13 @@
 //! The native SLML browser. It shows documents in a window and behaves like
 //! a web browser: links react to hover and clicks, the status bubble shows
 //! where a link goes, there is a back/forward history, reload, zoom,
-//! keyboard scrolling and focus, text selection and find in page, and pages
-//! reload when their files change.
+//! keyboard scrolling and focus, text selection and find in page, an
+//! element inspector, and pages reload when their files change.
 
 mod clipboard;
 mod cursor;
+mod inspector;
+mod source;
 mod text;
 mod ui;
 
@@ -24,6 +26,8 @@ use slml_render::{Layout, Pixmap, Renderer};
 use slml_syntax::model::{Color, Document};
 
 use crate::project::{base_dir, compile_file, open_external, resolve};
+use inspector::Inspector;
+use source::Sources;
 use text::Span;
 use ui::Ui;
 
@@ -295,6 +299,8 @@ struct Scene {
     scrollbar: (bool, bool),
     selection: Option<Span>,
     find: Option<(String, usize, usize, bool)>,
+    /// The inspector's hovered and pinned element paths.
+    inspector: Option<[Option<Vec<usize>>; 2]>,
 }
 
 struct Browser {
@@ -312,7 +318,8 @@ struct Browser {
     /// The page size the layout was made for.
     layout_size: (f32, f32),
     links: Vec<LinkGroup>,
-    /// Page viewport size in window coordinates.
+    /// Window size and page viewport size, in window coordinates.
+    window: (f32, f32),
     view: (f32, f32),
     scroll: f32,
     pending_anchor: Option<String>,
@@ -327,6 +334,7 @@ struct Browser {
     /// clicks.
     clicks: (Instant, (f32, f32), u32),
     find: Option<Find>,
+    inspector: Option<Inspector>,
     was: (bool, bool, bool),
     toast: Option<(String, Instant)>,
     close: bool,
@@ -350,6 +358,7 @@ impl Browser {
             generation: 0,
             layout_size: (0.0, 0.0),
             links: Vec::new(),
+            window: (1.0, 1.0),
             view: (1.0, 1.0),
             scroll: 0.0,
             pending_anchor: None,
@@ -362,6 +371,7 @@ impl Browser {
             selection: None,
             clicks: (Instant::now(), (0.0, 0.0), 0),
             find: None,
+            inspector: None,
             was: (false, false, false),
             toast: None,
             close: false,
@@ -450,6 +460,9 @@ impl Browser {
         self.focus = None;
         self.drag = None;
         self.selection = None;
+        if let Some(inspector) = &mut self.inspector {
+            *inspector = Inspector::default();
+        }
     }
 
     /// Live reload: re-read the page when a file of the site changes.
@@ -554,7 +567,13 @@ impl Browser {
         if let Some(nav) = self.nav.take() {
             self.go(nav);
         }
-        self.view = (window.0.max(1.0), window.1.max(1.0));
+        self.window = window;
+        self.view = ((window.0 - self.panel_w()).max(1.0), window.1.max(1.0));
+        if let Some(inspector) = &mut self.inspector
+            && inspector.sources.is_none()
+        {
+            inspector.sources = Some(Sources::load(&self.page.path, &self.root));
+        }
         self.ensure_layout();
         self.keys(input);
         self.mouse(input);
@@ -602,12 +621,15 @@ impl Browser {
                 Key::C if ctrl => self.copy(),
                 Key::A if ctrl => self.selection = self.layout.as_ref().and_then(text::everything),
                 Key::Escape => {
-                    if self.find.take().is_none() {
+                    let pinned = self.inspector.as_mut().and_then(|i| i.pinned.take());
+                    if self.find.take().is_none() && pinned.is_none() {
                         self.selection = None;
                         self.focus = None;
                     }
                     self.pressed = None;
                 }
+                Key::F12 => self.toggle_inspector(),
+                Key::I if ctrl && shift => self.toggle_inspector(),
                 Key::W | Key::Q if ctrl => self.close = true,
                 _ => {}
             }
@@ -821,6 +843,24 @@ impl Browser {
         }
     }
 
+    fn toggle_inspector(&mut self) {
+        self.inspector = match self.inspector.take() {
+            Some(_) => None,
+            None => {
+                self.say("Inspector: point at an element, click to pin it");
+                Some(Inspector::default())
+            }
+        };
+    }
+
+    /// Width of the inspector panel, when it is open.
+    fn panel_w(&self) -> f32 {
+        match self.inspector {
+            Some(_) => inspector::PANEL.min(self.window.0 * 0.6),
+            None => 0.0,
+        }
+    }
+
     fn set_zoom(&mut self, zoom: f32) {
         if zoom == self.zoom {
             return;
@@ -926,9 +966,13 @@ impl Browser {
             .mouse
             .filter(|m| !on_bar(*m) && !on_find(*m))
             .and_then(|m| self.on_page(m));
-        self.hover = match self.drag {
-            None => point.and_then(|p| self.link_at(p)),
-            Some(_) => None,
+        if let Some(inspector) = &mut self.inspector {
+            let element = |p: (f32, f32)| self.layout.as_ref()?.element_at(p.0, p.1);
+            inspector.hover = point.and_then(element).map(|e| e.path.clone());
+        }
+        self.hover = match (&self.drag, &self.inspector) {
+            (None, None) => point.and_then(|p| self.link_at(p)),
+            _ => None,
         };
 
         if pressed && let Some(m) = input.mouse {
@@ -947,6 +991,11 @@ impl Browser {
                     // Clicking the track moves one page towards the click.
                     let page = self.page_view_h() * 0.9;
                     self.scroll += if m.1 < bar.thumb.y { -page } else { page };
+                }
+            } else if let Some(inspector) = &mut self.inspector {
+                // Inspecting: clicks pick elements instead of using them.
+                if point.is_some() {
+                    inspector.click();
                 }
             } else {
                 // A mouse click hides the keyboard focus ring.
@@ -1012,6 +1061,7 @@ impl Browser {
                 .is_some_and(|l| text::over_text(l, p.0, p.1))
         };
         match self.on_page(m) {
+            Some(_) if self.inspector.is_some() => CursorStyle::Crosshair,
             Some(p) if self.link_at(p).is_some() => CursorStyle::ClosedHand,
             Some(p) if over_text(p) => CursorStyle::Ibeam,
             _ => CursorStyle::Arrow,
@@ -1079,6 +1129,10 @@ impl Browser {
                 .find
                 .as_ref()
                 .map(|f| (f.query.clone(), f.current, f.matches.len(), f.typing)),
+            inspector: self
+                .inspector
+                .as_ref()
+                .map(|i| [i.hover.clone(), i.pinned.clone()]),
         }
     }
 
@@ -1118,6 +1172,9 @@ impl Browser {
                 for r in text::rects(layout, fonts, span) {
                     ui.fill(r, SELECTION, 0.0);
                 }
+            }
+            if let Some(inspector) = &self.inspector {
+                inspector::highlight(&mut ui, layout, inspector);
             }
         }
         let link = |i: Option<usize>| i.and_then(|i| self.links.get(i));
@@ -1213,6 +1270,28 @@ impl Browser {
                 18.0,
                 ui::MUTED,
                 Face::Regular,
+            );
+        }
+        if let (Some(inspector), Some(layout)) = (&self.inspector, &self.layout) {
+            if let Some(e) = inspector.shown().and_then(|p| layout.element(p)) {
+                let r = e.rect;
+                let on_window = Rect::new(
+                    r.x * self.zoom,
+                    (r.y - self.scroll) * self.zoom,
+                    r.w * self.zoom,
+                    r.h * self.zoom,
+                );
+                inspector::tag(&mut ui, e, on_window, self.view);
+            }
+            inspector::panel(
+                &mut ui,
+                self.view.0,
+                self.panel_w(),
+                self.view.1,
+                layout,
+                &self.page.doc,
+                inspector,
+                &self.root,
             );
         }
         if let Some(text) = self.status() {
@@ -1467,6 +1546,50 @@ mod tests {
         );
         keys(&mut b, Key::Escape, false, "");
         assert!(b.find.is_none());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn inspector_picks_pins_and_locates_elements() {
+        let (mut b, root) = page(
+            "inspect",
+            "slml 0.1\npage(padding: 20) {\n  row(gap: 8) { button(to: \"x.slml\") \"Go\" }\n}\n",
+        );
+        let key = |b: &mut Browser, key: Key| {
+            let input = Input {
+                fresh: vec![key],
+                keys: vec![key],
+                ..Input::default()
+            };
+            b.frame(&input, (800.0, 600.0));
+        };
+        key(&mut b, Key::F12);
+        b.frame(&Input::default(), (800.0, 600.0));
+        assert_eq!(b.view.0, 800.0 - inspector::PANEL, "the panel takes room");
+        let button = b.layout.as_ref().unwrap().element(&[0, 0]).unwrap().rect;
+        let mouse = Some((button.x + 2.0, button.y + 2.0));
+        let click = |b: &mut Browser, left| {
+            let input = Input {
+                mouse,
+                left,
+                ..Input::default()
+            };
+            b.frame(&input, (800.0, 600.0));
+        };
+        click(&mut b, true);
+        click(&mut b, false);
+        let inspector = b.inspector.as_ref().unwrap();
+        assert_eq!(inspector.pinned, Some(vec![0, 0]));
+        assert!(b.nav.is_none(), "inspecting does not follow links");
+        assert_eq!(b.cursor(mouse), CursorStyle::Crosshair);
+        let at = inspector.sources.as_ref().unwrap().locate(&[0, 0]).unwrap();
+        assert_eq!((at.line, at.col), (3, 17));
+        key(&mut b, Key::Escape);
+        assert_eq!(b.inspector.as_ref().unwrap().pinned, None);
+        key(&mut b, Key::F12);
+        b.frame(&Input::default(), (800.0, 600.0));
+        assert!(b.inspector.is_none());
+        assert_eq!(b.view.0, 800.0);
         std::fs::remove_dir_all(root).unwrap();
     }
 
