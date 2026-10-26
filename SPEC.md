@@ -205,6 +205,13 @@ contain `..`, backslashes, drive letters or a leading `//`. The site root is
 chosen by the tool (see the handbook); for a single file it is the current
 directory or the file's folder.
 
+Local paths contain literal file names, including spaces, Unicode and `%`.
+When producing browser URLs, tools percent-encode the UTF-8 path bytes
+except ASCII letters, digits, `/`, `-`, `.`, `_` and `~`. A literal `%` is
+therefore encoded as `%25`; do not write an already percent-encoded path.
+The `#id` suffix on a link is a fragment, not part of the file name.
+External URLs are kept as URLs, including their existing escaping.
+
 `src` and `icon` accept a path or an `https://`/`http://` URL. Renderers must
 support PNG and JPEG.
 

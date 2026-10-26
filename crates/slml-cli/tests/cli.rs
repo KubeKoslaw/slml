@@ -155,3 +155,27 @@ fn links_cannot_target_private_site_files() {
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("broken link"));
 }
+
+#[test]
+fn site_links_preserve_literal_file_names() {
+    let dir = temp_dir("literal-names");
+    std::fs::write(dir.join("report 100%.txt"), "Download").unwrap();
+    std::fs::write(
+        dir.join("żółć.slml"),
+        "slml 0.1 page { text \"Polish page\" }",
+    )
+    .unwrap();
+    std::fs::write(dir.join("index.slml"), "slml 0.1 page { button(to: \"report 100%.txt\") \"Report\" button(to: \"żółć.slml\") \"Read\" }").unwrap();
+    let out = dir.join("_site");
+    let result = slml().arg(&dir).arg("-q").output().unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(out.join("report 100%.txt").is_file());
+    assert!(out.join("żółć.html").is_file());
+    let html = std::fs::read_to_string(out.join("index.html")).unwrap();
+    assert!(html.contains("href=\"report%20100%25.txt\""));
+    assert!(html.contains("href=\"%C5%BC%C3%B3%C5%82%C4%87.html\""));
+}

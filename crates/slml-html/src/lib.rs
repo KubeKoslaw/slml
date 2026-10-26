@@ -131,10 +131,23 @@ pub fn href(to: &str, opts: &Options) -> String {
 
 /// Resolves an image or icon path for the page.
 pub fn asset(path: &str, opts: &Options) -> String {
-    match path.strip_prefix('/') {
-        Some(rest) if !path.starts_with("//") => format!("{}{rest}", opts.root_prefix),
-        _ => path.to_string(),
+    if is_external(path) {
+        return path.to_string();
     }
+    let (prefix, path) = match path.strip_prefix('/') {
+        Some(rest) => (opts.root_prefix.as_str(), rest),
+        None => ("", path),
+    };
+    let mut url = prefix.to_string();
+    // SLML stores literal file names, not already-escaped URL paths.
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
+            url.push(char::from(byte));
+        } else {
+            let _ = write!(url, "%{byte:02X}");
+        }
+    }
+    url
 }
 
 /// Compiles a whole page to an HTML document.
@@ -943,6 +956,24 @@ mod tests {
         assert!(out.contains("href=\"#t\""));
         assert!(out.contains("href=\"https://e.com/x.slml\""));
         assert!(out.contains("../_slml/slml.css"));
+    }
+
+    #[test]
+    fn local_file_names_are_encoded_as_url_paths() {
+        let opts = Options {
+            root_prefix: "../".into(),
+            ..Options::default()
+        };
+        assert_eq!(
+            href("/docs/żółć 100%.slml#top", &opts),
+            "../docs/%C5%BC%C3%B3%C5%82%C4%87%20100%25.html#top"
+        );
+        assert_eq!(href("literal%2e%2e.txt", &opts), "literal%252e%252e.txt");
+        assert_eq!(asset("img/a#b?.png", &opts), "img/a%23b%3F.png");
+        assert_eq!(href("#top", &opts), "#top");
+        let external = "https://example.com/a%20b?q=one&x=two#top";
+        assert_eq!(asset(external, &opts), external);
+        assert_eq!(href(external, &opts), external);
     }
 
     #[test]

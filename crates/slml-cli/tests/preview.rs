@@ -33,6 +33,8 @@ impl Preview {
         )
         .unwrap();
         std::fs::write(root.join("file.txt"), "A public asset").unwrap();
+        std::fs::write(root.join("100%.txt"), "Literal percent").unwrap();
+        std::fs::write(root.join("literal%2e%2e.txt"), "Literal escape sequence").unwrap();
 
         // Occupy the first port to also exercise the server's port fallback.
         let occupied = TcpListener::bind(("127.0.0.1", 0)).unwrap();
@@ -129,6 +131,11 @@ fn browser_preview_serves_live_pages_assets_and_errors() {
     assert!(head.is_empty());
     let (_, asset) = preview.request("GET", "/file.txt");
     assert_eq!(asset, b"A public asset");
+    assert_eq!(preview.request("GET", "/100%25.txt").1, b"Literal percent");
+    assert_eq!(
+        preview.request("GET", "/literal%252e%252e.txt").1,
+        b"Literal escape sequence"
+    );
     let (headers, css) = preview.request("GET", "/_slml/slml.css");
     assert!(headers.contains("text/css"));
     assert!(String::from_utf8(css).unwrap().contains("@font-face"));
