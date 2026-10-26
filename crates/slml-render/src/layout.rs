@@ -112,6 +112,20 @@ pub struct LinkArea {
     pub target: String,
 }
 
+/// A form control's stable child-index path and geometry. Hosts supply input
+/// handling; the renderer still owns sizing and placement.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ControlArea {
+    pub path: Vec<usize>,
+    pub rect: Rect,
+    pub input_rect: Rect,
+    pub size: f32,
+    pub color: Color,
+    pub bold: bool,
+    pub italic: bool,
+    pub mono: bool,
+}
+
 /// A laid-out page, ready to paint.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Layout {
@@ -122,6 +136,7 @@ pub struct Layout {
     pub links: Vec<LinkArea>,
     /// Element ids and the y position of their top edge.
     pub anchors: Vec<(String, f32)>,
+    pub controls: Vec<ControlArea>,
 }
 
 impl Layout {
@@ -145,6 +160,7 @@ struct Fragment {
     items: Vec<Item>,
     links: Vec<LinkArea>,
     anchors: Vec<(String, f32)>,
+    controls: Vec<ControlArea>,
 }
 
 impl Fragment {
@@ -169,6 +185,20 @@ impl Fragment {
         for (id, y) in child.anchors {
             self.anchors.push((id, y + dy));
         }
+        for mut control in child.controls {
+            control.rect.x += dx;
+            control.rect.y += dy;
+            control.input_rect.x += dx;
+            control.input_rect.y += dy;
+            self.controls.push(control);
+        }
+    }
+
+    fn place_child(&mut self, mut child: Fragment, index: usize, dx: f32, dy: f32) {
+        for control in &mut child.controls {
+            control.path.insert(0, index);
+        }
+        self.place(child, dx, dy);
     }
 }
 
@@ -197,6 +227,19 @@ impl Computed {
 
     fn face(&self) -> Face {
         Face::select(self.bold, self.italic, self.mono)
+    }
+}
+
+fn control_area(rect: Rect, input_rect: Rect, style: Computed) -> ControlArea {
+    ControlArea {
+        path: Vec::new(),
+        rect,
+        input_rect,
+        size: style.size,
+        color: style.color,
+        bold: style.bold,
+        italic: style.italic,
+        mono: style.mono,
     }
 }
 
@@ -259,6 +302,7 @@ pub fn layout(
         items: frag.items,
         links: frag.links,
         anchors: frag.anchors,
+        controls: frag.controls,
     }
 }
 
@@ -470,14 +514,14 @@ impl Engine<'_> {
         let free = inner_h.map_or(0.0, |ih| (ih - used).max(0.0));
         let (mut y, extra) = distribute(flow.justify, free, frags.len());
         let mut out = Fragment::new(inner_w, inner_h.unwrap_or(used));
-        for frag in frags {
+        for (index, frag) in frags.into_iter().enumerate() {
             let x = match flow.align {
                 Align::Center => (inner_w - frag.w) / 2.0,
                 Align::End => inner_w - frag.w,
                 Align::Start | Align::Stretch => 0.0,
             };
             let h = frag.h;
-            out.place(frag, x, y);
+            out.place_child(frag, index, x, y);
             y += h + flow.gap + extra;
         }
         out
@@ -651,10 +695,10 @@ impl Engine<'_> {
 
         let (mut x, extra) = distribute(flow.justify, free, line.len());
         let mut out = Fragment::new(inner_w, row_h);
-        for frag in frags {
+        for (k, frag) in frags.into_iter().enumerate() {
             let y = cross_offset(flow.align, row_h, frag.h);
             let w = frag.w;
-            out.place(frag, x, y);
+            out.place_child(frag, line[k], x, y);
             x += w + flow.gap + extra;
         }
         out
@@ -686,7 +730,7 @@ impl Engine<'_> {
             }
             for (k, frag) in frags.into_iter().enumerate() {
                 let dy = cross_offset(c.flow.align, row_h, frag.h);
-                out.place(frag, k as f32 * (col_w + gap), y + dy);
+                out.place_child(frag, ri * cols + k, k as f32 * (col_w + gap), y + dy);
             }
             y += row_h;
             if ri + 1 < rows {
@@ -801,7 +845,12 @@ impl Engine<'_> {
             shifted.place(content, 0.0, extra);
             content = shifted;
         }
-        Self::framed(f, w, h, content)
+        let mut out = Self::framed(f, w, h, content);
+        if t.kind == TextKind::Submit {
+            let rect = Rect::new(0.0, 0.0, w, h);
+            out.controls.push(control_area(rect, rect, style));
+        }
+        out
     }
 
     fn text_max_content(&mut self, content: &[Inline], style: Computed) -> f32 {
@@ -1115,6 +1164,8 @@ impl Engine<'_> {
             if let Some(id) = &f.id {
                 out.anchors.push((id.clone(), 0.0));
             }
+            out.controls
+                .push(control_area(Rect::new(0.0, 0.0, w, h), rect, style));
             return out;
         }
 
@@ -1203,6 +1254,8 @@ impl Engine<'_> {
         }
         y += box_h;
         out.h = y;
+        out.controls
+            .push(control_area(Rect::new(0.0, 0.0, w, y), rect, style));
         if let Some(id) = &f.id {
             out.anchors.push((id.clone(), 0.0));
         }
@@ -1590,6 +1643,45 @@ mod tests {
             .count();
         assert_eq!(borders, 1, "input box border (checked box has none)");
         assert!(l.height > 100.0);
+        assert_eq!(
+            l.controls
+                .iter()
+                .map(|c| c.path.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0, 0], vec![0, 1], vec![0, 2]]
+        );
+        assert!(l.controls[0].input_rect.y > l.controls[0].rect.y);
+        assert_eq!(l.controls[0].input_rect.w, 400.0);
+        assert!(l.controls[2].rect.y > l.controls[1].rect.y);
+    }
+
+    #[test]
+    fn control_paths_and_boxes_survive_wrapping_and_grid_measurement() {
+        let src = r#"slml 0.1 page(padding: 10) { form(to: "send") {
+            row(wrap: true, gap: 10) { input(width: 200, name: "a", label: "A") input(width: 200, name: "b", label: "B") }
+            grid(columns: 2, gap: 10) { checkbox(name: "c", label: "C") column(padding: 8) { submit "Send" } }
+        } }"#;
+        let wide = lay(src, 600.0);
+        let narrow = lay(src, 300.0);
+        let paths = |l: &Layout| {
+            l.controls
+                .iter()
+                .map(|c| c.path.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(paths(&wide), paths(&narrow));
+        assert_eq!(
+            paths(&narrow),
+            vec![
+                vec![0, 0, 0],
+                vec![0, 0, 1],
+                vec![0, 1, 0],
+                vec![0, 1, 1, 0]
+            ]
+        );
+        assert_eq!(wide.controls[0].rect.y, wide.controls[1].rect.y);
+        assert!(narrow.controls[1].rect.y > narrow.controls[0].rect.y);
+        assert!(narrow.controls[3].rect.x > narrow.controls[2].rect.x);
     }
 
     #[test]
