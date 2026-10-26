@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/slml-syntax", "crates/slml-render", "crates/slml-html", "crates/slml-cli"]
+members = ["crates/slml-syntax", "crates/slml-render", "crates/slml-html", "crates/slml-cli", "crates/slml-web"]
 
 [workspace.package]
 version = "0.1.0"
