@@ -1,21 +1,30 @@
 //! The native SLML browser. It shows documents in a window and behaves like
 //! a web browser: links react to hover and clicks, the status bubble shows
 //! where a link goes, there is a back/forward history, reload, zoom,
-//! keyboard scrolling and focus, and pages reload when their files change.
+//! keyboard scrolling and focus, text selection and find in page, and pages
+//! reload when their files change.
 
+mod clipboard;
 mod cursor;
+mod text;
 mod ui;
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use minifb::{CursorStyle, Key, KeyRepeat, MouseButton, MouseMode, Window, WindowOptions};
+use minifb::{
+    CursorStyle, InputCallback, Key, KeyRepeat, MouseButton, MouseMode, Window, WindowOptions,
+};
+use slml_render::fonts::Face;
 use slml_render::images::ImageStore;
 use slml_render::layout::{Item, Rect};
 use slml_render::{Layout, Pixmap, Renderer};
 use slml_syntax::model::{Color, Document};
 
 use crate::project::{base_dir, compile_file, open_external, resolve};
+use text::Span;
 use ui::Ui;
 
 /// Scroll distance of an arrow key or a wheel notch, in window pixels.
@@ -28,6 +37,11 @@ const SCROLLBAR: f32 = 14.0;
 /// How long a status message stays visible.
 const TOAST: Duration = Duration::from_millis(1800);
 const STATUS_SIZE: f32 = 12.5;
+/// Two clicks closer than this in time make a double click.
+const MULTI_CLICK: Duration = Duration::from_millis(450);
+const SELECTION: Color = Color(0x3b82f655);
+const MATCH: Color = Color(0xfacc1599);
+const CURRENT_MATCH: Color = Color(0xf97316aa);
 
 struct Page {
     path: PathBuf,
@@ -189,6 +203,17 @@ enum Focus {
 enum Drag {
     /// Dragging the scrollbar's thumb, grabbed `grab` pixels below its top.
     Thumb { grab: f32 },
+    /// Selecting text.
+    Select,
+}
+
+/// The find bar (Ctrl+F) and its matches.
+struct Find {
+    query: String,
+    matches: Vec<Span>,
+    current: usize,
+    /// Typing goes into the find bar.
+    typing: bool,
 }
 
 /// Mouse buttons and keys as the window reported them for one frame.
@@ -208,10 +233,12 @@ struct Input {
     ctrl: bool,
     shift: bool,
     alt: bool,
+    /// Text typed this frame.
+    typed: Vec<char>,
 }
 
 impl Input {
-    fn read(window: &Window, mouse: Option<(f32, f32)>) -> Self {
+    fn read(window: &Window, mouse: Option<(f32, f32)>, typed: &RefCell<Vec<char>>) -> Self {
         let down = |a: Key, b: Key| window.is_key_down(a) || window.is_key_down(b);
         let wheel = window.get_scroll_wheel().map_or(0.0, |(_, dy)| {
             // X11 reports notches (±1, up is positive); Wayland reports
@@ -233,6 +260,18 @@ impl Input {
             ctrl: down(Key::LeftCtrl, Key::RightCtrl),
             shift: down(Key::LeftShift, Key::RightShift),
             alt: down(Key::LeftAlt, Key::RightAlt),
+            typed: std::mem::take(&mut *typed.borrow_mut()),
+        }
+    }
+}
+
+/// Collects typed characters from the window.
+struct Typed(Rc<RefCell<Vec<char>>>);
+
+impl InputCallback for Typed {
+    fn add_char(&mut self, c: u32) {
+        if let Some(c) = char::from_u32(c).filter(|c| !c.is_control()) {
+            self.0.borrow_mut().push(c);
         }
     }
 }
@@ -254,6 +293,8 @@ struct Scene {
     focus: Option<Focus>,
     status: Option<String>,
     scrollbar: (bool, bool),
+    selection: Option<Span>,
+    find: Option<(String, usize, usize, bool)>,
 }
 
 struct Browser {
@@ -281,6 +322,11 @@ struct Browser {
     focus: Option<Focus>,
     drag: Option<Drag>,
     on_scrollbar: bool,
+    selection: Option<Span>,
+    /// Time, place and count of the last clicks, for double and triple
+    /// clicks.
+    clicks: (Instant, (f32, f32), u32),
+    find: Option<Find>,
     was: (bool, bool, bool),
     toast: Option<(String, Instant)>,
     close: bool,
@@ -313,6 +359,9 @@ impl Browser {
             focus: None,
             drag: None,
             on_scrollbar: false,
+            selection: None,
+            clicks: (Instant::now(), (0.0, 0.0), 0),
+            find: None,
             was: (false, false, false),
             toast: None,
             close: false,
@@ -400,6 +449,7 @@ impl Browser {
         self.pressed = None;
         self.focus = None;
         self.drag = None;
+        self.selection = None;
     }
 
     /// Live reload: re-read the page when a file of the site changes.
@@ -428,6 +478,14 @@ impl Browser {
         }
         self.layout = Some(layout);
         self.clamp_scroll();
+        let areas = self.layout.as_ref().map_or(0, |l| l.text.len());
+        if self
+            .selection
+            .is_some_and(|s| s.anchor.area.max(s.head.area) >= areas)
+        {
+            self.selection = None;
+        }
+        self.search(false);
     }
 
     /// The page's visible height in page pixels.
@@ -505,7 +563,31 @@ impl Browser {
 
     fn keys(&mut self, input: &Input) {
         let (ctrl, shift, alt) = (input.ctrl, input.shift, input.alt);
-        for key in &input.fresh {
+        let typing = self.find.as_ref().is_some_and(|f| f.typing);
+        if typing {
+            self.find_keys(input);
+        }
+        // While typing into the find bar, editing keys belong to it.
+        let page_key = |k: &Key| {
+            !typing
+                || !matches!(
+                    k,
+                    Key::Space
+                        | Key::Backspace
+                        | Key::Home
+                        | Key::End
+                        | Key::Up
+                        | Key::Down
+                        | Key::Enter
+                        | Key::NumPadEnter
+                        | Key::Escape
+                        | Key::F3
+                        | Key::A
+                        | Key::C
+                        | Key::V
+                ) && !(matches!(k, Key::Left | Key::Right) && !alt)
+        };
+        for key in input.fresh.iter().filter(|k| page_key(k)) {
             match key {
                 Key::F5 => self.request(Nav::Reload { changed: false }),
                 Key::R if ctrl => self.request(Nav::Reload { changed: false }),
@@ -515,8 +597,15 @@ impl Browser {
                     self.request(if shift { Nav::Forward } else { Nav::Back })
                 }
                 Key::Enter | Key::NumPadEnter => self.activate(),
+                Key::F if ctrl => self.open_find(),
+                Key::F3 => self.next_match(if shift { -1 } else { 1 }),
+                Key::C if ctrl => self.copy(),
+                Key::A if ctrl => self.selection = self.layout.as_ref().and_then(text::everything),
                 Key::Escape => {
-                    self.focus = None;
+                    if self.find.take().is_none() {
+                        self.selection = None;
+                        self.focus = None;
+                    }
                     self.pressed = None;
                 }
                 Key::W | Key::Q if ctrl => self.close = true,
@@ -525,7 +614,7 @@ impl Browser {
         }
         let page = self.page_view_h() * 0.9;
         let line = LINE_STEP / self.zoom;
-        for key in &input.keys {
+        for key in input.keys.iter().filter(|k| page_key(k)) {
             match key {
                 Key::Down => self.scroll += line,
                 Key::Up => self.scroll -= line,
@@ -535,12 +624,200 @@ impl Browser {
                 Key::Space => self.scroll += page,
                 Key::Home => self.scroll = 0.0,
                 Key::End => self.scroll = self.max_scroll(),
-                Key::Tab if !ctrl && !alt => self.move_focus(if shift { -1 } else { 1 }),
+                Key::Tab if !ctrl && !alt => {
+                    if let Some(find) = &mut self.find {
+                        find.typing = false;
+                    }
+                    self.move_focus(if shift { -1 } else { 1 })
+                }
                 Key::Equal | Key::NumPadPlus if ctrl => self.set_zoom(zoom_step(self.zoom, 1)),
                 Key::Minus | Key::NumPadMinus if ctrl => self.set_zoom(zoom_step(self.zoom, -1)),
                 Key::Key0 | Key::NumPad0 if ctrl => self.set_zoom(1.0),
                 _ => {}
             }
+        }
+    }
+
+    // ---- selection and find --------------------------------------------------
+
+    fn copy(&mut self) {
+        let text = match (self.selection, &self.layout) {
+            (Some(span), Some(layout)) if !span.is_empty() => text::copy(layout, span),
+            _ => return self.say("Select text to copy it"),
+        };
+        match clipboard::copy(&text) {
+            Ok(()) => self.say(format!("Copied {} characters", text.chars().count())),
+            Err(e) => self.say(format!("Cannot copy: {e}")),
+        }
+    }
+
+    fn open_find(&mut self) {
+        if let Some(find) = &mut self.find {
+            find.typing = true;
+            return;
+        }
+        // Like browsers, start with the selected text.
+        let query = match (self.selection, &self.layout) {
+            (Some(span), Some(layout)) => text::copy(layout, span),
+            _ => String::new(),
+        };
+        let query = if query.contains('\n') || query.chars().count() > 80 {
+            String::new()
+        } else {
+            query
+        };
+        self.find = Some(Find {
+            query,
+            matches: Vec::new(),
+            current: 0,
+            typing: true,
+        });
+        self.search(true);
+    }
+
+    fn find_keys(&mut self, input: &Input) {
+        let Some(find) = self.find.as_mut() else {
+            return;
+        };
+        let mut changed = false;
+        if !input.ctrl && !input.alt {
+            find.query.extend(&input.typed);
+            changed |= !input.typed.is_empty();
+        }
+        for key in &input.keys {
+            if *key == Key::Backspace {
+                changed |= find.query.pop().is_some();
+            }
+        }
+        let mut step = 0;
+        for key in &input.fresh {
+            match key {
+                Key::Enter | Key::NumPadEnter | Key::F3 => step = if input.shift { -1 } else { 1 },
+                Key::Escape => {
+                    self.find = None;
+                    return;
+                }
+                Key::V if input.ctrl => match clipboard::paste() {
+                    Ok(text) => {
+                        find.query.push_str(text.lines().next().unwrap_or(""));
+                        changed = true;
+                    }
+                    Err(e) => self.toast = Some((format!("Cannot paste: {e}"), Instant::now())),
+                },
+                _ => {}
+            }
+        }
+        if changed {
+            self.search(true);
+        }
+        if step != 0 {
+            self.next_match(step);
+        }
+    }
+
+    /// Finds the query on the current layout. With `jump`, goes to the first
+    /// match from the top of the view down.
+    fn search(&mut self, jump: bool) {
+        let (Some(layout), Some(find)) = (&self.layout, &mut self.find) else {
+            return;
+        };
+        find.matches = text::find(layout, &find.query);
+        if jump {
+            let fonts = self.renderer.fonts();
+            let below = |m: &Span| {
+                text::rects(layout, fonts, *m)
+                    .first()
+                    .is_some_and(|r| r.y >= self.scroll)
+            };
+            find.current = find.matches.iter().position(below).unwrap_or(0);
+            self.reveal_match();
+        } else {
+            find.current = find.current.min(find.matches.len().saturating_sub(1));
+        }
+    }
+
+    fn next_match(&mut self, step: i32) {
+        if let Some(find) = &mut self.find
+            && !find.matches.is_empty()
+        {
+            let n = find.matches.len() as i32;
+            find.current = (find.current as i32 + step).rem_euclid(n) as usize;
+        }
+        self.reveal_match();
+    }
+
+    fn reveal_match(&mut self) {
+        let rect = self.find.as_ref().and_then(|f| {
+            let span = f.matches.get(f.current)?;
+            let layout = self.layout.as_ref()?;
+            text::rects(layout, self.renderer.fonts(), *span)
+                .first()
+                .copied()
+        });
+        if let Some(r) = rect {
+            self.reveal(r);
+        }
+    }
+
+    /// The find bar and its close button, in window coordinates.
+    fn find_bar(&self) -> Option<(Rect, Rect)> {
+        self.find.as_ref()?;
+        let w = 360.0f32.min(self.view.0 - 24.0);
+        let bar = Rect::new(self.view.0 - w - SCROLLBAR - 6.0, 8.0, w, 36.0);
+        let close = Rect::new(bar.x + bar.w - 32.0, bar.y + 4.0, 28.0, 28.0);
+        Some((bar, close))
+    }
+
+    /// Starts selecting text at a page point; double and triple clicks select
+    /// a word and a paragraph, Shift extends the selection.
+    fn start_selection(&mut self, p: (f32, f32), m: (f32, f32), shift: bool) {
+        let Some(layout) = &self.layout else { return };
+        let Some(caret) = text::caret_at(layout, self.renderer.fonts(), p.0, p.1) else {
+            self.selection = None;
+            return;
+        };
+        let (at, place, count) = self.clicks;
+        let near = (place.0 - m.0).abs() < 5.0 && (place.1 - m.1).abs() < 5.0;
+        let count = if near && at.elapsed() < MULTI_CLICK {
+            count % 3 + 1
+        } else {
+            1
+        };
+        self.clicks = (Instant::now(), m, count);
+        self.selection = Some(match (count, self.selection) {
+            (2, _) => text::word_at(layout, caret),
+            (3, _) => text::paragraph(layout, caret),
+            (_, Some(old)) if shift => Span {
+                anchor: old.anchor,
+                head: caret,
+            },
+            _ => Span {
+                anchor: caret,
+                head: caret,
+            },
+        });
+        self.drag = Some(Drag::Select);
+    }
+
+    /// Extends the selection to the pointer while the button is held. Past
+    /// the top or bottom edge the page scrolls.
+    fn drag_selection(&mut self, m: (f32, f32)) {
+        let place = self.clicks.1;
+        if (place.0 - m.0).abs() < 3.0 && (place.1 - m.1).abs() < 3.0 {
+            return;
+        }
+        if m.1 < 0.0 {
+            self.scroll += m.1.max(-80.0) / 4.0 / self.zoom;
+        } else if m.1 > self.view.1 {
+            self.scroll += (m.1 - self.view.1).min(80.0) / 4.0 / self.zoom;
+        }
+        self.clamp_scroll();
+        let x = m.0.clamp(0.0, self.view.0) / self.zoom;
+        let y = m.1.clamp(0.0, self.view.1) / self.zoom + self.scroll;
+        if let (Some(layout), Some(selection)) = (&self.layout, &mut self.selection)
+            && let Some(caret) = text::caret_at(layout, self.renderer.fonts(), x, y)
+        {
+            selection.head = caret;
         }
     }
 
@@ -641,10 +918,13 @@ impl Browser {
 
         let bar = self.scrollbar();
         let on_bar = |m: (f32, f32)| bar.as_ref().is_some_and(|b| b.track.contains(m.0, m.1));
-        self.on_scrollbar = input.mouse.is_some_and(on_bar) || self.drag.is_some();
+        let find_bar = self.find_bar();
+        let on_find = |m: (f32, f32)| find_bar.is_some_and(|(r, _)| r.contains(m.0, m.1));
+        self.on_scrollbar =
+            input.mouse.is_some_and(on_bar) || matches!(self.drag, Some(Drag::Thumb { .. }));
         let point = input
             .mouse
-            .filter(|m| !on_bar(*m))
+            .filter(|m| !on_bar(*m) && !on_find(*m))
             .and_then(|m| self.on_page(m));
         self.hover = match self.drag {
             None => point.and_then(|p| self.link_at(p)),
@@ -652,7 +932,13 @@ impl Browser {
         };
 
         if pressed && let Some(m) = input.mouse {
-            if let Some(bar) = bar.as_ref().filter(|_| on_bar(m)) {
+            if let Some((_, close)) = find_bar.filter(|_| on_find(m)) {
+                if close.contains(m.0, m.1) {
+                    self.find = None;
+                } else if let Some(find) = &mut self.find {
+                    find.typing = true;
+                }
+            } else if let Some(bar) = bar.as_ref().filter(|_| on_bar(m)) {
                 if bar.thumb.contains(m.0, m.1) {
                     self.drag = Some(Drag::Thumb {
                         grab: m.1 - bar.thumb.y,
@@ -665,8 +951,20 @@ impl Browser {
             } else {
                 // A mouse click hides the keyboard focus ring.
                 self.focus = None;
+                if let Some(find) = &mut self.find {
+                    find.typing = false;
+                }
                 self.pressed = self.hover;
+                if let (None, Some(p)) = (self.hover, point) {
+                    self.start_selection(p, m, input.shift);
+                }
             }
+        }
+        if input.left
+            && matches!(self.drag, Some(Drag::Select))
+            && let Some(m) = input.mouse
+        {
+            self.drag_selection(m);
         }
         if let (Some(Drag::Thumb { grab }), Some(m), Some(bar)) = (&self.drag, input.mouse, &bar) {
             let travel = (bar.track.h - bar.thumb.h).max(1.0);
@@ -680,6 +978,9 @@ impl Browser {
                 self.follow(&target);
             }
             self.drag = None;
+            if self.selection.is_some_and(Span::is_empty) {
+                self.selection = None;
+            }
         }
     }
 
@@ -688,11 +989,31 @@ impl Browser {
         let Some(m) = mouse else {
             return CursorStyle::Arrow;
         };
-        if self.drag.is_some() || self.scrollbar().is_some_and(|b| b.track.contains(m.0, m.1)) {
+        match self.drag {
+            Some(Drag::Select) => return CursorStyle::Ibeam,
+            Some(Drag::Thumb { .. }) => return CursorStyle::Arrow,
+            None => {}
+        }
+        if self.scrollbar().is_some_and(|b| b.track.contains(m.0, m.1)) {
             return CursorStyle::Arrow;
         }
+        if let Some((bar, close)) = self.find_bar()
+            && bar.contains(m.0, m.1)
+        {
+            return if close.contains(m.0, m.1) {
+                CursorStyle::ClosedHand
+            } else {
+                CursorStyle::Ibeam
+            };
+        }
+        let over_text = |p: (f32, f32)| {
+            self.layout
+                .as_ref()
+                .is_some_and(|l| text::over_text(l, p.0, p.1))
+        };
         match self.on_page(m) {
             Some(p) if self.link_at(p).is_some() => CursorStyle::ClosedHand,
+            Some(p) if over_text(p) => CursorStyle::Ibeam,
             _ => CursorStyle::Arrow,
         }
     }
@@ -749,13 +1070,56 @@ impl Browser {
             pressed: self.pressed,
             focus: self.focus.clone(),
             status: self.status(),
-            scrollbar: (self.on_scrollbar, self.drag.is_some()),
+            scrollbar: (
+                self.on_scrollbar,
+                matches!(self.drag, Some(Drag::Thumb { .. })),
+            ),
+            selection: self.selection,
+            find: self
+                .find
+                .as_ref()
+                .map(|f| (f.query.clone(), f.current, f.matches.len(), f.typing)),
         }
     }
 
     /// Highlights drawn over the page, in page coordinates.
     fn page_overlay(&self) -> Vec<Item> {
-        let mut ui = Ui::new(self.renderer.fonts());
+        let fonts = self.renderer.fonts();
+        let mut ui = Ui::new(fonts);
+        if let Some(layout) = &self.layout {
+            // Only text near the view is measured.
+            let (top, bottom) = (
+                self.scroll - 200.0,
+                self.scroll + self.page_view_h() + 200.0,
+            );
+            let near = |span: &Span| {
+                layout.text[span.anchor.area.min(span.head.area)]
+                    .runs
+                    .first()
+                    .is_none_or(|r| r.rect.y < bottom)
+                    && layout.text[span.anchor.area.max(span.head.area)]
+                        .runs
+                        .last()
+                        .is_none_or(|r| r.rect.y + r.rect.h > top)
+            };
+            if let Some(find) = &self.find {
+                for (i, span) in find.matches.iter().enumerate().filter(|(_, s)| near(s)) {
+                    let color = if i == find.current {
+                        CURRENT_MATCH
+                    } else {
+                        MATCH
+                    };
+                    for r in text::rects(layout, fonts, *span) {
+                        ui.fill(r, color, 2.0);
+                    }
+                }
+            }
+            if let Some(span) = self.selection.filter(near) {
+                for r in text::rects(layout, fonts, span) {
+                    ui.fill(r, SELECTION, 0.0);
+                }
+            }
+        }
         let link = |i: Option<usize>| i.and_then(|i| self.links.get(i));
         if let Some(group) = link(self.hover) {
             let shade = if self.pressed == self.hover {
@@ -801,6 +1165,56 @@ impl Browser {
             };
             ui.fill(thumb, color, w / 2.0);
         }
+        if let (Some(find), Some((bar, close))) = (&self.find, self.find_bar()) {
+            ui.shadow(bar, 8.0);
+            ui.fill(bar, Color::WHITE, 8.0);
+            let (width, color) = if find.typing {
+                (2.0, ui::ACCENT)
+            } else {
+                (1.0, ui::LINE)
+            };
+            ui.border(bar, width, color, 8.0);
+            let size = 14.0;
+            let y = bar.y + (bar.h - Ui::line(size)) / 2.0;
+            let count = match (find.query.is_empty(), find.matches.len()) {
+                (true, _) => String::new(),
+                (false, 0) => "No matches".into(),
+                (false, n) => format!("{} of {n}", find.current + 1),
+            };
+            let count_w = ui.width(&count, 12.5, Face::Regular);
+            ui.text(
+                close.x - 6.0 - count_w,
+                bar.y + (bar.h - Ui::line(12.5)) / 2.0,
+                &count,
+                12.5,
+                ui::MUTED,
+                Face::Regular,
+            );
+            let x = bar.x + 12.0;
+            let room = close.x - count_w - 16.0 - x;
+            let shown = if find.query.is_empty() {
+                ui.text(x, y, "Find in page", size, ui::MUTED, Face::Regular);
+                0.0
+            } else {
+                ui.text_fit(x, y, room, &find.query, size, ui::INK, Face::Regular)
+            };
+            if find.typing {
+                ui.fill(
+                    Rect::new(x + shown + 1.0, y + 3.0, 1.5, Ui::line(size) - 6.0),
+                    ui::INK,
+                    0.0,
+                );
+            }
+            let cross_w = ui.width("×", 18.0, Face::Regular);
+            ui.text(
+                close.x + (close.w - cross_w) / 2.0,
+                close.y + (close.h - Ui::line(18.0)) / 2.0,
+                "×",
+                18.0,
+                ui::MUTED,
+                Face::Regular,
+            );
+        }
         if let Some(text) = self.status() {
             let max_w = (self.view.0 * 0.7).clamp(120.0, 720.0);
             ui.bubble(6.0, self.view.1 - 6.0, max_w, &text, STATUS_SIZE);
@@ -838,6 +1252,8 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
     )
     .map_err(|e| format!("error: cannot open a window: {e}"))?;
     window.set_target_fps(60);
+    let typed = Rc::new(RefCell::new(Vec::new()));
+    window.set_input_callback(Box::new(Typed(typed.clone())));
 
     let mut size = (0usize, 0usize);
     let mut pixmap: Option<Pixmap> = None;
@@ -869,7 +1285,7 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
             let (hx, hy) = hotspots.offset(style);
             raw.map(|(x, y)| ((x + hx) / scale, (y + hy) / scale))
         };
-        let input = Input::read(&window, at(cursor_style));
+        let input = Input::read(&window, at(cursor_style), &typed);
         if last_poll.elapsed() > Duration::from_millis(300) {
             last_poll = Instant::now();
             browser.check_files();
@@ -974,6 +1390,84 @@ mod tests {
             (groups[2].target.as_str(), groups[2].radius),
             ("b.slml", 9.0)
         );
+    }
+
+    fn page(name: &str, src: &str) -> (Browser, PathBuf) {
+        let root = std::env::temp_dir().join(format!("slml-native-{name}-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("index.slml");
+        std::fs::write(&file, src).unwrap();
+        let mut b = Browser::new(file, root.clone(), 1.0);
+        b.frame(&Input::default(), (800.0, 600.0));
+        (b, root)
+    }
+
+    #[test]
+    fn dragging_selects_text_and_find_counts_matches() {
+        let (mut b, root) = page(
+            "select",
+            r#"slml 0.1 page(padding: 20) { text "First words here" text "second words" }"#,
+        );
+        let runs = &b.layout.as_ref().unwrap().text[0].runs;
+        let (start, end, last) = (runs[0].rect, runs[3].rect, runs[4].rect);
+        let at = |r: Rect| Some((r.x + 1.0, r.y + r.h / 2.0));
+        let step = |b: &mut Browser, mouse, left| {
+            let input = Input {
+                mouse,
+                left,
+                ..Input::default()
+            };
+            b.frame(&input, (800.0, 600.0));
+        };
+        step(&mut b, at(start), true);
+        step(&mut b, at(end), true);
+        step(&mut b, at(end), false);
+        let layout = b.layout.as_ref().unwrap();
+        assert_eq!(text::copy(layout, b.selection.unwrap()), "First words");
+        assert_eq!(b.cursor(at(start)), CursorStyle::Ibeam);
+
+        // A double click selects one word.
+        step(&mut b, at(last), true);
+        step(&mut b, at(last), false);
+        step(&mut b, at(last), true);
+        let layout = b.layout.as_ref().unwrap();
+        assert_eq!(text::copy(layout, b.selection.unwrap()), "here");
+
+        let keys = |b: &mut Browser, key: Key, ctrl: bool, typed: &str| {
+            let input = Input {
+                fresh: vec![key],
+                keys: vec![key],
+                ctrl,
+                typed: typed.chars().collect(),
+                ..Input::default()
+            };
+            b.frame(&input, (800.0, 600.0));
+        };
+        keys(&mut b, Key::F, true, "");
+        assert_eq!(
+            b.find.as_ref().unwrap().query,
+            "here",
+            "starts with the selection"
+        );
+        for _ in 0..4 {
+            keys(&mut b, Key::Backspace, false, "");
+        }
+        assert!(
+            b.back.is_empty() && b.nav.is_none(),
+            "Backspace edits the query"
+        );
+        keys(&mut b, Key::LeftShift, false, "WORDS");
+        let find = b.find.as_ref().unwrap();
+        assert_eq!((find.query.as_str(), find.matches.len()), ("WORDS", 2));
+        keys(&mut b, Key::Enter, false, "");
+        assert_eq!(
+            b.find.as_ref().unwrap().current,
+            1,
+            "Enter goes to the next match"
+        );
+        keys(&mut b, Key::Escape, false, "");
+        assert!(b.find.is_none());
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

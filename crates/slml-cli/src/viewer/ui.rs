@@ -7,6 +7,7 @@ use slml_syntax::model::Color;
 
 pub const ACCENT: Color = Color(0x2457d6ff);
 pub const INK: Color = Color(0x1b1b1fff);
+pub const MUTED: Color = Color(0x6b6b76ff);
 pub const PANEL: Color = Color(0xf6f6f8ff);
 pub const LINE: Color = Color(0xd4d4d8ff);
 
@@ -73,6 +74,22 @@ impl<'a> Ui<'a> {
             glyphs,
         });
         width
+    }
+
+    /// Like [`Ui::text`], but cut with "…" to fit `max_w`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn text_fit(
+        &mut self,
+        x: f32,
+        y: f32,
+        max_w: f32,
+        text: &str,
+        size: f32,
+        color: Color,
+        face: Face,
+    ) -> f32 {
+        let fitted = self.fit(text, max_w, size, face);
+        self.text(x, y, &fitted, size, color, face)
     }
 
     pub fn fit(&self, text: &str, max_w: f32, size: f32, face: Face) -> String {
