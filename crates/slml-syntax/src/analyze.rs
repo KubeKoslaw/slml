@@ -725,7 +725,11 @@ pub fn analyze(input: Input<'_>, mut errors: Vec<Diagnostic>) -> Result<Document
     for (target, span) in std::mem::take(&mut an.anchor_links) {
         if !an.ids.contains_key(&target) {
             let names: Vec<&str> = an.ids.keys().map(String::as_str).collect();
-            let mut d = Diagnostic::new(span, format!("no element has `id: \"{target}\"`"));
+            let written = match an.dialect {
+                Dialect::Compact => format!("id:{target}"),
+                Dialect::Long => format!("id: \"{target}\""),
+            };
+            let mut d = Diagnostic::new(span, format!("no element has `{written}`"));
             if let Some(s) = suggest(&target, &names) {
                 d = d.with_hint(format!("did you mean `#{s}`?"));
             }
@@ -886,10 +890,19 @@ impl<'a> Analyzer<'a> {
                 );
                 let mut own = kind.attr_names();
                 if self.dialect == Dialect::Compact {
-                    own = own.into_iter().map(names::attr_compact).collect();
-                    own.dedup();
+                    let mut seen = HashSet::new();
+                    own = own
+                        .into_iter()
+                        .map(names::attr_compact)
+                        .filter(|k| seen.insert(*k))
+                        .collect();
                 }
-                if let Some(s) = suggest(shown_attr(a), &own) {
+                // One- and two-letter keys are too short for a useful guess.
+                let guess = match self.dialect {
+                    Dialect::Compact if shown_attr(a).chars().count() <= 2 => None,
+                    _ => suggest(shown_attr(a), &own),
+                };
+                if let Some(s) = guess {
                     d = d.with_hint(format!("did you mean `{s}`?"));
                 } else if !own.is_empty() {
                     d = d.with_hint(format!("`{}` accepts: {}", shown(node), own.join(", ")));

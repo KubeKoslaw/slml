@@ -1806,6 +1806,15 @@ mod tests {
     }
 
     #[test]
+    fn enum_letters_through_parameters() {
+        let doc = compile("slml 0.2 @bar(align){r{a$align}} page{bar{$align:c}}");
+        let Node::Container(r) = &doc.page.children[0] else {
+            panic!()
+        };
+        assert_eq!(r.flow.align, Align::Center);
+    }
+
+    #[test]
     fn forms() {
         let doc = compile(
             r#"slml 0.2 page{form{>https://example.com/x post

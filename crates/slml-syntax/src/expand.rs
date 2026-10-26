@@ -152,9 +152,18 @@ impl<'a> Expander<'a> {
         attrs
             .iter()
             .filter_map(|a| match &a.value {
-                Value::Param(p) => self
-                    .lookup(p, a.value_span, ctx)
-                    .map(|value| Attr { value, ..a.clone() }),
+                Value::Param(p) => self.lookup(p, a.value_span, ctx).map(|value| {
+                    // `$align:c` passed to `a$align` means `center`, as `a:c` does.
+                    let value = match value {
+                        Value::Ident(i) => Value::Ident(
+                            crate::names::enum_value(&a.name, &i)
+                                .map(str::to_string)
+                                .unwrap_or(i),
+                        ),
+                        other => other,
+                    };
+                    Attr { value, ..a.clone() }
+                }),
                 _ => Some(a.clone()),
             })
             .collect()

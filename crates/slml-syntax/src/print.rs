@@ -19,6 +19,7 @@ pub fn to_compact(doc: &Document) -> Result<String, Vec<Diagnostic>> {
         comments: doc.comments.clone(),
         next_comment: 0,
         errors: Vec::new(),
+        depth: 0,
     };
     p.comments.sort_by_key(|(s, _)| s.start);
     p.out.push_str("slml 0.2\n");
@@ -85,6 +86,8 @@ struct Printer {
     comments: Vec<(Span, String)>,
     next_comment: usize,
     errors: Vec<Diagnostic>,
+    /// Indentation depth of the element being printed.
+    depth: usize,
 }
 
 const INDENT: &str = "  ";
@@ -224,6 +227,25 @@ impl Printer {
         }
     }
 
+    /// A string argument: multi-line text becomes an indented `"""` block.
+    fn string_value(&self, s: &str) -> String {
+        if !s.contains('\n') || s.contains("\"\"\"") || s.ends_with(' ') {
+            return quote(s);
+        }
+        let pad = INDENT.repeat(self.depth + 2);
+        let mut out = String::from("\"\"\"\n");
+        for line in s.split('\n') {
+            if !line.is_empty() {
+                out.push_str(&pad);
+                out.push_str(line);
+            }
+            out.push('\n');
+        }
+        out.push_str(&pad);
+        out.push_str("\"\"\"");
+        out
+    }
+
     /// One attribute in compact form, or `None` when it is printed
     /// elsewhere (`level`, `marker`, positional `src`, `alt`, `label` …).
     fn attr(&mut self, a: &Attr, element: &str) -> Option<String> {
@@ -232,7 +254,7 @@ impl Printer {
             // Every argument of a component call is a `$parameter`.
             let v = match &a.value {
                 Value::Ident(i) => format!(":{i}"),
-                Value::Str(s) => quote(s),
+                Value::Str(s) => self.string_value(s),
                 other => self.value_glued(other, "", a.span),
             };
             return Some(format!("${name}{v}"));
@@ -469,6 +491,7 @@ impl Printer {
         element: Option<&str>,
     ) {
         let element = element.unwrap_or("define");
+        self.depth = depth;
         let attrs = self.attrs(attrs, element);
         let comment_inside = |me: &Self, n: &Node| {
             me.comments
@@ -749,6 +772,7 @@ impl Printer {
                         comments: Vec::new(),
                         next_comment: 0,
                         errors: Vec::new(),
+                        depth,
                     };
                     tmp.list_block(sub, depth);
                     self.errors.append(&mut tmp.errors);
@@ -760,6 +784,7 @@ impl Printer {
                         comments: Vec::new(),
                         next_comment: 0,
                         errors: Vec::new(),
+                        depth,
                     };
                     tmp.node(other, Ctx::List, depth);
                     self.errors.append(&mut tmp.errors);
@@ -770,7 +795,11 @@ impl Printer {
             }
         }
         let one_line = head.len() + parts.iter().map(String::len).sum::<usize>() < 70;
-        let sep = if head.is_empty() || parts.is_empty() { "" } else { " " };
+        let sep = if head.is_empty() || parts.is_empty() {
+            ""
+        } else {
+            " "
+        };
         if one_line {
             self.out
                 .push_str(&format!("{marker}{{{head}{sep}{}}}", parts.join(" ")));
