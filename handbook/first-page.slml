@@ -1,51 +1,36 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-doc(title: "Your first page") {
-  text.lead "In this chapter you write a small page and open it directly in SLML's own browser."
-
-  section(id: "write", title: "1. Write the page") {
-    text { "Create a folder for your site and a file named " code "index.slml" " in it:" }
-    demo(code: """
-        slml 0.1
-
-        meta(title: "My first page")
-
-        page {
-          heading "Hello, world!"
-          text "This is my first SLML page."
-          button(to: "#write") "Click me"
-        }
-        """) {
-      heading "Hello, world!"
-      text "This is my first SLML page."
-      row { button(to: "#write") "Click me" }
+doc{$title"Your first page"
+  t.lead"In this chapter you write a small page and open it directly in SLML's own browser."
+  section{$id"write" $title"1. Write the page"
+    "Create a folder for your site and a file named `index.slml` in it:"
+    demo{$code"slml 0.1\n\nmeta(title: \"My first page\")\n\npage {\n  heading \"Hello, world!\"\n  text \"This is my first SLML page.\"\n  button(to: \"#write\") \"Click me\"\n}"
+      #"Hello, world!"
+      "This is my first SLML page."
+      r{btn{>#write "Click me"}}
     }
-    text "Every SLML file has the same three parts:"
-    list(gap: 8) {
-      item { code "slml 0.1" " — the version line. It is always first, so a page can never be misread by a newer compiler." }
-      item { code "meta(...)" " — information about the page: its title, language, description and icon. Optional." }
-      item { code "page { ... }" " — the visible content. Exactly one per file." }
+    "Every SLML file has the same three parts:"
+    -{g8
+      "`slml 0.1` — the version line. It is always first, so a page can never be misread by a newer compiler."
+      "`meta(...)` — information about the page: its title, language, description and icon. Optional."
+      "`page { ... }` — the visible content. Exactly one per file."
     }
   }
-
-  section(id: "preview", title: "2. Preview it") {
-    text "Open a terminal in the folder and start SLML:"
-    codeblock "slml index.slml"
-    text { "The native SLML browser opens your document. Change the text in " code "index.slml" ", save, and the page updates by itself. Errors are drawn as an SLML error page in the same window. Close the window to exit." }
+  section{$id"preview" $title"2. Preview it"
+    "Open a terminal in the folder and start SLML:"
+    code"slml index.slml"
+    "The native SLML browser opens your document. Change the text in `index.slml`, save, and the page updates by itself. Errors are drawn as an SLML error page in the same window. Close the window to exit."
   }
-
-  section(id: "compile", title: "3. Open the site folder") {
-    text "You can also give SLML the whole folder:"
-    codeblock "slml ."
-    text { "This opens " code "index.slml" " and makes the folder the site root. Links to other " code ".slml" " pages stay in SLML. Imported components and images reload when you save them. No HTML files are generated." }
-    text { "Use " code "slml render index.slml -o preview.png" " when you want a picture of the page." }
+  section{$id"compile" $title"3. Open the site folder"
+    "You can also give SLML the whole folder:"
+    code"slml ."
+    "This opens `index.slml` and makes the folder the site root. Links to other `.slml` pages stay in SLML. Imported components and images reload when you save them. No HTML files are generated."
+    "Use `slml render index.slml -o preview.png` when you want a picture of the page."
   }
-
-  section(id: "mistakes", title: "4. Make a mistake on purpose") {
-    text { "Change " code "heading" " to " code "headng" " and run " code "slml check index.slml" ":" }
-    codeblock """
+  section{$id"mistakes" $title"4. Make a mistake on purpose"
+    "Change `heading` to `headng` and run `slml check index.slml`:"
+    code"""
         error: unknown element `headng`
          --> index.slml:6:3
           |
@@ -53,8 +38,7 @@ doc(title: "Your first page") {
           |   ^^^^^^
           = hint: did you mean `heading`?
         """
-    text "SLML never guesses. Each mistake is reported with its place and a suggestion, and nothing is written until the file is correct."
+    "SLML never guesses. Each mistake is reported with its place and a suggestion, and nothing is written until the file is correct."
   }
-
-  pager(prev: "/install.slml", prev-label: "Installing", next: "/syntax.slml", next-label: "Syntax basics")
+  pager{$prev"/install.slml" $prev-label"Installing" $next"/syntax.slml" $next-label"Syntax basics"}
 }

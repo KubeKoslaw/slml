@@ -1,12 +1,10 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-doc(title: "Building a website") {
-  text.lead { "A website is a folder of " code ".slml" " files, images and other files. Open the folder directly in SLML's own native browser. HTML export is an optional compatibility step for existing web hosts." }
-
-  section(id: "structure", title: "A site folder") {
-    codeblock """
+doc{$title"Building a website"
+  t.lead"A website is a folder of `.slml` files, images and other files. Open the folder directly in SLML's own native browser. HTML export is an optional compatibility step for existing web hosts."
+  section{$id"structure" $title"A site folder"
+    code"""
         my-site/
           layout.slml        styles and components (a library: no page)
           index.slml         the home page
@@ -17,48 +15,44 @@ doc(title: "Building a website") {
           img/
             logo.png         image asset
         """
-    list(gap: 6) {
-      item { "Files with a " code "page" " are pages read by the native browser. Files with only " code "style" " and " code "define" " are libraries for " code "use" "." }
-      item { "Keep images and other assets alongside the pages that use them." }
-      item { "Folders whose name starts with " code "_" " or " code "." " are skipped, so you can keep drafts in " code "_drafts/" "." }
-      item { "Hidden files, " code "target/" ", " code "node_modules/" " and common working notes are excluded from builds and direct preview requests. Symbolic links inside the site are skipped during builds and rejected by the preview server and imports; keep shared components inside the site root." }
-      item { "Paths starting with " code "/" " mean the folder you build: " code "/img/logo.png" " works from every page." }
+    -{g6
+      "Files with a `page` are pages read by the native browser. Files with only `style` and `define` are libraries for `use`."
+      "Keep images and other assets alongside the pages that use them."
+      "Folders whose name starts with `_` or `.` are skipped, so you can keep drafts in `_drafts/`."
+      "Hidden files, `target/`, `node_modules/` and common working notes are excluded from builds and direct preview requests. Symbolic links inside the site are skipped during builds and rejected by the preview server and imports; keep shared components inside the site root."
+      "Paths starting with `/` mean the folder you build: `/img/logo.png` works from every page."
     }
   }
-
-  section(id: "preview", title: "Opening the native site") {
-    codeblock "slml my-site"
-    text { "SLML opens " code "my-site/index.slml" " in its own native browser. Its Rust parser, layout engine and painter read the original source. Save the page, a shared component or an image to reload the window. Local page links and anchors work inside SLML." }
-    text { "For a local source server as well, use " code "slml serve my-site --open" ". It serves original .slml files on 127.0.0.1 and opens the native browser. The native browser reads your local site directly; closing its window stops this command." }
-    text { "The default server port is 4000. Use " code "--port 8080" " to choose another. If it is busy, SLML tries the next 19 ports and prints the address it actually uses. Without --open, Ctrl+C stops the server." }
-    note(title: "Current native browser limits") {
-      text "Native form editing, text selection and remote HTTP(S) document loading are still planned. Local documents, imports, images, links and anchors work in the native browser."
+  section{$id"preview" $title"Opening the native site"
+    code"slml my-site"
+    "SLML opens `my-site/index.slml` in its own native browser. Its Rust parser, layout engine and painter read the original source. Save the page, a shared component or an image to reload the window. Local page links and anchors work inside SLML."
+    "For a local source server as well, use `slml serve my-site --open`. It serves original .slml files on 127.0.0.1 and opens the native browser. The native browser reads your local site directly; closing its window stops this command."
+    "The default server port is 4000. Use `--port 8080` to choose another. If it is busy, SLML tries the next 19 ports and prints the address it actually uses. Without --open, Ctrl+C stops the server."
+    note{$title"Current native browser limits"
+      "Native form editing, text selection and remote HTTP(S) document loading are still planned. Local documents, imports, images, links and anchors work in the native browser."
     }
   }
-
-  section(id: "adapters", title: "Optional web adapters") {
-    text { "Choose " code "slml serve my-site --web --open" " explicitly to use the WebAssembly viewer inside a web browser, or " code "slml serve my-site --html --open" " for the HTML compatibility preview. These paths use the system web browser." }
-    text "The web adapter provides editable form fields and a Source editor. Edits in Source stay in the tab. The preview server serves files only; POST submissions need a working endpoint."
+  section{$id"adapters" $title"Optional web adapters"
+    "Choose `slml serve my-site --web --open` explicitly to use the WebAssembly viewer inside a web browser, or `slml serve my-site --html --open` for the HTML compatibility preview. These paths use the system web browser."
+    "The web adapter provides editable form fields and a Source editor. Edits in Source stay in the tab. The preview server serves files only; POST submissions need a working endpoint."
   }
-
-  section(id: "build", title: "Optional HTML compatibility export") {
-    codeblock """
+  section{$id"build" $title"Optional HTML compatibility export"
+    code"""
         slml build my-site           # HTML into my-site/_site
         slml build my-site -o public # HTML into public/
         """
-    text { "The output contains your pages as " code ".html" ", your other files, and a " code "_slml" " folder with the stylesheet and fonts. Links to " code ".slml" " pages are rewritten to " code ".html" ", and paths are made relative, so the site also works when opened straight from disk or from a sub-folder of a server." }
-    text { "If any page has an error or a broken link, " code "slml" " reports all of them and exits with status 1, which stops automated deployments before a broken site goes live." }
+    "The output contains your pages as `.html`, your other files, and a `_slml` folder with the stylesheet and fonts. Links to `.slml` pages are rewritten to `.html`, and paths are made relative, so the site also works when opened straight from disk or from a sub-folder of a server."
+    "If any page has an error or a broken link, `slml` reports all of them and exits with status 1, which stops automated deployments before a broken site goes live."
   }
-
-  section(id: "publish", title: "Publishing the optional HTML export") {
-    text "To distribute a native SLML site, keep its .slml pages, imports and assets together; a reader opens the folder with slml. The native browser currently reads local sites. If you explicitly choose HTML compatibility export, upload that output folder to an existing web host."
-    column(gap: 0) {
-      ref(name: "GitHub Pages", values: "free for public repos", about: "Build in a GitHub Actions workflow and deploy the output folder with actions/deploy-pages.")
-      ref(name: "Netlify / Cloudflare", values: "free tiers", about: "Build command: slml build . -o public. Publish directory: public.")
-      ref(name: "Any server", values: "FTP, rsync", about: "Copy the output folder to the server's web root.")
+  section{$id"publish" $title"Publishing the optional HTML export"
+    "To distribute a native SLML site, keep its .slml pages, imports and assets together; a reader opens the folder with slml. The native browser currently reads local sites. If you explicitly choose HTML compatibility export, upload that output folder to an existing web host."
+    c{g0
+      ref{$name"GitHub Pages" $values"free for public repos" $about"Build in a GitHub Actions workflow and deploy the output folder with actions/deploy-pages."}
+      ref{$name"Netlify / Cloudflare" $values"free tiers" $about"Build command: slml build . -o public. Publish directory: public."}
+      ref{$name"Any server" $values"FTP, rsync" $about"Copy the output folder to the server's web root."}
     }
-    text(bold: true) "Example: GitHub Pages workflow"
-    codeblock """
+    t{b "Example: GitHub Pages workflow"}
+    code"""
         # .github/workflows/pages.yml
         on: { push: { branches: [main] } }
         permissions: { pages: write, id-token: write, contents: read }
@@ -75,10 +69,8 @@ doc(title: "Building a website") {
               - uses: actions/deploy-pages@v4
         """
   }
-
-  section(id: "html", title: "What the HTML looks like") {
-    text { "The compiler writes semantic HTML: headings are " code "h1" "–" code "h4" ", lists are " code "ul" "/" code "ol" ", forms are real forms. Layout uses CSS flexbox and grid, so pages are responsive. Built pages contain " bold "no JavaScript" "; the live-reload script exists only in the preview server." }
+  section{$id"html" $title"What the HTML looks like"
+    "The compiler writes semantic HTML: headings are `h1`–`h4`, lists are `ul`/`ol`, forms are real forms. Layout uses CSS flexbox and grid, so pages are responsive. Built pages contain *no JavaScript*; the live-reload script exists only in the preview server."
   }
-
-  pager(prev: "/forms.slml", prev-label: "Forms", next: "/website-tutorial.slml", next-label: "A complete website")
+  pager{$prev"/forms.slml" $prev-label"Forms" $next"/website-tutorial.slml" $next-label"A complete website"}
 }

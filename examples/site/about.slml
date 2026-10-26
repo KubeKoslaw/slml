@@ -1,42 +1,66 @@
-slml 0.1
+slml 0.2
+@mistake{bg#fff4f2 p16 r10 g6 w:f}
+@fix{bg#f0faf4 p16 r10 g6 w:f}
+@label{b s13}
 
-meta(title: "Why not HTML?", lang: "en")
+meta{"Why not HTML?" lang:en}
 
-style mistake(fill: #fff4f2, padding: 16, radius: 10, gap: 6, width: fill)
-style fix(fill: #f0faf4, padding: 16, radius: 10, gap: 6, width: fill)
-style label(bold: true, size: 13)
-
-page(fill: #f6f6f9, align: center) {
-  column(width: fill, max-width: 860, gap: 20) {
-    text { link(to: "index.slml") "Back to the start page" }
-    heading "Why not HTML?"
-    text(color: #5b5b66, size: 18) "HTML grew for thirty years without breaking old pages. SLML starts over and keeps the good ideas."
-
-    row(gap: 12) {
-      column.mistake { text.label(color: #b42318) "HTML" text "Broken markup is silently \"fixed\" by complex error recovery; every browser must guess the same way." }
-      column.fix { text.label(color: #146c43) "SLML" text "A document is valid or rejected, with the exact line and a hint. Same input, same result." }
+page{bg#f6f6f9 a:c
+  c{w:f mw860 g20
+    "[Back to the start page](index.slml)"
+    #"Why not HTML?"
+    t{c#5b5b66 s18 "HTML grew for thirty years without breaking old pages. SLML starts over and keeps the good ideas."}
+    r{g12
+      c.mistake{
+        t.label{c#b42318 "HTML"}
+        "Broken markup is silently \"fixed\" by complex error recovery; every browser must guess the same way."
+      }
+      c.fix{
+        t.label{c#146c43 "SLML"}
+        "A document is valid or rejected, with the exact line and a hint. Same input, same result."
+      }
     }
-    row(gap: 12) {
-      column.mistake { text.label(color: #b42318) "HTML" text "Three languages (HTML, CSS, JS) with three syntaxes, plus selectors and cascade to connect them." }
-      column.fix { text.label(color: #146c43) "SLML" text "Structure and style use one grammar. Styles are named attribute sets applied directly." }
+    r{g12
+      c.mistake{
+        t.label{c#b42318 "HTML"}
+        "Three languages (HTML, CSS, JS) with three syntaxes, plus selectors and cascade to connect them."
+      }
+      c.fix{
+        t.label{c#146c43 "SLML"}
+        "Structure and style use one grammar. Styles are named attribute sets applied directly."
+      }
     }
-    row(gap: 12) {
-      column.mistake { text.label(color: #b42318) "HTML" text "Layout was added later: floats, tables, then flexbox and grid on top." }
-      column.fix { text.label(color: #146c43) "SLML" text "row, column, gap, fill and align are the layout model from day one." }
+    r{g12
+      c.mistake{
+        t.label{c#b42318 "HTML"}
+        "Layout was added later: floats, tables, then flexbox and grid on top."
+      }
+      c.fix{
+        t.label{c#146c43 "SLML"}
+        "row, column, gap, fill and align are the layout model from day one."
+      }
     }
-    row(gap: 12) {
-      column.mistake { text.label(color: #b42318) "HTML" text "Whitespace collapsing, entities like &amp;, optional closing tags, quirks mode." }
-      column.fix { text.label(color: #146c43) "SLML" text "Text is always quoted and literal. Escapes are \\n, \\\" and \\u{...}. A version line replaces doctype guessing." }
+    r{g12
+      c.mistake{
+        t.label{c#b42318 "HTML"}
+        "Whitespace collapsing, entities like &amp;, optional closing tags, quirks mode."
+      }
+      c.fix{
+        t.label{c#146c43 "SLML"}
+        "Text is always quoted and literal. Escapes are \\n, \\\" and \\u{...}. A version line replaces doctype guessing."
+      }
     }
-    row(gap: 12) {
-      column.mistake { text.label(color: #b42318) "HTML" text "Accessibility is optional: an image without alt is still valid." }
-      column.fix { text.label(color: #146c43) "SLML" text "image requires alt. Decorative images say so explicitly with alt: \"\"." }
+    r{g12
+      c.mistake{
+        t.label{c#b42318 "HTML"}
+        "Accessibility is optional: an image without alt is still valid."
+      }
+      c.fix{
+        t.label{c#146c43 "SLML"}
+        "image requires alt. Decorative images say so explicitly with alt: \"\"."
+      }
     }
-
-    divider
-    text(color: #5b5b66, size: 14) {
-      "SLML is young. See " code "ROADMAP.md" " for what comes next: components, grid, forms, "
-      "networking and a WebAssembly playground."
-    }
+    |
+    t{c#5b5b66 s14 "SLML is young. See `ROADMAP.md` for what comes next: components, grid, forms, networking and a WebAssembly playground."}
   }
 }

@@ -1,63 +1,42 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-doc(title: "Forms") {
-  text.lead { "Contact forms, sign-ups and surveys are written with " code "form" " and a few field elements. Every field must have a visible label." }
-
-  section(id: "example", title: "A contact form") {
-    demo(code: """
-        form(to: "https://formspree.io/f/your-id", method: post, gap: 14) {
-          input(name: "name", label: "Your name", required: true)
-          input(name: "email", label: "E-mail", kind: email,
-                placeholder: "you@example.com", required: true)
-          select(name: "topic", label: "Topic") {
-            option "Question"
-            option "Feedback"
-          }
-          textarea(name: "message", label: "Message", rows: 4)
-          checkbox(name: "newsletter", label: "Send me news")
-          row { submit "Send" }
-        }
-        """) {
-      form(to: "https://formspree.io/f/your-id", method: post, gap: 14) {
-        input(name: "name", label: "Your name", required: true)
-        input(name: "email", label: "E-mail", kind: email, placeholder: "you@example.com", required: true)
-        select(name: "topic", label: "Topic") {
-          option "Question"
-          option "Feedback"
-        }
-        textarea(name: "message", label: "Message", rows: 4)
-        checkbox(name: "newsletter", label: "Send me news")
-        row { submit "Send" }
+doc{$title"Forms"
+  t.lead"Contact forms, sign-ups and surveys are written with `form` and a few field elements. Every field must have a visible label."
+  section{$id"example" $title"A contact form"
+    demo{$code"form(to: \"https://formspree.io/f/your-id\", method: post, gap: 14) {\n  input(name: \"name\", label: \"Your name\", required: true)\n  input(name: \"email\", label: \"E-mail\", kind: email,\n        placeholder: \"you@example.com\", required: true)\n  select(name: \"topic\", label: \"Topic\") {\n    option \"Question\"\n    option \"Feedback\"\n  }\n  textarea(name: \"message\", label: \"Message\", rows: 4)\n  checkbox(name: \"newsletter\", label: \"Send me news\")\n  row { submit \"Send\" }\n}"
+      form{>https://formspree.io/f/your-id post g14
+        in{n:name "Your name" req}
+        in{n:email "E-mail" k:email ph"you@example.com" req}
+        sel{n:topic "Topic" opt"Question" opt"Feedback"}
+        area{n:message "Message" rows4}
+        check{n:newsletter "Send me news"}
+        r{send"Send"}
       }
     }
   }
-
-  section(id: "sending", title: "Where the data goes") {
-    text { code "to" " is the address that receives the form, and " code "method" " is " code "get" " (the default, for searches) or " code "post" " (for messages). A static website can't store messages itself, so use a form service such as Formspree, Basin or Netlify Forms, or your own server." }
-    note(title: "Native viewer") {
-      text { "In the native SLML viewer forms are shown but can't be typed into yet. The optional web adapter (" code "slml serve --web --open" ") and HTML exports support editing and submission. Native form interaction remains planned." }
+  section{$id"sending" $title"Where the data goes"
+    "`to` is the address that receives the form, and `method` is `get` (the default, for searches) or `post` (for messages). A static website can't store messages itself, so use a form service such as Formspree, Basin or Netlify Forms, or your own server."
+    note{$title"Native viewer"
+      "In the native SLML viewer forms are shown but can't be typed into yet. The optional web adapter (`slml serve --web --open`) and HTML exports support editing and submission. Native form interaction remains planned."
     }
   }
-
-  section(id: "fields", title: "Fields") {
-    column(gap: 0) {
-      ref(name: "input", values: "kind, placeholder, value", about: "One line of text. kind is text, email, password, number, tel, url, date or search.")
-      ref(name: "textarea", values: "rows, placeholder, value", about: "Several lines of text (rows: 1–50, default 4).")
-      ref(name: "checkbox", values: "checked", about: "A yes/no box. Its label is shown next to it.")
-      ref(name: "select", values: "option …", about: "A drop-down list of options. option takes a label, an optional value and selected: true.")
-      ref(name: "submit", values: "label", about: "The button that sends the form. Styled like button.")
+  section{$id"fields" $title"Fields"
+    c{g0
+      ref{$name"input" $values"kind, placeholder, value" $about"One line of text. kind is text, email, password, number, tel, url, date or search."}
+      ref{$name"textarea" $values"rows, placeholder, value" $about"Several lines of text (rows: 1–50, default 4)."}
+      ref{$name"checkbox" $values"checked" $about"A yes/no box. Its label is shown next to it."}
+      ref{$name"select" $values"option …" $about"A drop-down list of options. option takes a label, an optional value and selected: true."}
+      ref{$name"submit" $values"label" $about"The button that sends the form. Styled like button."}
     }
-    text { "All fields need " code "name" " (what the value is sent as) and " code "label" " (what people see). " code "required: true" " marks a field that must be filled in; its label gets a " code "*" "." }
-    warning(title: "Rules") {
-      list(gap: 4) {
-        item "Fields and submit only work inside a form, and forms can't be nested."
-        item "A field without a label is an error: screen readers and people both need it."
-        item "A select needs at least one option, and only one can be selected."
+    "All fields need `name` (what the value is sent as) and `label` (what people see). `required: true` marks a field that must be filled in; its label gets a `*`."
+    warning{$title"Rules"
+      -{g4
+        "Fields and submit only work inside a form, and forms can't be nested."
+        "A field without a label is an error: screen readers and people both need it."
+        "A select needs at least one option, and only one can be selected."
       }
     }
   }
-
-  pager(prev: "/components.slml", prev-label: "Components and imports", next: "/sites.slml", next-label: "Building a website")
+  pager{$prev"/components.slml" $prev-label"Components and imports" $next"/sites.slml" $next-label"Building a website"}
 }

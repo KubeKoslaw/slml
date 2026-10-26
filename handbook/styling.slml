@@ -1,75 +1,54 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
+@card{bg#fff p20 r12 b1 bc#e4e4ea g6}
+@highlight{bg#fff4d6 bc#f0d48a}
 
-style card(fill: #ffffff, padding: 20, radius: 12, border: 1, border-color: #e4e4ea, gap: 6)
-style highlight(fill: #fff4d6, border-color: #f0d48a)
-
-doc(title: "Boxes and styles") {
-  text.lead { "Every block element is a box. Its appearance is set with attributes, and sets of attributes you use often become " bold "styles" "." }
-
-  section(id: "box", title: "The box") {
-    column(gap: 0) {
-      ref(name: "padding", values: "number", about: "Space inside the box on all sides.")
-      ref(name: "padding-x / -y", values: "number", about: "Horizontal or vertical padding only; they override padding.")
-      ref(name: "fill", values: "color", about: "Background color.")
-      ref(name: "radius", values: "number", about: "Rounded corners.")
-      ref(name: "border", values: "number", about: "Border width. Its color is border-color (light gray by default).")
-      ref(name: "shadow", values: "none / small / large", about: "A soft drop shadow.")
+doc{$title"Boxes and styles"
+  t.lead"Every block element is a box. Its appearance is set with attributes, and sets of attributes you use often become *styles*."
+  section{$id"box" $title"The box"
+    c{g0
+      ref{$name"padding" $values"number" $about"Space inside the box on all sides."}
+      ref{$name"padding-x / -y" $values"number" $about"Horizontal or vertical padding only; they override padding."}
+      ref{$name"fill" $values"color" $about"Background color."}
+      ref{$name"radius" $values"number" $about"Rounded corners."}
+      ref{$name"border" $values"number" $about"Border width. Its color is border-color (light gray by default)."}
+      ref{$name"shadow" $values"none / small / large" $about"A soft drop shadow."}
     }
-    demo(code: """
-        column(fill: #ffffff, padding: 20, radius: 12,
-               border: 1, border-color: #e4e4ea, shadow: small) {
-          heading(level: 3) "A card"
-          text "Padding, fill, radius, border and shadow."
-        }
-        """) {
-      column(fill: #ffffff, padding: 20, radius: 12, border: 1, border-color: #e4e4ea, shadow: small) {
-        heading(level: 3) "A card"
-        text "Padding, fill, radius, border and shadow."
+    demo{$code"column(fill: #ffffff, padding: 20, radius: 12,\n       border: 1, border-color: #e4e4ea, shadow: small) {\n  heading(level: 3) \"A card\"\n  text \"Padding, fill, radius, border and shadow.\"\n}"
+      c{bg#fff p20 r12 b1 bc#e4e4ea sh:s
+        ###"A card"
+        "Padding, fill, radius, border and shadow."
       }
     }
-    note(title: "Sizes include padding and border") {
-      text { "A box with " code "width: 200" " and " code "padding: 20" " is 200 pixels wide in total. There is no box-model arithmetic to remember." }
+    note{$title"Sizes include padding and border"
+      "A box with `width: 200` and `padding: 20` is 200 pixels wide in total. There is no box-model arithmetic to remember."
     }
   }
-
-  section(id: "styles", title: "Styles") {
-    text { "A " code "style" " gives a name to a set of attributes. Apply it with a dot after the element name. The element's own attributes win over the style's:" }
-    demo(code: """
-        style card(fill: #ffffff, padding: 20, radius: 12,
-                   border: 1, border-color: #e4e4ea, gap: 6)
-        style highlight(fill: #fff4d6, border-color: #f0d48a)
-
-        row(gap: 12) {
-          column.card(width: fill) { text "Plain card" }
-          column.card.highlight(width: fill) { text "Card + highlight" }
-          column.card(width: fill, radius: 0) { text "Square card" }
-        }
-        """) {
-      row(gap: 12) {
-        column.card(width: fill) { text "Plain card" }
-        column.card.highlight(width: fill) { text "Card + highlight" }
-        column.card(width: fill, radius: 0) { text "Square card" }
+  section{$id"styles" $title"Styles"
+    "A `style` gives a name to a set of attributes. Apply it with a dot after the element name. The element's own attributes win over the style's:"
+    demo{$code"style card(fill: #ffffff, padding: 20, radius: 12,\n           border: 1, border-color: #e4e4ea, gap: 6)\nstyle highlight(fill: #fff4d6, border-color: #f0d48a)\n\nrow(gap: 12) {\n  column.card(width: fill) { text \"Plain card\" }\n  column.card.highlight(width: fill) { text \"Card + highlight\" }\n  column.card(width: fill, radius: 0) { text \"Square card\" }\n}"
+      r{g12
+        c.card{w:f "Plain card"}
+        c.card.highlight{w:f "Card + highlight"}
+        c.card{w:f r0 "Square card"}
       }
     }
-    list(gap: 6) {
-      item { "Styles are applied left to right, then the element's own attributes: " code "column.card.highlight(radius: 0)" "." }
-      item { "A style may only contain attributes that fit every element it is used on; " code "text.card" " is an error here, because a text has no " code "gap" "." }
-      item { "Styles never cascade and have no selectors. An element looks the way its own line says." }
-      item { "Put styles you share between pages into a library file and " code "use" " it. See " link(to: "/components.slml#imports") "imports" "." }
+    -{g6
+      "Styles are applied left to right, then the element's own attributes: `column.card.highlight(radius: 0)`."
+      "A style may only contain attributes that fit every element it is used on; `text.card` is an error here, because a text has no `gap`."
+      "Styles never cascade and have no selectors. An element looks the way its own line says."
+      "Put styles you share between pages into a library file and `use` it. See [imports](/components.slml#imports)."
     }
   }
-
-  section(id: "colors", title: "Colors") {
-    text { "Colors are hexadecimal: " code "#rgb" ", " code "#rrggbb" ", or with transparency " code "#rgba" " / " code "#rrggbbaa" ". There are no color names, so a color always means the same thing." }
-    row(gap: 8, wrap: true) {
-      text(fill: #2457d6, color: #ffffff, padding: 10, radius: 8) "#2457d6"
-      text(fill: #146c43, color: #ffffff, padding: 10, radius: 8) "#146c43"
-      text(fill: #b42318, color: #ffffff, padding: 10, radius: 8) "#b42318"
-      text(fill: #00000014, padding: 10, radius: 8) "#00000014"
+  section{$id"colors" $title"Colors"
+    "Colors are hexadecimal: `#rgb`, `#rrggbb`, or with transparency `#rgba` / `#rrggbbaa`. There are no color names, so a color always means the same thing."
+    r{g8 wrap
+      t{bg#2457d6 c#fff p10 r8 "#2457d6"}
+      t{bg#146c43 c#fff p10 r8 "#146c43"}
+      t{bg#b42318 c#fff p10 r8 "#b42318"}
+      t{bg#00000014 p10 r8 "#00000014"}
     }
   }
-
-  pager(prev: "/layout-guide.slml", prev-label: "Layout", next: "/content.slml", next-label: "Lists, code and images")
+  pager{$prev"/layout-guide.slml" $prev-label"Layout" $next"/content.slml" $next-label"Lists, code and images"}
 }

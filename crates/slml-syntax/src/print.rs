@@ -726,7 +726,8 @@ impl Printer {
             .filter(|a| a.name != "marker")
             .cloned()
             .collect();
-        let mut parts = self.attrs(&attrs, "list");
+        let head = self.attrs(&attrs, "list").join(" ");
+        let mut parts = Vec::new();
         for child in &n.children {
             match child {
                 Child::Node(i) if i.name == "item" => {
@@ -768,12 +769,13 @@ impl Printer {
                 Child::Param(p, _) => parts.push(format!("${p}")),
             }
         }
-        let one_line = parts.iter().map(String::len).sum::<usize>() < 70;
+        let one_line = head.len() + parts.iter().map(String::len).sum::<usize>() < 70;
+        let sep = if head.is_empty() || parts.is_empty() { "" } else { " " };
         if one_line {
             self.out
-                .push_str(&format!("{marker}{{{}}}", parts.join(" ")));
+                .push_str(&format!("{marker}{{{head}{sep}{}}}", parts.join(" ")));
         } else {
-            self.out.push_str(&format!("{marker}{{\n"));
+            self.out.push_str(&format!("{marker}{{{head}\n"));
             for part in parts {
                 self.indent(depth + 1);
                 self.out.push_str(&part);

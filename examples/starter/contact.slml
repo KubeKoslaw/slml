@@ -1,25 +1,19 @@
-slml 0.1
-use "layout.slml"
+slml 0.2
+use"layout.slml"
 
-site(title: "Contact — Fieldwork", description: "Try the accessible contact form in the SLML starter.") {
-  column(gap: 12, max-width: 720) {
-    text(size: 13, bold: true, color: #176b52) "LET'S TALK"
-    heading "What would you like to make?"
-    text.muted(size: 18) "Try the form using made-up details. This demo goes to a local page; it does not send or save a message. Values appear in the browser address bar, so do not enter private information."
+site{$title"Contact — Fieldwork" $description"Try the accessible contact form in the SLML starter."
+  c{g12 mw720
+    t{s13 b c#176b52 "LET'S TALK"}
+    #"What would you like to make?"
+    t.muted{s18 "Try the form using made-up details. This demo goes to a local page; it does not send or save a message. Values appear in the browser address bar, so do not enter private information."}
   }
-  form.card(to: "preview.slml", method: get, gap: 18, max-width: 720) {
-    input(name: "name", label: "Your name", placeholder: "Alex Example", required: true)
-    input(name: "email", label: "Email address", kind: email, placeholder: "alex@example.invalid", required: true)
-    select(name: "service", label: "What do you need?") {
-      option(value: "website") "A new website"
-      option(value: "refresh") "A website refresh"
-      option(value: "content") "Help with content"
-    }
-    textarea(name: "message", label: "Tell us about your idea", rows: 5, required: true)
-    checkbox(name: "demo", label: "I am using made-up details for this demo", required: true)
-    row(wrap: true, gap: 12) {
-      submit.action "Preview submission"
-    }
+  form.card{>preview.slml get g18 mw720
+    in{n:name "Your name" ph"Alex Example" req}
+    in{n:email "Email address" k:email ph"alex@example.invalid" req}
+    sel{n:service "What do you need?" opt{v"website" "A new website"} opt{v"refresh" "A website refresh"} opt{v"content" "Help with content"}}
+    area{n:message "Tell us about your idea" rows5 req}
+    check{n:demo "I am using made-up details for this demo" req}
+    r{wrap g12 send.action"Preview submission"}
   }
-  text.muted(size: 14) "For a real contact form, change the form destination to your server or form service and use method: post. The handbook explains how."
+  t.muted{s14 "For a real contact form, change the form destination to your server or form service and use method: post. The handbook explains how."}
 }

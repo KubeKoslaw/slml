@@ -1,43 +1,37 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-doc(title: "Installing the compiler") {
-  text.lead { "SLML is one program, " code "slml" ". It opens pages in SLML's own native browser and checks them for mistakes. You do not need Rust or any other tool to use it." }
-
-  section(id: "prebuilt", title: "Prebuilt compiler") {
-    text { bold "Linux and macOS:" " run the install script. It puts " code "slml" " into " code "~/.local/bin" "." }
-    codeblock "curl -fsSL https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.sh | sh"
-    text { bold "Windows" " (PowerShell):" }
-    codeblock "irm https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.ps1 | iex"
-    text { "You can also download an archive for your system from the " link(to: "https://github.com/KubeKoslaw/slml/releases") "releases page" " and put the " code "slml" " program anywhere on your " code "PATH" "." }
-    note(title: "Private repository") {
-      text { "While the SLML repository is private, downloads need a GitHub login. Install the GitHub CLI, run " code "gh auth login" ", and the install script will download through it." }
+doc{$title"Installing the compiler"
+  t.lead"SLML is one program, `slml`. It opens pages in SLML's own native browser and checks them for mistakes. You do not need Rust or any other tool to use it."
+  section{$id"prebuilt" $title"Prebuilt compiler"
+    "*Linux and macOS:* run the install script. It puts `slml` into `~/.local/bin`."
+    code"curl -fsSL https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.sh | sh"
+    "*Windows* (PowerShell):"
+    code"irm https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.ps1 | iex"
+    "You can also download an archive for your system from the [releases page](https://github.com/KubeKoslaw/slml/releases) and put the `slml` program anywhere on your `PATH`."
+    note{$title"Private repository"
+      "While the SLML repository is private, downloads need a GitHub login. Install the GitHub CLI, run `gh auth login`, and the install script will download through it."
     }
   }
-
-  section(id: "source", title: "Building from source") {
-    text { "Install " link(to: "https://rustup.rs") "Rust" " 1.88 or newer, then build and install the native browser:" }
-    codeblock """
+  section{$id"source" $title"Building from source"
+    "Install [Rust](https://rustup.rs) 1.88 or newer, then build and install the native browser:"
+    code"""
         git clone https://github.com/KubeKoslaw/slml
         cd slml
         make install
         """
-    text { code "make install" " copies " code "slml" " to " code "~/.local/bin" " and its manual page to " code "~/.local/share/man" ". For a system-wide install use " code "sudo make install PREFIX=/usr/local" ". On a server without a graphical desktop, add " code "VIEWER=0" " to leave out the native viewer window." }
+    "`make install` copies `slml` to `~/.local/bin` and its manual page to `~/.local/share/man`. For a system-wide install use `sudo make install PREFIX=/usr/local`. On a server without a graphical desktop, add `VIEWER=0` to leave out the native viewer window."
   }
-
-  section(id: "check", title: "Check that it works") {
-    codeblock """
+  section{$id"check" $title"Check that it works"
+    code"""
         slml --version
         slml --help
         """
-    text "You should see the compiler version and the language version, for example:"
-    codeblock "slml 0.1.0 (language 0.1)"
+    "You should see the compiler version and the language version, for example:"
+    code"slml 0.1.0 (language 0.1)"
   }
-
-  section(id: "editor", title: "Editor setup") {
-    text { "Any text editor works. Save files as UTF-8 with the " code ".slml" " extension. Run " code "slml" " with your site folder, or run " code "slml index.slml" ": SLML's native browser reloads every time you save." }
+  section{$id"editor" $title"Editor setup"
+    "Any text editor works. Save files as UTF-8 with the `.slml` extension. Run `slml` with your site folder, or run `slml index.slml`: SLML's native browser reloads every time you save."
   }
-
-  pager(prev: "/index.slml", prev-label: "Introduction", next: "/first-page.slml", next-label: "Your first page")
+  pager{$prev"/index.slml" $prev-label"Introduction" $next"/first-page.slml" $next-label"Your first page"}
 }

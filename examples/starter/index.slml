@@ -1,35 +1,33 @@
-slml 0.1
-use "layout.slml"
+slml 0.2
+use"layout.slml"
 
-site(title: "Fieldwork — thoughtful websites", description: "A complete responsive SLML website starter for a small studio.") {
-  column(gap: 20, padding-y: 24) {
-    text(size: 13, bold: true, color: #176b52) "SMALL STUDIO. CLEAR IDEAS."
-    heading(size: 44, max-width: 700) "A good website starts with a clear story."
-    text.muted(size: 20, max-width: 680) "We help independent teams turn what they do into a useful, welcoming place on the web. Built with care, from the first sketch to the final page."
-    row(wrap: true, gap: 12, align: center) {
-      button.action(to: "contact.slml") "Start a conversation"
-      button(to: "#services", fill: #ffffff, color: #173b35, border: 1, border-color: #ccd9d0) "Explore our services"
+site{$title"Fieldwork — thoughtful websites" $description"A complete responsive SLML website starter for a small studio."
+  c{g20 py24
+    t{s13 b c#176b52 "SMALL STUDIO. CLEAR IDEAS."}
+    #{s44 mw700 "A good website starts with a clear story."}
+    t.muted{s20 mw680 "We help independent teams turn what they do into a useful, welcoming place on the web. Built with care, from the first sketch to the final page."}
+    r{wrap g12 a:c
+      btn.action{>contact.slml "Start a conversation"}
+      btn{>#services bg#fff c#173b35 b1 bc#ccd9d0 "Explore our services"}
     }
   }
-
-  column(id: "services", gap: 16) {
-    heading(level: 2) "From an idea to a working website"
-    grid(columns: 3, cell-width: 260, gap: 16) {
-      service(number: "01 / DIRECTION", title: "Make it clear") {
-        text.muted "Find the right words, choose the important pages and give every visitor a clear next step."
+  c{id:services g16
+    ##"From an idea to a working website"
+    grid{cols3 cw260 g16
+      service{$number"01 / DIRECTION" $title"Make it clear"
+        t.muted"Find the right words, choose the important pages and give every visitor a clear next step."
       }
-      service(number: "02 / DESIGN", title: "Make it welcoming") {
-        text.muted "Readable type, useful navigation and layouts that fit both a phone and a wide screen."
+      service{$number"02 / DESIGN" $title"Make it welcoming"
+        t.muted"Readable type, useful navigation and layouts that fit both a phone and a wide screen."
       }
-      service(number: "03 / DELIVERY", title: "Make it work") {
-        text.muted "A fast static site with accessible content, checked links and a straightforward publishing workflow."
+      service{$number"03 / DELIVERY" $title"Make it work"
+        t.muted"A fast static site with accessible content, checked links and a straightforward publishing workflow."
       }
     }
   }
-
-  column.card(gap: 16) {
-    heading(level: 2) "A small team, with you all the way"
-    text.muted "You work directly with the people making your website. We keep decisions visible and the process simple."
-    text { link(to: "about.slml") "Meet the studio →" }
+  c.card{g16
+    ##"A small team, with you all the way"
+    t.muted"You work directly with the people making your website. We keep decisions visible and the process simple."
+    "[Meet the studio →](about.slml)"
   }
 }

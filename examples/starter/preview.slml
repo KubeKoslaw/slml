@@ -1,15 +1,15 @@
-slml 0.1
-use "layout.slml"
+slml 0.2
+use"layout.slml"
 
-site(title: "Form preview — Fieldwork", description: "The destination of the starter's local GET form.") {
-  column.card(max-width: 720, gap: 18) {
-    text(size: 13, bold: true, color: #176b52) "FORM PREVIEW"
-    heading "Your browser reached the destination."
-    text "The form passed the browser's required-field checks and navigated here. The submitted values are in the URL query string. This static demo does not read, store or send them."
-    text.muted "To receive real messages, connect an HTTPS endpoint that accepts POST submissions and provides its own confirmation page."
-    row(wrap: true, gap: 12) {
-      button.action(to: "contact.slml") "Try again"
-      button(to: "index.slml", fill: #ffffff, color: #173b35) "Back to home"
+site{$title"Form preview — Fieldwork" $description"The destination of the starter's local GET form."
+  c.card{mw720 g18
+    t{s13 b c#176b52 "FORM PREVIEW"}
+    #"Your browser reached the destination."
+    "The form passed the browser's required-field checks and navigated here. The submitted values are in the URL query string. This static demo does not read, store or send them."
+    t.muted"To receive real messages, connect an HTTPS endpoint that accepts POST submissions and provides its own confirmation page."
+    r{wrap g12
+      btn.action{>contact.slml "Try again"}
+      btn{>index.slml bg#fff c#173b35 "Back to home"}
     }
   }
 }

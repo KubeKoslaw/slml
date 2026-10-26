@@ -1,12 +1,10 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-doc(title: "Syntax basics") {
-  text.lead "SLML has one simple shape for everything: a name, optional attributes in parentheses, and either a text label or a block of content in braces."
-
-  section(id: "elements", title: "Elements") {
-    codeblock """
+doc{$title"Syntax basics"
+  t.lead"SLML has one simple shape for everything: a name, optional attributes in parentheses, and either a text label or a block of content in braces."
+  section{$id"elements" $title"Elements"
+    code"""
         name                          // just the name
         name(attribute: value)        // with attributes
         name "label"                  // with a text label
@@ -15,50 +13,46 @@ doc(title: "Syntax basics") {
           child
         }
         """
-    text { "A label is a short form of a block with one string: " code "text \"Hi\"" " means the same as " code "text { \"Hi\" }" ". An element takes a label " italic "or" " a block, never both." }
+    "A label is a short form of a block with one string: `text \"Hi\"` means the same as `text { \"Hi\" }`. An element takes a label _or_ a block, never both."
   }
-
-  section(id: "attributes", title: "Attributes") {
-    text { "Attributes are written " code "name: value" " inside parentheses. Commas between them are optional, so long lists can be written one per line:" }
-    codeblock """
+  section{$id"attributes" $title"Attributes"
+    "Attributes are written `name: value` inside parentheses. Commas between them are optional, so long lists can be written one per line:"
+    code"""
         column(
           padding: 24
           fill: #ffffff
           radius: 12
         ) { text "Card" }
         """
-    text "A value is one of:"
-    column(gap: 0) {
-      ref(name: "16", values: "number", about: "Pixels, sizes, counts. No units are written.")
-      ref(name: "\"Hello\"", values: "string", about: "Text in double quotes.")
-      ref(name: "#2457d6", values: "color", about: "Hex: #rgb, #rgba, #rrggbb or #rrggbbaa. There are no color names.")
-      ref(name: "center", values: "name", about: "One of the words an attribute accepts, such as center, fill or true.")
+    "A value is one of:"
+    c{g0
+      ref{$name"16" $values"number" $about"Pixels, sizes, counts. No units are written."}
+      ref{$name"\"Hello\"" $values"string" $about"Text in double quotes."}
+      ref{$name"#2457d6" $values"color" $about"Hex: #rgb, #rgba, #rrggbb or #rrggbbaa. There are no color names."}
+      ref{$name"center" $values"name" $about"One of the words an attribute accepts, such as center, fill or true."}
     }
-    text { "Every attribute is checked: an unknown name, a value of the wrong kind or an attribute the element doesn't accept is an error." }
+    "Every attribute is checked: an unknown name, a value of the wrong kind or an attribute the element doesn't accept is an error."
   }
-
-  section(id: "strings", title: "Strings") {
-    text { "Strings are " bold "literal" ": what you write is what you get. Spaces are kept, and there are no entities like " code "&amp;" "." }
-    list(gap: 6) {
-      item { code "\\n" " starts a new line, " code "\\t" " is a tab, " code "\\\"" " is a quote and " code "\\\\" " is a backslash." }
-      item { code "\\u{1F600}" " is any Unicode character by its number." }
-      item { "A normal string must end on the same line." }
+  section{$id"strings" $title"Strings"
+    "Strings are *literal*: what you write is what you get. Spaces are kept, and there are no entities like `&amp;`."
+    -{g6
+      "`\\n` starts a new line, `\\t` is a tab, `\\\"` is a quote and `\\\\` is a backslash."
+      "`\\u{1F600}` is any Unicode character by its number."
+      "A normal string must end on the same line."
     }
-    text { "For longer text, especially code, use a " bold "block string" " between triple quotes. Nothing inside it is escaped, and the indentation of the closing " code "\"\"\"" " is removed from every line:" }
-    codeblock "codeblock \"\"\"\n    first line\n      indented line\n    \"\"\""
+    "For longer text, especially code, use a *block string* between triple quotes. Nothing inside it is escaped, and the indentation of the closing `\"\"\"` is removed from every line:"
+    code"codeblock \"\"\"\n    first line\n      indented line\n    \"\"\""
   }
-
-  section(id: "comments", title: "Comments and whitespace") {
-    codeblock """
+  section{$id"comments" $title"Comments and whitespace"
+    code"""
         // a comment until the end of the line
         /* a comment
            over several lines */
         """
-    text "Spaces, tabs and line breaks between elements have no meaning. Indent however you like: re-formatting a file never changes the page."
+    "Spaces, tabs and line breaks between elements have no meaning. Indent however you like: re-formatting a file never changes the page."
   }
-
-  section(id: "structure", title: "File structure") {
-    codeblock """
+  section{$id"structure" $title"File structure"
+    code"""
         slml 0.1                         // version line, always first
 
         use "layout.slml"                // imports (optional)
@@ -69,6 +63,5 @@ doc(title: "Syntax basics") {
         page { ... }                     // the page itself
         """
   }
-
-  pager(prev: "/first-page.slml", prev-label: "Your first page", next: "/text.slml", next-label: "Text")
+  pager{$prev"/first-page.slml" $prev-label"Your first page" $next"/text.slml" $next-label"Text"}
 }

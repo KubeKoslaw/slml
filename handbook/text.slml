@@ -1,103 +1,65 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-doc(title: "Text") {
-  text.lead { "Text lives in " bold "text blocks" ": paragraphs, headings, buttons, list items and code blocks. Inside them, " bold "inline elements" " change part of the text." }
-
-  section(id: "blocks", title: "Paragraphs and headings") {
-    demo(code: """
-        heading "Level 1 heading"
-        heading(level: 2) "Level 2 heading"
-        heading(level: 3) "Level 3 heading"
-        heading(level: 4) "Level 4 heading"
-        text "A paragraph wraps automatically when the line is full."
-        """) {
-      heading "Level 1 heading"
-      heading(level: 2) "Level 2 heading"
-      heading(level: 3) "Level 3 heading"
-      heading(level: 4) "Level 4 heading"
-      text "A paragraph wraps automatically when the line is full."
+doc{$title"Text"
+  t.lead"Text lives in *text blocks*: paragraphs, headings, buttons, list items and code blocks. Inside them, *inline elements* change part of the text."
+  section{$id"blocks" $title"Paragraphs and headings"
+    demo{$code"heading \"Level 1 heading\"\nheading(level: 2) \"Level 2 heading\"\nheading(level: 3) \"Level 3 heading\"\nheading(level: 4) \"Level 4 heading\"\ntext \"A paragraph wraps automatically when the line is full.\""
+      #"Level 1 heading"
+      ##"Level 2 heading"
+      ###"Level 3 heading"
+      ####"Level 4 heading"
+      "A paragraph wraps automatically when the line is full."
     }
-    text { "Strings may only appear inside text blocks. Writing a bare string inside " code "page" " or " code "column" " is an error: wrap it in " code "text" "." }
+    "Strings may only appear inside text blocks. Writing a bare string inside `page` or `column` is an error: wrap it in `text`."
   }
-
-  section(id: "inline", title: "Inline elements") {
-    demo(code: """
-        text {
-          "You can make text " bold "bold" ", " italic "italic" ", "
-          code "monospaced" ", " span(color: #c2410c) "orange" " or a "
-          link(to: "#inline") "link" "."
-        }
-        """) {
-      text {
-        "You can make text " bold "bold" ", " italic "italic" ", "
-        code "monospaced" ", " span(color: #c2410c) "orange" " or a "
-        link(to: "#inline") "link" "."
+  section{$id"inline" $title"Inline elements"
+    demo{$code"text {\n  \"You can make text \" bold \"bold\" \", \" italic \"italic\" \", \"\n  code \"monospaced\" \", \" span(color: #c2410c) \"orange\" \" or a \"\n  link(to: \"#inline\") \"link\" \".\"\n}"
+      "You can make text *bold*, _italic_, `monospaced`, [orange]{c#c2410c} or a [link](#inline)."
+    }
+    "Strings and inline elements are joined exactly as written: `\"Hel\" bold \"lo\"` is one word. Put spaces inside the strings where you want them."
+    "Inline elements can be nested: `bold { italic \"both\" }`."
+  }
+  section{$id"attributes" $title"Text attributes"
+    "These attributes work on any element and are inherited by everything inside it:"
+    c{g0
+      ref{$name"color" $values"color" $about"Text color."}
+      ref{$name"size" $values"number" $about"Font size in pixels. The page default is 16."}
+      ref{$name"bold" $values"true / false" $about"Bold text."}
+      ref{$name"italic" $values"true / false" $about"Italic text."}
+      ref{$name"underline" $values"true / false" $about"Underlined text."}
+      ref{$name"font" $values"sans / mono" $about"The bundled Noto Sans or Noto Sans Mono."}
+    }
+    demo{$code"column(color: #2944a8, size: 18) {\n  text \"Blue and larger\"\n  text(bold: true) \"Also blue, and bold\"\n}"
+      c{c#2944a8 s18
+        "Blue and larger"
+        t{b "Also blue, and bold"}
       }
     }
-    text { "Strings and inline elements are joined exactly as written: " code "\"Hel\" bold \"lo\"" " is one word. Put spaces inside the strings where you want them." }
-    text { "Inline elements can be nested: " code "bold { italic \"both\" }" "." }
-  }
-
-  section(id: "attributes", title: "Text attributes") {
-    text "These attributes work on any element and are inherited by everything inside it:"
-    column(gap: 0) {
-      ref(name: "color", values: "color", about: "Text color.")
-      ref(name: "size", values: "number", about: "Font size in pixels. The page default is 16.")
-      ref(name: "bold", values: "true / false", about: "Bold text.")
-      ref(name: "italic", values: "true / false", about: "Italic text.")
-      ref(name: "underline", values: "true / false", about: "Underlined text.")
-      ref(name: "font", values: "sans / mono", about: "The bundled Noto Sans or Noto Sans Mono.")
-    }
-    demo(code: """
-        column(color: #2944a8, size: 18) {
-          text "Blue and larger"
-          text(bold: true) "Also blue, and bold"
-        }
-        """) {
-      column(color: #2944a8, size: 18) {
-        text "Blue and larger"
-        text(bold: true) "Also blue, and bold"
-      }
-    }
-    demo(code: """
-        column(font: mono, gap: 8) {
-          text "This paragraph inherits the monospace font."
-          text(font: sans) "This paragraph switches back to sans."
-        }
-        """) {
-      column(font: mono, gap: 8) {
-        text "This paragraph inherits the monospace font."
-        text(font: sans) "This paragraph switches back to sans."
+    demo{$code"column(font: mono, gap: 8) {\n  text \"This paragraph inherits the monospace font.\"\n  text(font: sans) \"This paragraph switches back to sans.\"\n}"
+      c{mono g8
+        "This paragraph inherits the monospace font."
+        t{sans "This paragraph switches back to sans."}
       }
     }
   }
-
-  section(id: "align", title: "Alignment and line breaks") {
-    demo(code: """
-        text(align: center) "Centered"
-        text(align: end) "Right aligned"
-        text "Line one\nLine two"
-        """) {
-      text(align: center) "Centered"
-      text(align: end) "Right aligned"
-      text "Line one\nLine two"
+  section{$id"align" $title"Alignment and line breaks"
+    demo{$code"text(align: center) \"Centered\"\ntext(align: end) \"Right aligned\"\ntext \"Line one\\nLine two\""
+      t{a:c "Centered"}
+      t{a:e "Right aligned"}
+      "Line one\nLine two"
     }
-    note(title: "Whitespace is never collapsed") {
-      text "Unlike HTML, two spaces are two spaces and a line break is written as \\n. What you write is what you see."
+    note{$title"Whitespace is never collapsed"
+      "Unlike HTML, two spaces are two spaces and a line break is written as \\n. What you write is what you see."
     }
   }
-
-  section(id: "selection", title: "Selecting and copying") {
-    text { "In the optional web preview (slml serve --web) and Firefox extension, drag across text to select it and press " code "Ctrl+C" " (" code "Cmd+C" " on macOS) to copy. " code "Ctrl+A" " selects the document when you are not editing a field or the source." }
-    text "Copying keeps literal spaces, code indentation and explicit newlines. A line wrapped only to fit the screen remains part of the same paragraph; separate text blocks are joined by a newline. Editable form fields keep their normal browser selection and copy behavior."
-    text "Text selection is not yet available in the native desktop viewer."
+  section{$id"selection" $title"Selecting and copying"
+    "In the optional web preview (slml serve --web) and Firefox extension, drag across text to select it and press `Ctrl+C` (`Cmd+C` on macOS) to copy. `Ctrl+A` selects the document when you are not editing a field or the source."
+    "Copying keeps literal spaces, code indentation and explicit newlines. A line wrapped only to fit the screen remains part of the same paragraph; separate text blocks are joined by a newline. Editable form fields keep their normal browser selection and copy behavior."
+    "Text selection is not yet available in the native desktop viewer."
   }
-
-  section(id: "symbols", title: "Symbols and emoji") {
-    text "The bundled fonts cover Latin, Greek and Cyrillic, symbols, arrows, math and monochrome emoji: ★ ✓ → ∑ ♥ 😀. Pages look the same on every computer because the fonts travel with them."
+  section{$id"symbols" $title"Symbols and emoji"
+    "The bundled fonts cover Latin, Greek and Cyrillic, symbols, arrows, math and monochrome emoji: ★ ✓ → ∑ ♥ 😀. Pages look the same on every computer because the fonts travel with them."
   }
-
-  pager(prev: "/syntax.slml", prev-label: "Syntax basics", next: "/layout-guide.slml", next-label: "Layout")
+  pager{$prev"/syntax.slml" $prev-label"Syntax basics" $next"/layout-guide.slml" $next-label"Layout"}
 }

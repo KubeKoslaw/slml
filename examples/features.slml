@@ -1,65 +1,52 @@
-slml 0.1
-
+slml 0.2
 // A tour of SLML features: components, lists, grid, wrapping rows,
 // anchors, code blocks and forms.
+@muted{c#5b5b66}
 
-meta(title: "SLML features", description: "Everything SLML 0.1 can do on one page")
-
-style muted(color: #5b5b66)
-
-define section(id, title) {
-  column(id: $id, gap: 12, padding-y: 8) {
-    heading(level: 2) $title
+@section(id, title){
+  c{id$id g12 py8
+    ##$title
     slot
   }
 }
 
-define feature(title, icon: "★") {
-  column(fill: #ffffff, padding: 18, radius: 12, border: 1, border-color: #e4e4ea, gap: 6, shadow: small) {
-    text(size: 22) $icon
-    heading(level: 4) $title
+@feature(title, icon"★"){
+  c{bg#fff p18 r12 b1 bc#e4e4ea g6 sh:s
+    t{s22 $icon}
+    ####$title
     slot
   }
 }
 
-page(fill: #f6f6f9, align: center) {
-  column(width: fill, max-width: 900, gap: 28) {
+meta{"SLML features" desc"Everything SLML 0.1 can do on one page"}
 
-    column(gap: 8) {
-      heading "SLML features"
-      text.muted {
-        "Jump to: " link(to: "#lists") "lists" ", " link(to: "#grid") "grid" ", "
-        link(to: "#code") "code" ", " link(to: "#form") "form" "."
-      }
+page{bg#f6f6f9 a:c
+  c{w:f mw900 g28
+    c{g8
+      #"SLML features"
+      t.muted"Jump to: [lists](#lists), [grid](#grid), [code](#code), [form](#form)."
     }
-
-    section(id: "lists", title: "Lists") {
-      row(wrap: true, gap: 24) {
-        list(width: fill, min-width: 240) {
-          item "Bullets by default"
-          item { "Inline " bold "formatting" " works" }
-          list(marker: number) { item "Nested lists" item "count separately" }
+    section{$id"lists" $title"Lists"
+      r{wrap g24
+        -{w:f nw240
+          "Bullets by default"
+          "Inline *formatting* works"
+          +{"Nested lists" "count separately"}
         }
-        list(marker: number, width: fill, min-width: 240) {
-          item "Write a page"
-          item { "Run " code "slml page.slml" }
-          item "Open page.html"
-        }
+        +{w:f nw240 "Write a page" "Run `slml page.slml`" "Open page.html"}
       }
     }
-
-    section(id: "grid", title: "Responsive grid") {
-      text.muted "Cells are at least 200 pixels wide; narrow windows get fewer columns."
-      grid(cell-width: 200, gap: 16) {
-        feature(title: "Strict", icon: "✓") { text.muted "Errors, not guesses." }
-        feature(title: "Fast") { text.muted "One pass, no backtracking." }
-        feature(title: "Portable") { text.muted "Fonts are bundled." }
-        feature(title: "Reusable") { text.muted "Components with slots." }
+    section{$id"grid" $title"Responsive grid"
+      t.muted"Cells are at least 200 pixels wide; narrow windows get fewer columns."
+      grid{cw200 g16
+        feature{$title"Strict" $icon"✓" t.muted"Errors, not guesses."}
+        feature{$title"Fast" t.muted"One pass, no backtracking."}
+        feature{$title"Portable" t.muted"Fonts are bundled."}
+        feature{$title"Reusable" t.muted"Components with slots."}
       }
     }
-
-    section(id: "code", title: "Code blocks") {
-      codeblock """
+    section{$id"code" $title"Code blocks"
+      code"""
           define card(title) {
             column(padding: 20, radius: 12) {
               heading $title
@@ -68,23 +55,17 @@ page(fill: #f6f6f9, align: center) {
           }
           """
     }
-
-    section(id: "form", title: "Forms") {
-      form(to: "https://example.com/contact", method: post, fill: #ffffff, padding: 24, radius: 12, max-width: 520) {
-        input(name: "name", label: "Your name", placeholder: "Ann Smith", required: true)
-        input(name: "email", label: "E-mail", kind: email, placeholder: "ann@example.com", required: true)
-        select(name: "topic", label: "Topic") {
-          option "Question"
-          option(selected: true) "Feedback"
-          option "Other"
-        }
-        textarea(name: "message", label: "Message", rows: 4)
-        checkbox(name: "copy", label: "Send me a copy", checked: true)
-        row { submit "Send message" }
+    section{$id"form" $title"Forms"
+      form{>https://example.com/contact post bg#fff p24 r12 mw520
+        in{n:name "Your name" ph"Ann Smith" req}
+        in{n:email "E-mail" k:email ph"ann@example.com" req}
+        sel{n:topic "Topic" opt"Question" opt{on "Feedback"} opt"Other"}
+        area{n:message "Message" rows4}
+        check{n:copy "Send me a copy" on}
+        r{send"Send message"}
       }
     }
-
-    divider
-    text(size: 14) { link(to: "#lists") "Back to top" " · " link(to: "mailto:hello@example.com") "hello@example.com" }
+    |
+    t{s14 "[Back to top](#lists) · [hello@example.com](mailto:hello@example.com)"}
   }
 }

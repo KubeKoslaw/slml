@@ -1,17 +1,16 @@
-slml 0.1
-use "layout.slml"
+slml 0.2
+use"layout.slml"
 
-doc(title: "A complete website", description: "Copy, customize, test and publish a complete SLML website.") {
-  text.lead "Start with a working four-page website, then make it yours. The starter in examples/starter includes a home page, an about page, a contact form and its local preview destination."
-
-  section(id: "start", title: "1. Copy and preview") {
-    text "From a checkout of the SLML repository:"
-    codeblock """
+doc{$title"A complete website" $description"Copy, customize, test and publish a complete SLML website."
+  t.lead"Start with a working four-page website, then make it yours. The starter in examples/starter includes a home page, an about page, a contact form and its local preview destination."
+  section{$id"start" $title"1. Copy and preview"
+    "From a checkout of the SLML repository:"
+    code"""
         cp -R examples/starter my-site
         slml my-site
         """
-    text "On Windows, copy the examples/starter folder in File Explorer and run the same slml command. SLML opens its own native browser. Keep that window open while editing. It reloads after each save; an invalid page shows an error with the file, line and a hint."
-    codeblock """
+    "On Windows, copy the examples/starter folder in File Explorer and run the same slml command. SLML opens its own native browser. Keep that window open while editing. It reloads after each save; an invalid page shows an error with the file, line and a hint."
+    code"""
         my-site/
           layout.slml     shared styles, site frame and service cards
           index.slml      home page and responsive service grid
@@ -20,10 +19,9 @@ doc(title: "A complete website", description: "Copy, customize, test and publish
           preview.slml    local destination for the demo GET form
         """
   }
-
-  section(id: "customize", title: "2. Make the layout yours") {
-    text { "Open " code "layout.slml" ". Change the studio name, colors and menu once; every page imports this file with " code "use \"layout.slml\"" ". The " code "site" " component provides the frame, and " code "slot" " receives the content of each page." }
-    codeblock """
+  section{$id"customize" $title"2. Make the layout yours"
+    "Open `layout.slml`. Change the studio name, colors and menu once; every page imports this file with `use \"layout.slml\"`. The `site` component provides the frame, and `slot` receives the content of each page."
+    code"""
         slml 0.1
         use "layout.slml"
 
@@ -32,17 +30,16 @@ doc(title: "A complete website", description: "Copy, customize, test and publish
           text "Replace this with your own story."
         }
         """
-    text { "Set the right language in the shared " code "meta" " element. Each page supplies its own title and search description through the component parameters. Add images with " code "image(src: \"photo.jpg\", alt: \"A description of the photo\")" ". Put photo.jpg next to the page." }
-    text { "The service grid uses " code "grid(columns: 3, cell-width: 260, gap: 16)" ": up to three equal columns, fewer when the window is narrow. The menu uses a wrapping row, so links move to another line instead of disappearing on a phone." }
+    "Set the right language in the shared `meta` element. Each page supplies its own title and search description through the component parameters. Add images with `image(src: \"photo.jpg\", alt: \"A description of the photo\")`. Put photo.jpg next to the page."
+    "The service grid uses `grid(columns: 3, cell-width: 260, gap: 16)`: up to three equal columns, fewer when the window is narrow. The menu uses a wrapping row, so links move to another line instead of disappearing on a phone."
   }
-
-  section(id: "form", title: "3. Try the form, then connect a real endpoint") {
-    text "Contact shows the declared form layout in the native browser. Native field editing is still planned. To test editing and submission in the optional web adapter, explicitly run slml serve my-site --web --open. In that adapter, submit it empty first: the browser should focus a required field. Enter made-up details, select a service, write a message and check the demo box. Submitting should take you to the local preview page."
-    note(title: "What the demo does") {
-      text "The starter uses GET so you can test navigation without a server or account. Values are visible in the URL. The destination does not read them, store them or send a message. Use made-up details only."
+  section{$id"form" $title"3. Try the form, then connect a real endpoint"
+    "Contact shows the declared form layout in the native browser. Native field editing is still planned. To test editing and submission in the optional web adapter, explicitly run slml serve my-site --web --open. In that adapter, submit it empty first: the browser should focus a required field. Enter made-up details, select a service, write a message and check the demo box. Submitting should take you to the local preview page."
+    note{$title"What the demo does"
+      "The starter uses GET so you can test navigation without a server or account. Values are visible in the URL. The destination does not read them, store them or send a message. Use made-up details only."
     }
-    text { "For real messages, replace the form's " code "to" " with your HTTPS endpoint and change " code "method" " to " code "post" ":" }
-    codeblock """
+    "For real messages, replace the form's `to` with your HTTPS endpoint and change `method` to `post`:"
+    code"""
         form.card(to: "https://example.com/contact", method: post, gap: 18) {
           input(name: "name", label: "Your name", required: true)
           input(name: "email", label: "Email address", kind: email, required: true)
@@ -50,29 +47,26 @@ doc(title: "A complete website", description: "Copy, customize, test and publish
           submit.action "Send message"
         }
         """
-    text "Use an endpoint you control or the address supplied by a form service; example.com is only a placeholder. The endpoint must accept URL-encoded POST data and return a confirmation or redirect. Replace the demo checkbox and explanatory copy with wording appropriate to your actual service. Test the full submission before publishing."
-    text { "See " link(to: "/forms.slml") "Forms" " for the available field types and validation rules." }
+    "Use an endpoint you control or the address supplied by a form service; example.com is only a placeholder. The endpoint must accept URL-encoded POST data and return a confirmation or redirect. Replace the demo checkbox and explanatory copy with wording appropriate to your actual service. Test the full submission before publishing."
+    "See [Forms](/forms.slml) for the available field types and validation rules."
   }
-
-  section(id: "test", title: "4. Check the complete site") {
-    list(marker: number, gap: 8) {
-      item "Follow every menu link from every page, including the Services anchor."
-      item "Make the browser narrow: the menu should wrap and the services should form one column."
-      item "In the optional web adapter, use Tab, Shift+Tab and Enter to navigate links and fields without a mouse."
-      item "In the optional web adapter, try an empty form, an invalid email and a complete submission."
-      item "Save an invalid element name and confirm that the preview shows a useful error. Fix it and confirm that the page returns."
+  section{$id"test" $title"4. Check the complete site"
+    +{g8
+      "Follow every menu link from every page, including the Services anchor."
+      "Make the browser narrow: the menu should wrap and the services should form one column."
+      "In the optional web adapter, use Tab, Shift+Tab and Enter to navigate links and fields without a mouse."
+      "In the optional web adapter, try an empty form, an invalid email and a complete submission."
+      "Save an invalid element name and confirm that the preview shows a useful error. Fix it and confirm that the page returns."
     }
-    codeblock "slml check my-site"
-    text "This checks every page and local link. A failed check exits with status 1. It does not contact external websites or verify that a form service accepts your data."
+    code"slml check my-site"
+    "This checks every page and local link. A failed check exits with status 1. It does not contact external websites or verify that a form service accepts your data."
   }
-
-  section(id: "publish", title: "5. Share the native site or export explicitly") {
-    text "Share the my-site folder with its .slml pages, imports and assets. Its reader opens it with slml my-site. The native browser currently loads local sites; remote HTTP(S) navigation remains planned."
-    text "For an existing HTML web host, explicitly select the compatibility exporter:"
-    codeblock "slml build my-site -o public"
-    text { "Upload the contents of " code "public/" ", including " code "_slml/" ", to your static web host. Your shared layout file is a library and does not become an extra page. The output contains HTML, CSS and bundled fonts, with no JavaScript." }
-    text { "See " link(to: "/sites.slml#publish") "Building a website" " for hosting examples. Keep the source folder: edit the .slml files and rebuild whenever you update the site." }
+  section{$id"publish" $title"5. Share the native site or export explicitly"
+    "Share the my-site folder with its .slml pages, imports and assets. Its reader opens it with slml my-site. The native browser currently loads local sites; remote HTTP(S) navigation remains planned."
+    "For an existing HTML web host, explicitly select the compatibility exporter:"
+    code"slml build my-site -o public"
+    "Upload the contents of `public/`, including `_slml/`, to your static web host. Your shared layout file is a library and does not become an extra page. The output contains HTML, CSS and bundled fonts, with no JavaScript."
+    "See [Building a website](/sites.slml#publish) for hosting examples. Keep the source folder: edit the .slml files and rebuild whenever you update the site."
   }
-
-  pager(prev: "/sites.slml", prev-label: "Building a website", next: "/cli.slml", next-label: "Command line")
+  pager{$prev"/sites.slml" $prev-label"Building a website" $next"/cli.slml" $next-label"Command line"}
 }

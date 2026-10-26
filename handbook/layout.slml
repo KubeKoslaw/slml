@@ -1,66 +1,59 @@
-slml 0.1
-
+slml 0.2
 // Shared styles and components for every handbook page.
 // This file has no `page`, so `slml build handbook/` treats it as a library.
-
-style lead(size: 18, color: #3f3f4e)
-style muted(color: #5b5b70)
-style small(size: 14, color: #5b5b70)
-style navlink(color: #2b2b38, underline: false)
-style section(gap: 12, padding-y: 6)
+@lead{s18 c#3f3f4e}
+@muted{c#5b5b70}
+@small{s14 c#5b5b70}
+@navlink{c#2b2b38 u:0}
+@section{g12 py6}
 
 // One entry in the sidebar.
-define nav(to, label) {
-  text(size: 15) { link.navlink(to: $to) $label }
+@nav(to, label){
+  t{s15 "[$label]($to){.navlink}"}
 }
 
 // The frame of every page: top bar, sidebar, content, footer.
-define doc(title, description: "The SLML handbook: learn the Strict Layout Markup Language") {
-  meta(title: $title, description: $description, lang: "en", icon: "/logo.png")
-  page(fill: #fbfbfd, padding: 0, gap: 0) {
-    row(fill: #ffffff, padding-x: 24, padding-y: 12, align: center, gap: 12, border: 1, border-color: #e6e6ee) {
-      image(src: "/logo.png", alt: "SLML home", width: 28, radius: 7, to: "/index.slml")
-      text(bold: true, size: 17) { link.navlink(to: "/index.slml") "SLML Handbook" }
-      spacer
-      text(size: 14) { link(to: "/reference.slml") "Reference" }
-      text(size: 14) { link(to: "https://github.com/KubeKoslaw/slml") "GitHub" }
+@doc(title, description"The SLML handbook: learn the Strict Layout Markup Language"){
+  meta{$title desc$description lang:en icon/logo.png}
+  page{bg#fbfbfd p0 g0
+    r{bg#fff px24 py12 a:c g12 b1 bc#e6e6ee
+      img{/logo.png w28 r7 >/index.slml "SLML home"}
+      t{b s17 "[SLML Handbook](/index.slml){.navlink}"}
+      ~
+      t{s14 "[Reference](/reference.slml)"}
+      t{s14 "[GitHub](https://github.com/KubeKoslaw/slml)"}
     }
-    row(wrap: true, align: start) {
-      column(width: 260, padding-x: 24, padding-y: 28, gap: 7) {
-        text(size: 12, bold: true, color: #8a8a99) "GETTING STARTED"
-        nav(to: "/index.slml", label: "Introduction")
-        nav(to: "/install.slml", label: "Installing the compiler")
-        nav(to: "/first-page.slml", label: "Your first page")
-        spacer(height: 10)
-        text(size: 12, bold: true, color: #8a8a99) "THE LANGUAGE"
-        nav(to: "/syntax.slml", label: "Syntax basics")
-        nav(to: "/text.slml", label: "Text")
-        nav(to: "/layout-guide.slml", label: "Layout")
-        nav(to: "/styling.slml", label: "Boxes and styles")
-        nav(to: "/content.slml", label: "Lists, code and images")
-        nav(to: "/links.slml", label: "Links and navigation")
-        nav(to: "/components.slml", label: "Components and imports")
-        nav(to: "/forms.slml", label: "Forms")
-        spacer(height: 10)
-        text(size: 12, bold: true, color: #8a8a99) "WEBSITES"
-        nav(to: "/sites.slml", label: "Building a website")
-        nav(to: "/website-tutorial.slml", label: "A complete website")
-        nav(to: "/cli.slml", label: "Command line")
-        nav(to: "/errors.slml", label: "Understanding errors")
-        nav(to: "/from-html.slml", label: "Coming from HTML")
-        nav(to: "/reference.slml", label: "Reference")
+    r{wrap a:s
+      c{w260 px24 py28 g7
+        t{s12 b c#8a8a99 "GETTING STARTED"}
+        nav{$to"/index.slml" $label"Introduction"}
+        nav{$to"/install.slml" $label"Installing the compiler"}
+        nav{$to"/first-page.slml" $label"Your first page"}
+        ~{h10}
+        t{s12 b c#8a8a99 "THE LANGUAGE"}
+        nav{$to"/syntax.slml" $label"Syntax basics"}
+        nav{$to"/text.slml" $label"Text"}
+        nav{$to"/layout-guide.slml" $label"Layout"}
+        nav{$to"/styling.slml" $label"Boxes and styles"}
+        nav{$to"/content.slml" $label"Lists, code and images"}
+        nav{$to"/links.slml" $label"Links and navigation"}
+        nav{$to"/components.slml" $label"Components and imports"}
+        nav{$to"/forms.slml" $label"Forms"}
+        ~{h10}
+        t{s12 b c#8a8a99 "WEBSITES"}
+        nav{$to"/sites.slml" $label"Building a website"}
+        nav{$to"/website-tutorial.slml" $label"A complete website"}
+        nav{$to"/cli.slml" $label"Command line"}
+        nav{$to"/errors.slml" $label"Understanding errors"}
+        nav{$to"/from-html.slml" $label"Coming from HTML"}
+        nav{$to"/reference.slml" $label"Reference"}
       }
-      column(width: fill, min-width: 320, padding-x: 32, padding-y: 36, align: center) {
-        column(width: fill, max-width: 760, gap: 20) {
-          heading $title
+      c{w:f nw320 px32 py36 a:c
+        c{w:f mw760 g20
+          #$title
           slot
-          divider(color: #e6e6ee)
-          text.small {
-            "SLML handbook · written in SLML and built with "
-            code "slml handbook/"
-            " · "
-            link(to: "https://github.com/KubeKoslaw/slml") "source on GitHub"
-          }
+          |{c#e6e6ee}
+          t.small"SLML handbook · written in SLML and built with `slml handbook/` · [source on GitHub](https://github.com/KubeKoslaw/slml)"
         }
       }
     }
@@ -68,56 +61,56 @@ define doc(title, description: "The SLML handbook: learn the Strict Layout Marku
 }
 
 // A highlighted remark.
-define note(title: "Note") {
-  column(fill: #eef3ff, padding: 16, radius: 10, gap: 6, border: 1, border-color: #d6e0fb) {
-    text(bold: true, size: 14, color: #2944a8) $title
+@note(title"Note"){
+  c{bg#eef3ff p16 r10 g6 b1 bc#d6e0fb
+    t{b s14 c#2944a8 $title}
     slot
   }
 }
 
-define warning(title: "Watch out") {
-  column(fill: #fff6e8, padding: 16, radius: 10, gap: 6, border: 1, border-color: #f5ddb0) {
-    text(bold: true, size: 14, color: #8a5300) $title
+@warning(title"Watch out"){
+  c{bg#fff6e8 p16 r10 g6 b1 bc#f5ddb0
+    t{b s14 c#8a5300 $title}
     slot
   }
 }
 
 // Source code followed by what it renders.
-define demo(code) {
-  column(border: 1, border-color: #e6e6ee, radius: 12, fill: #ffffff) {
-    codeblock(radius: 0, fill: #f6f6fa) $code
-    column(padding: 18, gap: 10) {
-      text(size: 12, bold: true, color: #8a8a99) "RESULT"
+@demo(code){
+  c{b1 bc#e6e6ee r12 bg#fff
+    code{r0 bg#f6f6fa $code}
+    c{p18 g10
+      t{s12 b c#8a8a99 "RESULT"}
       slot
     }
   }
 }
 
 // A section with an anchor and a level-2 heading.
-define section(id, title) {
-  column.section(id: $id) {
-    heading(level: 2) $title
+@section(id, title){
+  c.section{id$id
+    ##$title
     slot
   }
 }
 
 // A row of a reference table: name, accepted values, description.
-define ref(name, values, about) {
-  column(gap: 0) {
-    row(wrap: true, gap: 12, padding-y: 9) {
-      text(width: 150) { code(bold: true) $name }
-      text(width: 210, size: 14, color: #3f3f4e) $values
-      text(width: fill, min-width: 220, size: 15) $about
+@ref(name, values, about){
+  c{g0
+    r{wrap g12 py9
+      t{w150 "[$name]{mono b}"}
+      t{w210 s14 c#3f3f4e $values}
+      t{w:f nw220 s15 $about}
     }
-    divider(color: #eeeef3)
+    |{c#eeeef3}
   }
 }
 
 // Previous / next links at the bottom of a chapter.
-define pager(prev, prev-label, next, next-label) {
-  row(gap: 12, padding-y: 8) {
-    button(to: $prev, fill: #ffffff, color: #2b2b38, border: 1, border-color: #d8d8e2) $prev-label
-    spacer
-    button(to: $next) $next-label
+@pager(prev, prev-label, next, next-label){
+  r{g12 py8
+    btn{>$prev bg#fff c#2b2b38 b1 bc#d8d8e2 $prev-label}
+    ~
+    btn{>$next $next-label}
   }
 }

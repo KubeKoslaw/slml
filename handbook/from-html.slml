@@ -1,84 +1,79 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-define pair(html, slml) {
-  column(gap: 0) {
-    row(wrap: true, gap: 12, padding-y: 8) {
-      text(width: fill, min-width: 240) { code(color: #8a3b12) $html }
-      text(width: fill, min-width: 240) { code(color: #14532d) $slml }
+@pair(html, slml){
+  c{g0
+    r{wrap g12 py8
+      t{w:f nw240 "[$html]{mono c#8a3b12}"}
+      t{w:f nw240 "[$slml]{mono c#14532d}"}
     }
-    divider(color: #eeeef3)
+    |{c#eeeef3}
   }
 }
 
-doc(title: "Coming from HTML") {
-  text.lead "If you know HTML and CSS, most of SLML will feel familiar. This page maps what you know to SLML."
-
-  section(id: "map", title: "Element by element") {
-    row(gap: 12) {
-      text(width: fill, bold: true, size: 14) "HTML"
-      text(width: fill, bold: true, size: 14) "SLML"
+doc{$title"Coming from HTML"
+  t.lead"If you know HTML and CSS, most of SLML will feel familiar. This page maps what you know to SLML."
+  section{$id"map" $title"Element by element"
+    r{g12
+      t{w:f b s14 "HTML"}
+      t{w:f b s14 "SLML"}
     }
-    column(gap: 0) {
-      pair(html: "<!DOCTYPE html>", slml: "slml 0.1")
-      pair(html: "<title>Home</title>", slml: "meta(title: \"Home\")")
-      pair(html: "<body>…</body>", slml: "page { … }")
-      pair(html: "<div>, <section>, <header>", slml: "column { … } or row { … }")
-      pair(html: "<h1>Title</h1>", slml: "heading \"Title\"")
-      pair(html: "<h2>Title</h2>", slml: "heading(level: 2) \"Title\"")
-      pair(html: "<p>Text</p>", slml: "text \"Text\"")
-      pair(html: "<b>, <strong>", slml: "bold \"…\"")
-      pair(html: "<i>, <em>", slml: "italic \"…\"")
-      pair(html: "<a href=\"x.html\">", slml: "link(to: \"x.slml\") \"…\"")
-      pair(html: "<img src=\"a.png\" alt=\"A\">", slml: "image(src: \"a.png\", alt: \"A\")")
-      pair(html: "<ul><li>One</li></ul>", slml: "list { item \"One\" }")
-      pair(html: "<ol>", slml: "list(marker: number)")
-      pair(html: "<pre>", slml: "codeblock")
-      pair(html: "<hr>", slml: "divider")
-      pair(html: "<br>", slml: "\\n inside a string")
-      pair(html: "&amp; &lt; &nbsp;", slml: "just type & < and spaces")
-      pair(html: "<form action=… method=post>", slml: "form(to: …, method: post)")
-      pair(html: "<label>Name <input name=n></label>", slml: "input(name: \"n\", label: \"Name\")")
-      pair(html: "<button type=submit>", slml: "submit \"Send\"")
-      pair(html: "<table>", slml: "grid(columns: N) or rows")
-    }
-  }
-
-  section(id: "css", title: "CSS to attributes") {
-    column(gap: 0) {
-      pair(html: "display: flex; flex-direction: column", slml: "column")
-      pair(html: "display: flex", slml: "row")
-      pair(html: "flex-wrap: wrap", slml: "row(wrap: true)")
-      pair(html: "display: grid; grid-template-columns: repeat(3, 1fr)", slml: "grid(columns: 3)")
-      pair(html: "repeat(auto-fill, minmax(200px, 1fr))", slml: "grid(cell-width: 200)")
-      pair(html: "gap: 16px", slml: "gap: 16")
-      pair(html: "align-items: center", slml: "align: center")
-      pair(html: "justify-content: space-between", slml: "justify: between")
-      pair(html: "flex: 1", slml: "width: fill")
-      pair(html: "max-width: 760px; margin: 0 auto", slml: "max-width: 760 inside a column(align: center)")
-      pair(html: "padding: 8px 16px", slml: "padding-y: 8, padding-x: 16")
-      pair(html: "background: #fff", slml: "fill: #fff")
-      pair(html: "border-radius: 12px", slml: "radius: 12")
-      pair(html: "border: 1px solid #ddd", slml: "border: 1, border-color: #ddd")
-      pair(html: "box-shadow: …", slml: "shadow: small / large")
-      pair(html: "font-weight: bold", slml: "bold: true")
-      pair(html: "font-size: 18px", slml: "size: 18")
-      pair(html: "color: #333", slml: "color: #333")
-      pair(html: "text-align: center", slml: "align: center (on text)")
-      pair(html: ".card { … } + class=\"card\"", slml: "style card(…) + column.card")
+    c{g0
+      pair{$html"<!DOCTYPE html>" $slml"slml 0.1"}
+      pair{$html"<title>Home</title>" $slml"meta(title: \"Home\")"}
+      pair{$html"<body>…</body>" $slml"page { … }"}
+      pair{$html"<div>, <section>, <header>" $slml"column { … } or row { … }"}
+      pair{$html"<h1>Title</h1>" $slml"heading \"Title\""}
+      pair{$html"<h2>Title</h2>" $slml"heading(level: 2) \"Title\""}
+      pair{$html"<p>Text</p>" $slml"text \"Text\""}
+      pair{$html"<b>, <strong>" $slml"bold \"…\""}
+      pair{$html"<i>, <em>" $slml"italic \"…\""}
+      pair{$html"<a href=\"x.html\">" $slml"link(to: \"x.slml\") \"…\""}
+      pair{$html"<img src=\"a.png\" alt=\"A\">" $slml"image(src: \"a.png\", alt: \"A\")"}
+      pair{$html"<ul><li>One</li></ul>" $slml"list { item \"One\" }"}
+      pair{$html"<ol>" $slml"list(marker: number)"}
+      pair{$html"<pre>" $slml"codeblock"}
+      pair{$html"<hr>" $slml"divider"}
+      pair{$html"<br>" $slml"\\n inside a string"}
+      pair{$html"&amp; &lt; &nbsp;" $slml"just type & < and spaces"}
+      pair{$html"<form action=… method=post>" $slml"form(to: …, method: post)"}
+      pair{$html"<label>Name <input name=n></label>" $slml"input(name: \"n\", label: \"Name\")"}
+      pair{$html"<button type=submit>" $slml"submit \"Send\""}
+      pair{$html"<table>" $slml"grid(columns: N) or rows"}
     }
   }
-
-  section(id: "differences", title: "Things that work differently") {
-    list(gap: 8) {
-      item { bold "No margins." " Space between elements is the parent's " code "gap" ". There are no collapsing margins to fight." }
-      item { bold "No cascade." " A style applies only where you write " code ".name" ". Only text properties (color, size, …) are inherited." }
-      item { bold "No JavaScript." " SLML pages are documents. Built sites contain no scripts, which also makes them fast and safe." }
-      item { bold "Literal text." " Spaces and line breaks in strings are kept as written." }
-      item { bold "Errors instead of repairs." " See " link(to: "/errors.slml") "Understanding errors" "." }
+  section{$id"css" $title"CSS to attributes"
+    c{g0
+      pair{$html"display: flex; flex-direction: column" $slml"column"}
+      pair{$html"display: flex" $slml"row"}
+      pair{$html"flex-wrap: wrap" $slml"row(wrap: true)"}
+      pair{$html"display: grid; grid-template-columns: repeat(3, 1fr)" $slml"grid(columns: 3)"}
+      pair{$html"repeat(auto-fill, minmax(200px, 1fr))" $slml"grid(cell-width: 200)"}
+      pair{$html"gap: 16px" $slml"gap: 16"}
+      pair{$html"align-items: center" $slml"align: center"}
+      pair{$html"justify-content: space-between" $slml"justify: between"}
+      pair{$html"flex: 1" $slml"width: fill"}
+      pair{$html"max-width: 760px; margin: 0 auto" $slml"max-width: 760 inside a column(align: center)"}
+      pair{$html"padding: 8px 16px" $slml"padding-y: 8, padding-x: 16"}
+      pair{$html"background: #fff" $slml"fill: #fff"}
+      pair{$html"border-radius: 12px" $slml"radius: 12"}
+      pair{$html"border: 1px solid #ddd" $slml"border: 1, border-color: #ddd"}
+      pair{$html"box-shadow: …" $slml"shadow: small / large"}
+      pair{$html"font-weight: bold" $slml"bold: true"}
+      pair{$html"font-size: 18px" $slml"size: 18"}
+      pair{$html"color: #333" $slml"color: #333"}
+      pair{$html"text-align: center" $slml"align: center (on text)"}
+      pair{$html".card { … } + class=\"card\"" $slml"style card(…) + column.card"}
     }
   }
-
-  pager(prev: "/errors.slml", prev-label: "Understanding errors", next: "/reference.slml", next-label: "Reference")
+  section{$id"differences" $title"Things that work differently"
+    -{g8
+      "*No margins.* Space between elements is the parent's `gap`. There are no collapsing margins to fight."
+      "*No cascade.* A style applies only where you write `.name`. Only text properties (color, size, …) are inherited."
+      "*No JavaScript.* SLML pages are documents. Built sites contain no scripts, which also makes them fast and safe."
+      "*Literal text.* Spaces and line breaks in strings are kept as written."
+      "*Errors instead of repairs.* See [Understanding errors](/errors.slml)."
+    }
+  }
+  pager{$prev"/errors.slml" $prev-label"Understanding errors" $next"/reference.slml" $next-label"Reference"}
 }

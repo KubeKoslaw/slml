@@ -1,37 +1,36 @@
-slml 0.1
+slml 0.2
+@muted{c#536260}
+@nav{c#173b35 u:0}
+@card{bg#fff b1 bc#dbe5df p24 r14 g12}
+@action{bg#176b52 r8}
 
-style muted(color: #536260)
-style nav(color: #173b35, underline: false)
-style card(fill: #ffffff, border: 1, border-color: #dbe5df, padding: 24, radius: 14, gap: 12)
-style action(fill: #176b52, radius: 8)
-
-define site(title, description) {
-  meta(title: $title, description: $description, lang: "en")
-  page(padding: 20, gap: 28, fill: #f5f7f2, color: #173b35, align: center) {
-    column(width: fill, max-width: 1040, gap: 32) {
-      row(wrap: true, gap: 20, align: center, justify: between) {
-        text(size: 22, bold: true) { link.nav(to: "index.slml") "FIELDWORK / STUDIO" }
-        row(wrap: true, gap: 20, align: center) {
-          text { link.nav(to: "index.slml#services") "Services" }
-          text { link.nav(to: "about.slml") "About" }
-          text { link.nav(to: "contact.slml") "Contact" }
+@site(title, description){
+  meta{$title desc$description lang:en}
+  page{p20 g28 bg#f5f7f2 c#173b35 a:c
+    c{w:f mw1040 g32
+      r{wrap g20 a:c j:b
+        t{s22 b "[FIELDWORK / STUDIO](index.slml){.nav}"}
+        r{wrap g20 a:c
+          "[Services](index.slml#services){.nav}"
+          "[About](about.slml){.nav}"
+          "[Contact](contact.slml){.nav}"
         }
       }
-      divider(color: #ccd9d0)
+      |{c#ccd9d0}
       slot
-      divider(color: #ccd9d0)
-      row(wrap: true, gap: 12, justify: between) {
-        text.muted(size: 14) "Fieldwork is a fictional studio. This is an SLML starter."
-        text(size: 14) { link(to: "contact.slml") "Try the form" }
+      |{c#ccd9d0}
+      r{wrap g12 j:b
+        t.muted{s14 "Fieldwork is a fictional studio. This is an SLML starter."}
+        t{s14 "[Try the form](contact.slml)"}
       }
     }
   }
 }
 
-define service(number, title) {
-  column.card {
-    text(size: 13, bold: true, color: #176b52) $number
-    heading(level: 3) $title
+@service(number, title){
+  c.card{
+    t{s13 b c#176b52 $number}
+    ###$title
     slot
   }
 }

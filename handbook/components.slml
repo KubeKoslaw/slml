@@ -1,72 +1,45 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-define badge(label, color: #2457d6) {
-  text(fill: $color, color: #ffffff, size: 13, bold: true, padding-x: 10, padding-y: 3, radius: 99) $label
+@badge(label, color#2457d6){
+  t{bg$color c#fff s13 b px10 py3 r99 $label}
 }
 
-define feature(title) {
-  column(fill: #ffffff, padding: 16, radius: 12, border: 1, border-color: #e4e4ea, gap: 6, width: fill) {
-    heading(level: 4) $title
+@feature(title){
+  c{bg#fff p16 r12 b1 bc#e4e4ea g6 w:f
+    ####$title
     slot
   }
 }
 
-doc(title: "Components and imports") {
-  text.lead { "Components are your own elements. You define them once with " code "define" " and use them like built-in elements. Imports share them between files." }
-
-  section(id: "define", title: "Defining a component") {
-    demo(code: """
-        define badge(label, color: #2457d6) {
-          text(fill: $color, color: #ffffff, size: 13, bold: true,
-               padding-x: 10, padding-y: 3, radius: 99) $label
-        }
-
-        row(gap: 8) {
-          badge(label: "New")
-          badge(label: "Sale", color: #c2410c)
-        }
-        """) {
-      row(gap: 8) {
-        badge(label: "New")
-        badge(label: "Sale", color: #c2410c)
+doc{$title"Components and imports"
+  t.lead"Components are your own elements. You define them once with `define` and use them like built-in elements. Imports share them between files."
+  section{$id"define" $title"Defining a component"
+    demo{$code"define badge(label, color: #2457d6) {\n  text(fill: $color, color: #ffffff, size: 13, bold: true,\n       padding-x: 10, padding-y: 3, radius: 99) $label\n}\n\nrow(gap: 8) {\n  badge(label: \"New\")\n  badge(label: \"Sale\", color: #c2410c)\n}"
+      r{g8
+        badge{$label"New"}
+        badge{$label"Sale" $color#c2410c}
       }
     }
-    list(gap: 6) {
-      item { code "define name(param, other: default) { ... }" " declares a component. Parameters without a default are required." }
-      item { "Inside the body, " code "$param" " is replaced by the value given when the component is used, either as an attribute value or as text." }
-      item { "Forgetting a required parameter, giving an unknown one, or using a name of a built-in element are errors." }
+    -{g6
+      "`define name(param, other: default) { ... }` declares a component. Parameters without a default are required."
+      "Inside the body, `$param` is replaced by the value given when the component is used, either as an attribute value or as text."
+      "Forgetting a required parameter, giving an unknown one, or using a name of a built-in element are errors."
     }
   }
-
-  section(id: "slot", title: "Passing content with slot") {
-    text { code "slot" " marks where the content written inside the component's braces goes:" }
-    demo(code: """
-        define feature(title) {
-          column(fill: #ffffff, padding: 16, radius: 12, border: 1,
-                 border-color: #e4e4ea, gap: 6, width: fill) {
-            heading(level: 4) $title
-            slot
-          }
-        }
-
-        row(gap: 12) {
-          feature(title: "Fast") { text "Compiles in milliseconds." }
-          feature(title: "Strict") { text "No silent mistakes." }
-        }
-        """) {
-      row(gap: 12) {
-        feature(title: "Fast") { text "Compiles in milliseconds." }
-        feature(title: "Strict") { text "No silent mistakes." }
+  section{$id"slot" $title"Passing content with slot"
+    "`slot` marks where the content written inside the component's braces goes:"
+    demo{$code"define feature(title) {\n  column(fill: #ffffff, padding: 16, radius: 12, border: 1,\n         border-color: #e4e4ea, gap: 6, width: fill) {\n    heading(level: 4) $title\n    slot\n  }\n}\n\nrow(gap: 12) {\n  feature(title: \"Fast\") { text \"Compiles in milliseconds.\" }\n  feature(title: \"Strict\") { text \"No silent mistakes.\" }\n}"
+      r{g12
+        feature{$title"Fast" "Compiles in milliseconds."}
+        feature{$title"Strict" "No silent mistakes."}
       }
     }
-    text "Components can use other components. A component is replaced by its content before the page is checked, so everything it produces is validated like hand-written SLML."
+    "Components can use other components. A component is replaced by its content before the page is checked, so everything it produces is validated like hand-written SLML."
   }
-
-  section(id: "layouts", title: "Page layouts") {
-    text { "A component can produce the whole " code "meta" " and " code "page" ". Then every page of a site is just its content:" }
-    codeblock """
+  section{$id"layouts" $title"Page layouts"
+    "A component can produce the whole `meta` and `page`. Then every page of a site is just its content:"
+    code"""
         // layout.slml
         slml 0.1
 
@@ -82,7 +55,7 @@ doc(title: "Components and imports") {
           }
         }
         """
-    codeblock """
+    code"""
         // about.slml
         slml 0.1
         use "/layout.slml"
@@ -91,17 +64,15 @@ doc(title: "Components and imports") {
           text "We make things."
         }
         """
-    text { "This handbook works exactly like that: look at " code "handbook/layout.slml" " in the repository." }
+    "This handbook works exactly like that: look at `handbook/layout.slml` in the repository."
   }
-
-  section(id: "imports", title: "Imports") {
-    text { code "use \"file.slml\"" " loads the " code "style" "s and " code "define" "s of another file. An imported file contains no " code "meta" " or " code "page" "; it is a " bold "library" ", and " code "slml build site/" " does not turn it into a page." }
-    list(gap: 6) {
-      item { "Paths work like links: relative to the file, or from the site root with " code "/" "." }
-      item { "Libraries can import other libraries. Each file is loaded once, and import loops are errors." }
-      item { "Errors in an imported file are reported with that file's name and line." }
+  section{$id"imports" $title"Imports"
+    "`use \"file.slml\"` loads the `style`s and `define`s of another file. An imported file contains no `meta` or `page`; it is a *library*, and `slml build site/` does not turn it into a page."
+    -{g6
+      "Paths work like links: relative to the file, or from the site root with `/`."
+      "Libraries can import other libraries. Each file is loaded once, and import loops are errors."
+      "Errors in an imported file are reported with that file's name and line."
     }
   }
-
-  pager(prev: "/links.slml", prev-label: "Links and navigation", next: "/forms.slml", next-label: "Forms")
+  pager{$prev"/links.slml" $prev-label"Links and navigation" $next"/forms.slml" $next-label"Forms"}
 }

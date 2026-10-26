@@ -1,9 +1,8 @@
-slml 0.1
-
+slml 0.2
 // The smallest useful SLML document.
-meta(title: "Hello")
+meta{"Hello"}
 
-page {
-  heading "Hello, SLML!"
-  text "This page is written in SLML, not HTML."
+page{
+  #"Hello, SLML!"
+  "This page is written in SLML, not HTML."
 }

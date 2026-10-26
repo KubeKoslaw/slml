@@ -1,72 +1,51 @@
-slml 0.1
+slml 0.2
+use"layout.slml"
 
-use "layout.slml"
-
-doc(title: "The SLML Handbook") {
-  text.lead {
-    "SLML, the " bold "Strict Layout Markup Language" ", is a language for web pages and documents. "
-    "It replaces HTML and CSS with one small, strict grammar in which layout is built in. "
-    "You write " code ".slml" " files and the " code "slml" " native browser reads and draws them directly."
-  }
-
-  demo(code: """
-      slml 0.1
-
-      page {
-        heading "Hello!"
-        row(gap: 12) {
-          button(to: "about.slml") "About me"
-          text { "Made with " bold "SLML" }
-        }
-      }
-      """) {
-    heading "Hello!"
-    row(gap: 12, align: center) {
-      button(to: "#why") "About me"
-      text { "Made with " bold "SLML" }
+doc{$title"The SLML Handbook"
+  t.lead"SLML, the *Strict Layout Markup Language*, is a language for web pages and documents. It replaces HTML and CSS with one small, strict grammar in which layout is built in. You write `.slml` files and the `slml` native browser reads and draws them directly."
+  demo{$code"slml 0.1\n\npage {\n  heading \"Hello!\"\n  row(gap: 12) {\n    button(to: \"about.slml\") \"About me\"\n    text { \"Made with \" bold \"SLML\" }\n  }\n}"
+    #"Hello!"
+    r{g12 a:c
+      btn{>#why "About me"}
+      "Made with *SLML*"
     }
   }
-
-  section(id: "why", title: "Why SLML?") {
-    list(gap: 8) {
-      item { bold "Strict." " A mistake is an error with a line number and a hint, never a silently broken page." }
-      item { bold "Layout first." " Rows, columns, grids, gaps and alignment are part of the language; there are no floats or positioning tricks." }
-      item { bold "One syntax." " Structure, appearance and reusable components share one grammar instead of three languages." }
-      item { bold "Predictable." " Fonts are bundled and every default is written down, so a page looks the same everywhere." }
-      item { bold "Accessible." " Images must describe themselves and form fields must have labels." }
-      item { bold "Real websites." " Multi-page documents, navigation, reusable components and responsive layouts are written directly in SLML." }
+  section{$id"why" $title"Why SLML?"
+    -{g8
+      "*Strict.* A mistake is an error with a line number and a hint, never a silently broken page."
+      "*Layout first.* Rows, columns, grids, gaps and alignment are part of the language; there are no floats or positioning tricks."
+      "*One syntax.* Structure, appearance and reusable components share one grammar instead of three languages."
+      "*Predictable.* Fonts are bundled and every default is written down, so a page looks the same everywhere."
+      "*Accessible.* Images must describe themselves and form fields must have labels."
+      "*Real websites.* Multi-page documents, navigation, reusable components and responsive layouts are written directly in SLML."
     }
   }
-
-  section(id: "how", title: "How it works") {
-    text "The native browser is the normal way to use SLML:"
-    list(marker: number, gap: 8) {
-      item { bold "Open a page or site." " Run " code "slml page.slml" " or " code "slml my-site/" ". SLML opens its own window, parses the original source and draws it with its Rust renderer." }
-      item { bold "Edit and save." " The window reloads when the page, an import or an image changes. Local links stay in SLML." }
-      item { bold "Use adapters only when you choose them." " " code "slml build" " explicitly exports HTML. The optional " code "slml serve --web" " runtime and Firefox extension host SLML in existing web browsers." }
+  section{$id"how" $title"How it works"
+    "The native browser is the normal way to use SLML:"
+    +{g8
+      "*Open a page or site.* Run `slml page.slml` or `slml my-site/`. SLML opens its own window, parses the original source and draws it with its Rust renderer."
+      "*Edit and save.* The window reloads when the page, an import or an image changes. Local links stay in SLML."
+      "*Use adapters only when you choose them.* `slml build` explicitly exports HTML. The optional `slml serve --web` runtime and Firefox extension host SLML in existing web browsers."
     }
   }
-
-  section(id: "start", title: "Where to start") {
-    grid(cell-width: 220, gap: 14) {
-      column(to: "/install.slml", fill: #ffffff, padding: 18, radius: 12, border: 1, border-color: #e6e6ee, gap: 6) {
-        heading(level: 4) "1. Install"
-        text.muted "Get the slml compiler for Linux, macOS or Windows."
+  section{$id"start" $title"Where to start"
+    grid{cw220 g14
+      c{>/install.slml bg#fff p18 r12 b1 bc#e6e6ee g6
+        ####"1. Install"
+        t.muted"Get the slml compiler for Linux, macOS or Windows."
       }
-      column(to: "/first-page.slml", fill: #ffffff, padding: 18, radius: 12, border: 1, border-color: #e6e6ee, gap: 6) {
-        heading(level: 4) "2. First page"
-        text.muted "Write, preview and compile your first page in five minutes."
+      c{>/first-page.slml bg#fff p18 r12 b1 bc#e6e6ee g6
+        ####"2. First page"
+        t.muted"Write, preview and compile your first page in five minutes."
       }
-      column(to: "/sites.slml", fill: #ffffff, padding: 18, radius: 12, border: 1, border-color: #e6e6ee, gap: 6) {
-        heading(level: 4) "3. Build a site"
-        text.muted "Share a header across pages and publish the result."
+      c{>/sites.slml bg#fff p18 r12 b1 bc#e6e6ee g6
+        ####"3. Build a site"
+        t.muted"Share a header across pages and publish the result."
       }
     }
   }
-
-  note(title: "This handbook is written in SLML") {
-    text { "Every page you are reading is an " code ".slml" " file in the " code "handbook/" " folder of the repository. Open them to see real-world SLML." }
+  note{$title"This handbook is written in SLML"
+    "Every page you are reading is an `.slml` file in the `handbook/` folder of the repository. Open them to see real-world SLML."
   }
-
-  pager(prev: "/reference.slml", prev-label: "Reference", next: "/install.slml", next-label: "Install the compiler")
+  pager{$prev"/reference.slml" $prev-label"Reference" $next"/install.slml" $next-label"Install the compiler"}
 }
