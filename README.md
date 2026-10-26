@@ -5,19 +5,23 @@
 > 🇵🇱 [Polska wersja](README.pl.md)
 
 ```slml
-slml 0.1
+slml 0.2
+@card{p20 r12 bg#fff w:f}
 
-style card(padding: 20, radius: 12, fill: #ffffff, width: fill)
-
-page(fill: #f6f6f9) {
-  heading "Hello, SLML!"
-  row(gap: 16) {
-    column.card { text { "Layout is " bold "built in" "." } }
-    column.card { text { link(to: "about.slml") "Why not HTML?" } }
+page{bg#f6f6f9
+  #"Hello, SLML!"
+  r{g16
+    c.card{"Layout is *built in*."}
+    c.card{"[Why not HTML?](about.slml)"}
   }
-  image(src: "logo.png", alt: "SLML logo", width: 64)
+  img{./logo.png w64 "SLML logo"}
 }
 ```
+
+Short to write: `c` is a column, `r` a row, `p20` padding, `bg#fff` a
+background, `#"…"` a heading, and a bare string is a paragraph with
+`*bold*`, `_italic_` and `[links](…)`. Files in the older long syntax
+(`slml 0.1`) still work; `slml upgrade` converts them.
 
 ![The example site rendered by SLML](docs/screenshot.png)
 
@@ -30,10 +34,12 @@ text) without the historical accidents:
 | HTML | SLML |
 |------|------|
 | Broken markup is silently "repaired" | Invalid documents are **rejected with a precise error and a hint** |
-| HTML + CSS + JS: three syntaxes, selectors, cascade | **One grammar** for structure and style |
-| Layout added later (floats → flexbox → grid) | `row`, `column`, `gap`, `fill`, `align` from day one |
-| Whitespace collapsing, `&amp;`, optional closing tags, quirks mode | Quoted literal text, `{ }` blocks, a version line |
-| `<img>` without `alt` is valid | `image` **requires** `alt` |
+| `<div style="padding:20px;background:#fff"><p>Hi</p></div>` | `c{p20 bg#fff "Hi"}` |
+| HTML + CSS + JS: three syntaxes, selectors, cascade | **One short grammar** for structure and style |
+| `main`, `aside`, `nav`, `section` … and rules about where each may go | **No landmark elements**: boxes are layout, place them anywhere |
+| Layout added later (floats → flexbox → grid) | `r`, `c`, `grid`, `g`, `w:f`, `a` from day one |
+| Whitespace collapsing, `&amp;`, optional closing tags, quirks mode | Literal text, `{ }` blocks, a version line |
+| `<img>` without `alt` is valid | `img{/a.png "description"}`: the description is **required** |
 | Rendering depends on installed fonts and browser defaults | Fonts bundled, every default written in the spec |
 
 Read more in [docs/principles.md](docs/principles.md) and the full
@@ -55,6 +61,7 @@ slml page.slml                 # open the original document in SLML's native bro
 slml site/                     # open site/index.slml; site/ is the root for imports and links
 slml handbook/                 # read the handbook in SLML
 slml check site/               # only report errors
+slml upgrade site/             # convert slml 0.1 files to the short 0.2 syntax
 slml serve site/ --open        # serve original .slml files and open the native browser
 ```
 

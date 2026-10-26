@@ -1,45 +1,44 @@
 # Components and imports
 
-Components are your own elements. You define them once with `define` and use them like built-in elements. Imports share them between files.
+Components are your own elements. You define them once with `@name(…){…}` and use them like built-in elements. Imports share them between files.
 
 ## Defining a component
 
 ```slml
-define badge(label, color: #2457d6) {
-  text(fill: $color, color: #ffffff, size: 13, bold: true,
-       padding-x: 10, padding-y: 3, radius: 99) $label
+@badge(label, color#2457d6){
+  t{bg$color c#fff s13 b px10 py3 r99 $label}
 }
 
-row(gap: 8) {
-  badge(label: "New")
-  badge(label: "Sale", color: #c2410c)
+r{g8
+  badge{$label"New"}
+  badge{$label"Sale" $color#c2410c}
 }
 ```
 
-- `define name(param, other: default) { ... }` declares a component. Parameters without a default are required.
-- Inside the body, `$param` is replaced by the value given when the component is used, either as an attribute value or as text.
-- Forgetting a required parameter, giving an unknown one, or using a name of a built-in element are errors.
+- `@name(param, other#default){…}` defines a component. A parameter glued to a value (`color#2457d6`, `size16`, `title"Untitled"`) has a default; one without is required.
+- A call passes arguments as `$param` glued to a value: `$label"New"`, `$color#c2410c`, `$size20`, `$align:c`.
+- Inside the body, `$param` can be an attribute value (`bg$color`), a label (`#$title`), part of text (`"Hello $name"`) or a link target (`[more]($to)`). Write `${name}s` when a letter follows.
+- Forgetting a required parameter, giving an unknown one, or naming a component like a built-in element are errors.
 
 ## Passing content with slot
 
-`slot` marks where the content written inside the component's braces goes:
+`slot` marks where the content written inside the call goes:
 
 ```slml
-define feature(title) {
-  column(fill: #ffffff, padding: 16, radius: 12, border: 1,
-         border-color: #e4e4ea, gap: 6, width: fill) {
-    heading(level: 4) $title
+@feature(title){
+  c{bg#fff p16 r12 b1 bc#e4e4ea g6 w:f
+    ####$title
     slot
   }
 }
 
-row(gap: 12) {
-  feature(title: "Fast") { text "Compiles in milliseconds." }
-  feature(title: "Strict") { text "No silent mistakes." }
+r{g12
+  feature{$title"Fast" "Opens in milliseconds."}
+  feature{$title"Strict" "No silent mistakes."}
 }
 ```
 
-Components can use other components. A component is replaced by its content before the page is checked, so everything it produces is validated like hand-written SLML.
+A call without arguments or content is written with empty braces: `menu{}`. Components can use other components. A component is replaced by its content before the page is checked, so everything it produces is validated like hand-written SLML.
 
 ## Page layouts
 
@@ -47,40 +46,34 @@ A component can produce the whole `meta` and `page`. Then every page of a site i
 
 ```slml
 // layout.slml
-slml 0.1
-
-define site-page(title) {
-  meta(title: $title, lang: "en")
-  page(padding: 0, gap: 0) {
-    menu
-    column(padding: 32, gap: 16) {
-      heading $title
-      slot
-    }
-    footer
+slml 0.2
+@site-page(title){
+  meta{$title lang:en}
+  page{p0 g0
+    menu{}
+    c{p32 g16 #$title slot}
+    footer{}
   }
 }
 ```
 
 ```slml
 // about.slml
-slml 0.1
-use "/layout.slml"
-
-site-page(title: "About us") {
-  text "We make things."
-}
+slml 0.2
+use"/layout.slml"
+site-page{$title"About us" "We make things."}
 ```
 
 This handbook works exactly like that: look at `handbook/layout.slml` in the repository.
 
 ## Imports
 
-`use "file.slml"` loads the `style`s and `define`s of another file. An imported file contains no `meta` or `page`; it is a **library**, and `slml build site/` does not turn it into a page.
+`use"file.slml"` loads the styles and components of another file. An imported file contains no `meta` or `page`; it is a **library**, and `slml build site/` does not turn it into a page.
 
 - Paths work like links: relative to the file, or from the site root with `/`.
 - Libraries can import other libraries. Each file is loaded once, and import loops are errors.
 - Errors in an imported file are reported with that file's name and line.
+- A library and the files that import it use the same version line.
 
 [Links and navigation](links.md)
 

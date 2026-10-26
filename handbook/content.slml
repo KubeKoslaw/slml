@@ -4,32 +4,48 @@ use"layout.slml"
 doc{$title"Lists, code and images"
   t.lead"The building blocks of real content: lists, code samples, images and dividers."
   section{$id"lists" $title"Lists"
-    demo{$code"list {\n  item \"Bullets are the default\"\n  item { \"Items can contain \" bold \"inline\" \" elements\" }\n  list(marker: number) {\n    item \"A nested list follows an item\"\n    item \"and is indented under it\"\n  }\n}"
+    demo{$code"""
+        -{
+          "Bullets: every string is an item"
+          "Items can contain *formatting*"
+          +{"A nested list follows an item" "and is indented under it"}
+        }
+        -"One item" -"after another"
+        """
       -{
-        "Bullets are the default"
-        "Items can contain *inline* elements"
+        "Bullets: every string is an item"
+        "Items can contain *formatting*"
         +{"A nested list follows an item" "and is indented under it"}
       }
+      -{"One item" "after another"}
     }
     c{g0
-      ref{$name"marker" $values"bullet / number / none" $about"The symbol before each item. Numbers count 1, 2, 3 …"}
-      ref{$name"gap" $values"number" $about"Space between items (default 6)."}
+      ref{$name"-{…}" $values"bullets" $about"• before each item."}
+      ref{$name"+{…}" $values"numbers" $about"1. 2. 3. — nested lists count separately."}
+      ref{$name"={…}" $values"no marker" $about"Items without a marker."}
+      ref{$name"g8" $values"number" $about"Space between items (default 6)."}
     }
-    "A list contains only `item`s and nested `list`s; an `item` can only be inside a list."
+    "`-\"a\" -\"b\"` written one after the other form a single list, so short lists need no braces."
   }
   section{$id"code" $title"Code blocks"
-    "`codeblock` shows text in a monospaced font on a light background, keeping every space. It is ideal with a [block string](/syntax.slml#strings):"
-    demo{$code"codeblock \"\"\"\n    fn main() {\n        println!(\"Hello\");\n    }\n    \"\"\""
+    "`code` shows text in a monospaced font on a light background, keeping every space. It is ideal with a [block string](/syntax.slml#strings):"
+    demo{$code"code\"\"\"\n    fn main() {\n        println!(\"Hello\");\n    }\n    \"\"\""
       code"""
           fn main() {
               println!("Hello");
           }
           """
     }
-    "For a short piece of code inside a sentence use the inline `code` element."
+    "For a short piece of code inside a sentence use backticks: `\`like this\``."
   }
   section{$id"images" $title"Images"
-    demo{$code"row(gap: 16, align: center) {\n  image(src: \"/logo.png\", alt: \"SLML logo\", width: 64, radius: 14)\n  image(src: \"/logo.png\", alt: \"Small SLML logo\", width: 32)\n  image(src: \"missing.png\", alt: \"This image is missing\", width: 160, height: 64)\n}"
+    demo{$code"""
+        r{g16 a:c
+          img{/logo.png w64 r14 "SLML logo"}
+          img{/logo.png w32 "Small SLML logo"}
+          img{./missing.png w160 h64 "This image is missing"}
+        }
+        """
       r{g16 a:c
         img{/logo.png w64 r14 "SLML logo"}
         img{/logo.png w32 "Small SLML logo"}
@@ -37,14 +53,19 @@ doc{$title"Lists, code and images"
       }
     }
     -{g6
-      "`src` is a path to a PNG or JPEG file (or an https address). `alt` describes the image for people who can't see it, and it is *required*."
-      "Purely decorative images say so with `alt: \"\"`."
-      "Without `width` and `height`, an image has its natural size but never overflows its container. Give one of them and the other follows the image's proportions."
-      "`radius`, `border`, `padding` and `shadow` work on images too, and `to` turns an image into a link."
+      "The path comes first: `/img/a.png` from the site root, `./a.png` next to the page, or an https address. PNG and JPEG are supported."
+      "The string describes the image for people who can't see it, and it is *required*. Purely decorative images say so with an empty string `\"\"`."
+      "Without `w` and `h`, an image has its natural size but never overflows its box. Give one of them and the other follows the image's proportions."
+      "`r`, `b`, `p` and `sh` work on images too, and `>target` turns an image into a link."
     }
   }
   section{$id"dividers" $title"Dividers and spacers"
-    demo{$code"text \"Above\"\ndivider\ntext \"Below\"\nrow(height: 40) { text \"Left\" divider(color: #2457d6, thickness: 2) text \"Right\" }"
+    demo{$code"""
+        "Above"
+        |
+        "Below"
+        r{h40 g8 "Left" |{c#2457d6 th2} "Right"}
+        """
       "Above"
       |
       "Below"
@@ -54,7 +75,7 @@ doc{$title"Lists, code and images"
         "Right"
       }
     }
-    "In a row a divider is vertical. A `spacer` is empty space: without a size it takes all free space, with `height: 24` it is a fixed gap."
+    "In a row a divider is vertical. A spacer `~` is empty space: without a size it takes all free space, `~{h24}` is a fixed gap."
   }
   pager{$prev"/styling.slml" $prev-label"Boxes and styles" $next"/links.slml" $next-label"Links and navigation"}
 }

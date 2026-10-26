@@ -8,26 +8,40 @@ doc{$title"Boxes and styles"
   t.lead"Every block element is a box. Its appearance is set with attributes, and sets of attributes you use often become *styles*."
   section{$id"box" $title"The box"
     c{g0
-      ref{$name"padding" $values"number" $about"Space inside the box on all sides."}
-      ref{$name"padding-x / -y" $values"number" $about"Horizontal or vertical padding only; they override padding."}
-      ref{$name"fill" $values"color" $about"Background color."}
-      ref{$name"radius" $values"number" $about"Rounded corners."}
-      ref{$name"border" $values"number" $about"Border width. Its color is border-color (light gray by default)."}
-      ref{$name"shadow" $values"none / small / large" $about"A soft drop shadow."}
+      ref{$name"p20" $values"number" $about"Padding: space inside the box on all sides."}
+      ref{$name"px24  py8" $values"number" $about"Horizontal or vertical padding only; they override p."}
+      ref{$name"bg#fff" $values"color" $about"Background color."}
+      ref{$name"r12" $values"number" $about"Rounded corners."}
+      ref{$name"b1  bc#ddd" $values"number, color" $about"Border width and color (light gray by default)."}
+      ref{$name"sh:s  sh:l" $values"small, large" $about"A soft drop shadow."}
     }
-    demo{$code"column(fill: #ffffff, padding: 20, radius: 12,\n       border: 1, border-color: #e4e4ea, shadow: small) {\n  heading(level: 3) \"A card\"\n  text \"Padding, fill, radius, border and shadow.\"\n}"
+    demo{$code"""
+        c{bg#fff p20 r12 b1 bc#e4e4ea sh:s
+          ###"A card"
+          "Padding, fill, radius, border and shadow."
+        }
+        """
       c{bg#fff p20 r12 b1 bc#e4e4ea sh:s
         ###"A card"
         "Padding, fill, radius, border and shadow."
       }
     }
     note{$title"Sizes include padding and border"
-      "A box with `width: 200` and `padding: 20` is 200 pixels wide in total. There is no box-model arithmetic to remember."
+      "A box with `w200 p20` is 200 pixels wide in total. There is no box-model arithmetic to remember."
     }
   }
   section{$id"styles" $title"Styles"
-    "A `style` gives a name to a set of attributes. Apply it with a dot after the element name. The element's own attributes win over the style's:"
-    demo{$code"style card(fill: #ffffff, padding: 20, radius: 12,\n           border: 1, border-color: #e4e4ea, gap: 6)\nstyle highlight(fill: #fff4d6, border-color: #f0d48a)\n\nrow(gap: 12) {\n  column.card(width: fill) { text \"Plain card\" }\n  column.card.highlight(width: fill) { text \"Card + highlight\" }\n  column.card(width: fill, radius: 0) { text \"Square card\" }\n}"
+    "`@name{…}` gives a name to a set of attributes. Apply it with a dot after the element name. The element's own attributes win over the style's:"
+    demo{$code"""
+        @card{bg#fff p20 r12 b1 bc#e4e4ea g6}
+        @highlight{bg#fff4d6 bc#f0d48a}
+
+        r{g12
+          c.card{w:f "Plain card"}
+          c.card.highlight{w:f "Card + highlight"}
+          c.card{w:f r0 "Square card"}
+        }
+        """
       r{g12
         c.card{w:f "Plain card"}
         c.card.highlight{w:f "Card + highlight"}
@@ -35,8 +49,8 @@ doc{$title"Boxes and styles"
       }
     }
     -{g6
-      "Styles are applied left to right, then the element's own attributes: `column.card.highlight(radius: 0)`."
-      "A style may only contain attributes that fit every element it is used on; `text.card` is an error here, because a text has no `gap`."
+      "Styles are applied left to right, then the element's own attributes: `c.card.highlight{r0}`."
+      "A style may only contain attributes that fit every element it is used on; `t.card` is an error here, because a text has no gap (`g`)."
       "Styles never cascade and have no selectors. An element looks the way its own line says."
       "Put styles you share between pages into a library file and `use` it. See [imports](/components.slml#imports)."
     }

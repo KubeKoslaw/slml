@@ -15,6 +15,9 @@ before work starts. Items marked **good first issue** are self-contained.
 
 ## Also done
 
+- [x] `slml 0.2`: compact syntax (short names, glued attributes, inline `*bold*` / `[link](…)` markup), no semantic-only elements
+- [x] `slml upgrade`: verified conversion from 0.1, keeping comments
+
 - [x] Native SLML browser as the default for files, site folders and `serve --open`; HTML and web-hosted previews require explicit commands
 
 - [x] HTML backend, `slml serve` live preview, `slml site/` builds, broken-link errors
@@ -26,7 +29,7 @@ before work starts. Items marked **good first issue** are self-contained.
 ## 0.2 — make it pleasant to write
 
 - [x] **Font fallback** for glyphs missing from Noto Sans (arrows, emoji, CJK). **good first issue**
-- [ ] `slml fmt`: canonical formatter (one attribute style, normalized commas). **good first issue**
+- [x] Canonical formatter: `slml upgrade` prints every file in the standard 0.2 layout
 - [ ] Syntax highlighting: VS Code extension + tree-sitter grammar. **good first issue**
 - [ ] Language server (LSP): diagnostics, completion of elements and attributes
 - [x] Components: `define card(title) { column.card { heading $title  slot } }`

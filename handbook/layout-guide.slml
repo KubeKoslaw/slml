@@ -4,10 +4,17 @@ use"layout.slml"
 @box{bg#e8edff p10 r8}
 
 doc{$title"Layout"
-  t.lead"Layout is part of SLML. Four containers, `column`, `row`, `grid` and `page`, and a handful of attributes describe almost any page."
+  t.lead"Layout is the language. Three boxes, `c` (column), `r` (row) and `grid`, plus a handful of attributes describe almost any page. Boxes mean nothing beyond their layout, so any box can go anywhere."
   section{$id"column-row" $title"Columns and rows"
-    "`column` stacks its children from top to bottom, `row` places them side by side. `gap` is the space between them."
-    demo{$code"column(gap: 8) {\n  text.box \"One\"\n  row(gap: 8) {\n    text.box \"Two\"\n    text.box \"Three\"\n  }\n}"
+    "`c` stacks its children from top to bottom, `r` places them side by side. `g` is the gap between them."
+    demo{$code"""
+        @box{bg#e8edff p10 r8}
+
+        c{g8
+          t.box"One"
+          r{g8 t.box"Two" t.box"Three"}
+        }
+        """
       c{g8
         t.box"One"
         r{g8
@@ -16,16 +23,23 @@ doc{$title"Layout"
         }
       }
     }
-    "The `page` itself is a column with 32 pixels of padding and a gap of 16."
+    "The `page` itself is a column with 32 pixels of padding (`p32`) and a gap of 16."
   }
   section{$id"sizes" $title"Sizes: auto, fill and pixels"
-    "`width` and `height` take three kinds of values:"
+    "`w` (width) and `h` (height) take three kinds of values:"
     c{g0
-      ref{$name"auto" $values"default" $about"As big as the content. In a column, auto width fills the column unless align says otherwise."}
-      ref{$name"fill" $values"share space" $about"Take the free space. Several fill children share it equally."}
-      ref{$name"240" $values"pixels" $about"Exactly this size, padding and border included."}
+      ref{$name"w:a" $values"auto (default)" $about"As big as the content. In a column, auto width fills the column unless a says otherwise."}
+      ref{$name"w:f" $values"fill" $about"Take the free space. Several fill children share it equally."}
+      ref{$name"w240" $values"pixels" $about"Exactly this size, padding and border included."}
     }
-    demo{$code"row(gap: 8) {\n  text.box(width: 80) \"80 px\"\n  text.box(width: fill) \"fill\"\n  text.box(width: fill) \"fill\"\n  text.box \"auto\"\n}"
+    demo{$code"""
+        r{g8
+          t.box{w80 "80 px"}
+          t.box{w:f "fill"}
+          t.box{w:f "fill"}
+          t.box"auto"
+        }
+        """
       r{g8
         t.box{w80 "80 px"}
         t.box{w:f "fill"}
@@ -33,11 +47,18 @@ doc{$title"Layout"
         t.box"auto"
       }
     }
-    "`max-width` limits a size and `min-width` sets a lower bound. They are the key to readable pages: `column(width: fill, max-width: 760)` is a column that grows with the window but never gets too wide."
+    "`mw` (max-width) limits a size and `nw` (min-width) sets a lower bound. They are the key to readable pages: `c{w:f mw760 …}` is a column that grows with the window but never gets too wide."
   }
   section{$id"align" $title"Alignment"
-    "`align` places children across the container (horizontally in a column, vertically in a row): `start`, `center`, `end` or `stretch` (the default). `justify` distributes them along it: `start`, `center`, `end` or `between`."
-    demo{$code"row(justify: between, align: center, fill: #f4f4f8, padding: 10) {\n  text.box \"Left\"\n  text.box(padding: 20) \"Middle\"\n  text.box \"Right\"\n}\ncolumn(align: center) { text.box \"Centered\" }"
+    "`a` places children across the box (horizontally in a column, vertically in a row): `a:s` start, `a:c` center, `a:e` end, `a:x` stretch (the default). `j` distributes them along it: `j:s`, `j:c`, `j:e` or `j:b` (space between)."
+    demo{$code"""
+        r{j:b a:c bg#f4f4f8 p10
+          t.box"Left"
+          t.box{p20 "Middle"}
+          t.box"Right"
+        }
+        c{a:c t.box"Centered"}
+        """
       r{j:b a:c bg#f4f4f8 p10
         t.box"Left"
         t.box{p20 "Middle"}
@@ -45,20 +66,30 @@ doc{$title"Layout"
       }
       c{a:c t.box"Centered"}
     }
-    "A `spacer` absorbs free space; it is the easiest way to push things apart:"
-    code"row { text \"Logo\"  spacer  text \"Menu\" }"
+    "A spacer `~` absorbs free space; it is the easiest way to push things apart:"
+    code"r{\"Logo\" ~ \"Menu\"}"
   }
   section{$id"responsive" $title"Responsive layouts"
     "Pages are viewed on phones and wide screens. Two tools adapt a layout to the space available:"
-    "*Wrapping rows.* With `wrap: true`, children that don't fit move to the next line. Give `fill` children a `min-width` to say how narrow they may get:"
-    demo{$code"row(wrap: true, gap: 8) {\n  text.box(width: fill, min-width: 160) \"Sidebar\"\n  text.box(width: fill, min-width: 260) \"Content\"\n}"
+    "*Wrapping rows.* With `wrap`, children that don't fit move to the next line. Give `w:f` children an `nw` to say how narrow they may get:"
+    demo{$code"""
+        r{wrap g8
+          t.box{w:f nw160 "Sidebar"}
+          t.box{w:f nw260 "Content"}
+        }
+        """
       r{wrap g8
         t.box{w:f nw160 "Sidebar"}
         t.box{w:f nw260 "Content"}
       }
     }
-    "*Grids.* `grid(columns: 3)` makes three equal columns. `grid(cell-width: 200)` fits as many columns of at least 200 pixels as the width allows: four on a laptop, one on a phone."
-    demo{$code"grid(cell-width: 140, gap: 8) {\n  text.box \"A\"  text.box \"B\"  text.box \"C\"\n  text.box \"D\"  text.box \"E\"\n}"
+    "*Grids.* `grid{cols3 …}` makes three equal columns. `grid{cw200 …}` fits as many columns of at least 200 pixels as the width allows: four on a laptop, one on a phone. Both together mean “at most three”."
+    demo{$code"""
+        grid{cw140 g8
+          t.box"A" t.box"B" t.box"C"
+          t.box"D" t.box"E"
+        }
+        """
       grid{cw140 g8
         t.box"A"
         t.box"B"
@@ -68,30 +99,29 @@ doc{$title"Layout"
       }
     }
     note{$title"Try it"
-      "Make this browser window narrower: the sidebar of this handbook moves above the text and the grid above drops columns. Both are just a wrapping row and a grid."
+      "Make this window narrower: the sidebar of this handbook moves above the text and the grid above drops columns. Both are just a wrapping row and a grid."
     }
+  }
+  section{$id"semantics" $title"Why there is no main, aside or nav"
+    "HTML has elements whose only job is meaning — `main`, `aside`, `nav`, `header`, `section`, `article` — with rules about where each may appear. SLML leaves them out. A sidebar is a column, a menu is a row of links, and either may be placed anywhere. What readers and assistive technology need is still there and required: heading levels, lists, links, image descriptions and form labels."
   }
   section{$id"recipes" $title"Recipes"
     t{b "Centered page content"}
-    code"""
-        page(align: center) {
-          column(width: fill, max-width: 760, gap: 20) { ... }
-        }
-        """
+    code"page{a:c c{w:f mw760 g20 …}}"
     t{b "Header with logo and menu"}
     code"""
-        row(align: center, gap: 16, padding: 16) {
-          image(src: "/logo.png", alt: "Home", width: 32, to: "/index.slml")
-          spacer
-          text { link(to: "/about.slml") "About" }
-          text { link(to: "/contact.slml") "Contact" }
+        r{a:c g16 p16
+          img{/logo.png w32 >/index.slml "Home"}
+          ~
+          "[About](/about.slml)"
+          "[Contact](/contact.slml)"
         }
         """
     t{b "Sidebar layout that stacks on phones"}
     code"""
-        row(wrap: true, gap: 24) {
-          column(width: 240) { ...menu... }
-          column(width: fill, min-width: 320) { ...content... }
+        r{wrap g24
+          c{w240 …menu…}
+          c{w:f nw320 …content…}
         }
         """
   }

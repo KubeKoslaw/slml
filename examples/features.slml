@@ -18,7 +18,7 @@ slml 0.2
   }
 }
 
-meta{"SLML features" desc"Everything SLML 0.1 can do on one page"}
+meta{"SLML features" desc"Everything SLML 0.2 can do on one page"}
 
 page{bg#f6f6f9 a:c
   c{w:f mw900 g28
@@ -47,9 +47,9 @@ page{bg#f6f6f9 a:c
     }
     section{$id"code" $title"Code blocks"
       code"""
-          define card(title) {
-            column(padding: 20, radius: 12) {
-              heading $title
+          @card(title){
+            c{p20 r12
+              #$title
               slot
             }
           }

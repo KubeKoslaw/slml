@@ -16,7 +16,7 @@ my-site/
     logo.png         image asset
 ```
 
-- Files with a `page` are pages read by the native browser. Files with only `style` and `define` are libraries for `use`.
+- Files with a `page` are pages read by the native browser. Files with only styles (`@name{…}`) and components (`@name(…){…}`) are libraries for `use`.
 - Keep images and other assets alongside the pages that use them.
 - Folders whose name starts with `_` or `.` are skipped, so you can keep drafts in `_drafts/`.
 - Hidden files, `target/`, `node_modules/` and common working notes are excluded from builds and direct preview requests. Symbolic links inside the site are skipped during builds and rejected by the preview server and imports; keep shared components inside the site root.

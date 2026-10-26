@@ -1,8 +1,8 @@
-# Installing the compiler
+# Installing SLML
 
-SLML is one program, `slml`. It opens pages in SLML's own native browser and checks them for mistakes. You do not need Rust or any other tool to use it.
+SLML is one program, `slml`. It opens pages in SLML's own native browser, checks them for mistakes and converts older files. You do not need Rust or any other tool to use it.
 
-## Prebuilt compiler
+## Prebuilt program
 
 **Linux and macOS:** run the install script. It puts `slml` into `~/.local/bin`.
 
@@ -32,7 +32,7 @@ cd slml
 make install
 ```
 
-`make install` copies `slml` to `~/.local/bin` and its manual page to `~/.local/share/man`. For a system-wide install use `sudo make install PREFIX=/usr/local`. On a server without a graphical desktop, add `VIEWER=0` to leave out the native viewer window.
+`make install` copies `slml` to `~/.local/bin` and its manual page to `~/.local/share/man`. For a system-wide install use `sudo make install PREFIX=/usr/local`. On a server without a graphical desktop, add `VIEWER=0` to leave out the native browser window.
 
 ## Check that it works
 
@@ -41,15 +41,17 @@ slml --version
 slml --help
 ```
 
-You should see the compiler version and the language version, for example:
+You should see the program version and the newest language version, for example:
 
 ```slml
-slml 0.1.0 (language 0.1)
+slml 0.1.0 (language 0.2)
 ```
 
 ## Editor setup
 
 Any text editor works. Save files as UTF-8 with the `.slml` extension. Run `slml` with your site folder, or run `slml index.slml`: SLML's native browser reloads every time you save.
+
+Keep the [Reference](reference.md) open while you learn the short names; after a few pages you will not need it.
 
 [Introduction](index.md)
 

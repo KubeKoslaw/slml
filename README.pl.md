@@ -5,18 +5,22 @@
 > 🇬🇧 [English version](README.md)
 
 ```slml
-slml 0.1
+slml 0.2
+@karta{p20 r12 bg#fff w:f}
 
-style karta(padding: 20, radius: 12, fill: #ffffff, width: fill)
-
-page(fill: #f6f6f9) {
-  heading "Cześć, SLML!"
-  row(gap: 16) {
-    column.karta { text { "Układ jest " bold "wbudowany" "." } }
-    column.karta { text { link(to: "about.slml") "Dlaczego nie HTML?" } }
+page{bg#f6f6f9
+  #"Cześć, SLML!"
+  r{g16
+    c.karta{"Układ jest *wbudowany*."}
+    c.karta{"[Dlaczego nie HTML?](about.slml)"}
   }
 }
 ```
+
+Krótko do pisania: `c` to kolumna, `r` wiersz, `p20` odstęp wewnętrzny,
+`bg#fff` tło, `#"…"` nagłówek, a zwykły napis to akapit z `*pogrubieniem*`,
+`_kursywą_` i `[linkami](…)`. Pliki w starszej, długiej składni
+(`slml 0.1`) nadal działają; `slml upgrade` je przepisuje.
 
 ## Dlaczego?
 
@@ -28,7 +32,8 @@ tekst), i odrzuca historyczne błędy:
   podpowiedzią. SLML nie „naprawia” niczego po cichu.
 - **Jedna składnia** dla struktury i wyglądu, zamiast trzech osobnych języków
   (HTML, CSS, JS).
-- **Układ w języku:** `row`, `column`, `gap`, `fill`, `align` są od początku.
+- **Układ w języku:** `r`, `c`, `grid`, `g`, `w:f`, `a` są od początku.
+- **Bez semantycznych „regionów”:** nie ma `main`, `aside`, `nav`, `section` ani reguł, co może być w czym. Pudełko to tylko układ.
 - **Przewidywalność:** fonty są wbudowane, a wszystkie wartości domyślne są
   opisane w specyfikacji.
 - **Dostępność:** `image` wymaga opisu `alt`.

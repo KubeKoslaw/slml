@@ -6,6 +6,7 @@ slml 0.2
 @small{s14 c#5b5b70}
 @navlink{c#2b2b38 u:0}
 @section{g12 py6}
+@tile{bg#fff p18 r12 b1 bc#e6e6ee g6}
 
 // One entry in the sidebar.
 @nav(to, label){

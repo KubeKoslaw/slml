@@ -27,6 +27,10 @@ slml \- native browser and tools for the Strict Layout Markup Language
 .I file.slml
 .RB [ \-o
 .IR out.png ]
+.br
+.B slml upgrade
+.RB [ \-\-check ]
+.IR file-or-folder ...
 .SH DESCRIPTION
 .B slml
 opens original SLML documents in its own native browser. It parses, validates,
@@ -71,6 +75,15 @@ links are reported instead of writing guessed output.
 .TP
 .B render
 Render a page to a PNG image with the native renderer.
+.TP
+.B upgrade
+Rewrite files in the compact
+.B slml 0.2
+syntax: files written in the long
+.B slml 0.1
+syntax are converted and 0.2 files are formatted. Before writing, every
+page is compiled from the old and the new sources, imports included; if any
+page would change, nothing is written. Comments are kept.
 .SH OPTIONS
 .TP
 .BR \-o ", " \-\-output " " \fIpath\fR
@@ -102,6 +115,11 @@ Requires make web followed by rebuilding slml.
 .TP
 .B \-\-html
 Explicitly select HTML export, or the HTML server preview with serve.
+.TP
+.B \-\-check
+With
+.BR upgrade ,
+only list files that would change; exit status 1 if there are any.
 .TP
 .BR \-q ", " \-\-quiet
 Print only errors.

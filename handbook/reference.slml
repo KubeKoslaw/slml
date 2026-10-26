@@ -2,87 +2,92 @@ slml 0.2
 use"layout.slml"
 
 doc{$title"Reference"
-  t.lead"Every element and attribute of SLML 0.1 on one page. The complete rules, including layout details, are in [SPEC.md](https://github.com/KubeKoslaw/slml/blob/main/SPEC.md)."
-  "Jump to: [containers](#containers) · [text](#text-elements) · [inline](#inline) · [media](#media) · [forms](#form-elements) · [attributes](#attributes) · [top level](#top-level)"
-  section{$id"containers" $title"Containers"
+  t.lead"Every element and attribute of SLML 0.2 on one page. The complete rules, including layout details, are in [SPEC.md](https://github.com/KubeKoslaw/slml/blob/main/SPEC.md)."
+  "Jump to: [boxes](#containers) · [text](#text-elements) · [inline](#inline) · [media](#media) · [forms](#form-elements) · [attributes](#attributes) · [top level](#top-level)"
+  section{$id"containers" $title"Boxes"
     c{g0
-      ref{$name"page" $values"frame, flow, text" $about"The visible document. One per file. Defaults: padding 32, gap 16, white, 16 px text."}
-      ref{$name"column" $values"frame, flow, text, to" $about"Children top to bottom."}
-      ref{$name"row" $values"frame, flow, text, to, wrap" $about"Children side by side; wrap: true moves overflow to new lines."}
-      ref{$name"grid" $values"frame, flow, text, columns, cell-width" $about"Equal columns: a fixed number (1–12), or as many of at least cell-width as fit."}
-      ref{$name"form" $values"frame, flow, text, to, method" $about"A column that sends its fields to `to` (get or post). Gap 16."}
-      ref{$name"list" $values"frame, text, gap, marker" $about"items and nested lists. marker: bullet, number or none."}
+      ref{$name"page{…}" $values"box, flow, text" $about"The visible document. One per file. Defaults: p32 g16, white, 16 px text."}
+      ref{$name"c{…}" $values"box, flow, text, >" $about"Column: children top to bottom."}
+      ref{$name"r{…}" $values"box, flow, text, >, wrap" $about"Row: children side by side; wrap moves overflow to new lines."}
+      ref{$name"grid{…}" $values"box, flow, text, cols, cw" $about"Equal columns: cols1–cols12, or as many of at least cw as fit."}
+      ref{$name"form{…}" $values"box, flow, text, >, post" $about"A column that sends its fields to >target (get by default). Gap 16."}
+      ref{$name"-{…} +{…} ={…}" $values"box, text, g" $about"List: every string is an item; - bullets, + numbers, = no marker."}
+    }
+    "A bare string in a box is a paragraph."
+  }
+  section{$id"text-elements" $title"Text"
+    c{g0
+      ref{$name"\"…\"  t\"…\"  t{…}" $values"box, text, a" $about"A paragraph; t only to add attributes."}
+      ref{$name"#\"…\" … ####\"…\"" $values"box, text, a" $about"Headings 1–4: 32, 24, 20 and 17 px, bold."}
+      ref{$name"code\"…\"" $values"box, text, a" $about"Monospaced, spaces kept, no formatting."}
+      ref{$name"btn{>… \"…\"}" $values"box, text, a, >" $about"A link that looks like a button."}
+      ref{$name"send\"…\"" $values"box, text, a" $about"The button that sends a form."}
     }
   }
-  section{$id"text-elements" $title"Text blocks"
+  section{$id"inline" $title"Formatting inside strings"
     c{g0
-      ref{$name"text" $values"frame, text, align" $about"A paragraph."}
-      ref{$name"heading" $values"frame, text, align, level" $about"Level 1–4: 32, 24, 20 and 17 px, bold."}
-      ref{$name"item" $values"text, align, id" $about"An entry of a list."}
-      ref{$name"codeblock" $values"frame, text, align" $about"Monospaced text on a light background, spaces kept."}
-      ref{$name"button" $values"frame, text, align, to" $about"A link that looks like a button."}
-      ref{$name"submit" $values"frame, text, align" $about"The button that sends a form."}
-    }
-  }
-  section{$id"inline" $title"Inline elements"
-    c{g0
-      ref{$name"bold" $values"text" $about"Bold text."}
-      ref{$name"italic" $values"text" $about"Italic text."}
-      ref{$name"code" $values"text" $about"Monospaced text."}
-      ref{$name"link" $values"text, to" $about"A link; blue and underlined by default."}
-      ref{$name"span" $values"text" $about"Any text attributes for part of a sentence."}
+      ref{$name"*text*  _text_" $values"" $about"Bold, italic."}
+      ref{$name"`text`" $values"" $about"Inline code, taken literally."}
+      ref{$name"[text](target)" $values"" $about"A link; blue and underlined by default."}
+      ref{$name"[text]{attrs}" $values"" $about"Text attributes for part of a sentence; {.style} applies a style."}
+      ref{$name"$name  ${name}" $values"" $about"A component parameter."}
+      ref{$name"\\* \\_ \\` \\[ \\] \\$" $values"" $about"The characters themselves."}
     }
   }
   section{$id"media" $title"Images and spacing"
     c{g0
-      ref{$name"image" $values"frame, src, alt, to" $about"PNG or JPEG. alt is required; alt: \"\" for decoration."}
-      ref{$name"divider" $values"width, color, thickness, id" $about"A line; vertical inside a row."}
-      ref{$name"spacer" $values"width, height" $about"Empty space; without a size it takes all free space."}
+      ref{$name"img{/a.png \"…\"}" $values"box, >" $about"PNG or JPEG. The description is required; \"\" for decoration."}
+      ref{$name"|  |{…}" $values"w, c, th, id" $about"A divider line; vertical inside a row."}
+      ref{$name"~  ~{h24}" $values"w, h" $about"Empty space; without a size it takes all free space."}
     }
   }
   section{$id"form-elements" $title"Form fields"
-    "All fields take `name`, `label` (both required) and `required`. They must be inside a `form`."
+    "Every field takes `n:name` and a label string (both required) and the flag `req`. Fields must be inside a `form`."
     c{g0
-      ref{$name"input" $values"frame, text, kind, placeholder, value" $about"kind: text, email, password, number, tel, url, date, search."}
-      ref{$name"textarea" $values"frame, text, rows, placeholder, value" $about"rows: 1–50 (default 4)."}
-      ref{$name"checkbox" $values"text, checked, id" $about"A box with its label next to it."}
-      ref{$name"select" $values"frame, text" $about"Contains option elements."}
-      ref{$name"option" $values"value, selected" $about"One choice of a select, with a text label."}
+      ref{$name"in{…}" $values"box, text, k, ph, v" $about"k: text, email, password, number, tel, url, date, search."}
+      ref{$name"area{…}" $values"box, text, rows, ph, v" $about"rows1–rows50 (default 4)."}
+      ref{$name"check{…}" $values"text, on, id" $about"A box with its label next to it; on ticks it."}
+      ref{$name"sel{…}" $values"box, text" $about"Contains opt elements."}
+      ref{$name"opt\"…\"  opt{v\"…\" on \"…\"}" $values"v, on" $about"One choice: a label, an optional value, on to select it."}
     }
   }
-  section{$id"attributes" $title"Attribute groups"
-    t{b "frame"}
+  section{$id"attributes" $title"Attributes"
+    t{b "box"}
     c{g0
-      ref{$name"width, height" $values"number, fill, auto" $about"Size including padding and border."}
-      ref{$name"min-width, max-width" $values"number" $about"Limits for the width."}
-      ref{$name"padding" $values"number" $about"Inner space; padding-x and padding-y set one axis."}
-      ref{$name"fill" $values"color" $about"Background."}
-      ref{$name"radius" $values"number" $about"Corner rounding."}
-      ref{$name"border, border-color" $values"number, color" $about"Border width and color."}
-      ref{$name"shadow" $values"none, small, large" $about"Drop shadow."}
-      ref{$name"id" $values"string" $about"Anchor name for #links; unique per page."}
+      ref{$name"w h" $values"number, :f, :a" $about"Width, height (including padding and border)."}
+      ref{$name"nw mw" $values"number" $about"Min-width, max-width."}
+      ref{$name"p px py" $values"number" $about"Padding: all, horizontal, vertical."}
+      ref{$name"bg" $values"color" $about"Background."}
+      ref{$name"r" $values"number" $about"Corner radius."}
+      ref{$name"b bc" $values"number, color" $about"Border width (b1) and color."}
+      ref{$name"sh" $values":n :s :l" $about"Shadow: none, small, large."}
+      ref{$name"id" $values":name" $about"Anchor name for #links; unique per page."}
+      ref{$name">" $values"target" $about"Makes the element a link (or a form's destination)."}
     }
     t{b "flow"}
     c{g0
-      ref{$name"gap" $values"number" $about"Space between children."}
-      ref{$name"align" $values"start, center, end, stretch" $about"Placement across the main direction."}
-      ref{$name"justify" $values"start, center, end, between" $about"Distribution along the main direction."}
+      ref{$name"g" $values"number" $about"Gap between children."}
+      ref{$name"a" $values":s :c :e :x" $about"Align across: start, center, end, stretch. On text: line alignment."}
+      ref{$name"j" $values":s :c :e :b" $about"Justify along: start, center, end, between."}
+      ref{$name"wrap" $values"flag" $about"Rows wrap onto new lines."}
     }
     t{b "text (inherited)"}
     c{g0
-      ref{$name"color" $values"color" $about"Text color."}
-      ref{$name"size" $values"number" $about"Font size."}
-      ref{$name"bold, italic, underline" $values"true, false" $about"Text decoration."}
-      ref{$name"font" $values"sans, mono" $about"Font family."}
+      ref{$name"c" $values"color" $about"Text color."}
+      ref{$name"s" $values"number" $about"Font size."}
+      ref{$name"b i u" $values"flags, :0" $about"Bold, italic, underline; b:0 switches off."}
+      ref{$name"mono sans" $values"flags" $about"Font family."}
     }
+    "Full words work as values too: `a:center` is `a:c`."
   }
   section{$id"top-level" $title"Top level"
     c{g0
-      ref{$name"slml 0.1" $values"" $about"Version line; always first."}
-      ref{$name"meta" $values"title, lang, description, icon" $about"Page information."}
-      ref{$name"use" $values"\"path.slml\"" $about"Import styles and components."}
-      ref{$name"style" $values"name(attributes)" $about"A named set of attributes, applied with .name."}
-      ref{$name"define" $values"name(params) { … }" $about"A component; $param inside, slot for content."}
+      ref{$name"slml 0.2" $values"" $about"Version line; always first."}
+      ref{$name"use\"…\"" $values"path" $about"Import styles and components."}
+      ref{$name"@name{…}" $values"attributes" $about"A style, applied with .name."}
+      ref{$name"@name(a, b#fff){…}" $values"parameters" $about"A component; $a inside, slot for content; called as name{$a\"…\" …}."}
+      ref{$name"meta{\"Title\" …}" $values"lang, desc, icon" $about"Page information."}
+      ref{$name"page{…}" $values"" $about"The page."}
     }
   }
   pager{$prev"/from-html.slml" $prev-label"Coming from HTML" $next"/index.slml" $next-label"Back to the start"}

@@ -2,41 +2,67 @@ slml 0.2
 use"layout.slml"
 
 doc{$title"Text"
-  t.lead"Text lives in *text blocks*: paragraphs, headings, buttons, list items and code blocks. Inside them, *inline elements* change part of the text."
+  t.lead"Text is written in strings. A bare string in a box is a paragraph; headings, buttons and list items take strings too. Inside a string, a few characters format the text."
   section{$id"blocks" $title"Paragraphs and headings"
-    demo{$code"heading \"Level 1 heading\"\nheading(level: 2) \"Level 2 heading\"\nheading(level: 3) \"Level 3 heading\"\nheading(level: 4) \"Level 4 heading\"\ntext \"A paragraph wraps automatically when the line is full.\""
+    demo{$code"""
+        #"Level 1 heading"
+        ##"Level 2 heading"
+        ###"Level 3 heading"
+        ####"Level 4 heading"
+        "A paragraph wraps automatically when the line is full."
+        t{s14 c#5b5b70 "A paragraph with attributes needs t."}
+        """
       #"Level 1 heading"
       ##"Level 2 heading"
       ###"Level 3 heading"
       ####"Level 4 heading"
       "A paragraph wraps automatically when the line is full."
+      t{s14 c#5b5b70 "A paragraph with attributes needs t."}
     }
-    "Strings may only appear inside text blocks. Writing a bare string inside `page` or `column` is an error: wrap it in `text`."
+    "Several strings in one text are joined without spaces: `t{\"Hello, \" \"world\"}` is `Hello, world`. Use it to split long text over several lines of source."
   }
-  section{$id"inline" $title"Inline elements"
-    demo{$code"text {\n  \"You can make text \" bold \"bold\" \", \" italic \"italic\" \", \"\n  code \"monospaced\" \", \" span(color: #c2410c) \"orange\" \" or a \"\n  link(to: \"#inline\") \"link\" \".\"\n}"
-      "You can make text *bold*, _italic_, `monospaced`, [orange]{c#c2410c} or a [link](#inline)."
+  section{$id"inline" $title"Formatting inside text"
+    demo{$code"""
+        "You can make text *bold*, _italic_, `monospaced`,
+        [orange]{c#c2410c}, [big]{s22 b} or a [link](#inline)."
+        """
+      "You can make text *bold*, _italic_, `monospaced`, [orange]{c#c2410c}, [big]{s22 b} or a [link](#inline)."
     }
-    "Strings and inline elements are joined exactly as written: `\"Hel\" bold \"lo\"` is one word. Put spaces inside the strings where you want them."
-    "Inline elements can be nested: `bold { italic \"both\" }`."
+    c{g0
+      ref{$name"*text*" $values"bold" $about"Bold."}
+      ref{$name"_text_" $values"italic" $about"Italic."}
+      ref{$name"`text`" $values"code" $about"Monospaced and literal: no formatting inside."}
+      ref{$name"[text](target)" $values"link" $about"A link; see Links and navigation."}
+      ref{$name"[text]{attrs}" $values"styled text" $about"Any text attributes for part of a sentence: [sale]{c#c2410c b}."}
+      ref{$name"[text](target){.style}" $values"styled link" $about"A link with attributes or a style."}
+    }
+    "Formatting can be nested: `*bold and _italic_*`. Write `\\*`, `\\_`, `\\\``, `\\[` or `\\]` for the characters themselves."
   }
   section{$id"attributes" $title"Text attributes"
     "These attributes work on any element and are inherited by everything inside it:"
     c{g0
-      ref{$name"color" $values"color" $about"Text color."}
-      ref{$name"size" $values"number" $about"Font size in pixels. The page default is 16."}
-      ref{$name"bold" $values"true / false" $about"Bold text."}
-      ref{$name"italic" $values"true / false" $about"Italic text."}
-      ref{$name"underline" $values"true / false" $about"Underlined text."}
-      ref{$name"font" $values"sans / mono" $about"The bundled Noto Sans or Noto Sans Mono."}
+      ref{$name"c#333" $values"color" $about"Text color."}
+      ref{$name"s18" $values"number" $about"Font size in pixels. The page default is 16."}
+      ref{$name"b  i  u" $values"flags" $about"Bold, italic, underlined. b:0, i:0, u:0 switch an inherited value off."}
+      ref{$name"mono  sans" $values"flags" $about"The bundled Noto Sans Mono or Noto Sans."}
     }
-    demo{$code"column(color: #2944a8, size: 18) {\n  text \"Blue and larger\"\n  text(bold: true) \"Also blue, and bold\"\n}"
+    demo{$code"""
+        c{c#2944a8 s18
+          "Blue and larger"
+          t{b "Also blue, and bold"}
+        }
+        """
       c{c#2944a8 s18
         "Blue and larger"
         t{b "Also blue, and bold"}
       }
     }
-    demo{$code"column(font: mono, gap: 8) {\n  text \"This paragraph inherits the monospace font.\"\n  text(font: sans) \"This paragraph switches back to sans.\"\n}"
+    demo{$code"""
+        c{mono g8
+          "This paragraph inherits the monospace font."
+          t{sans "This paragraph switches back to sans."}
+        }
+        """
       c{mono g8
         "This paragraph inherits the monospace font."
         t{sans "This paragraph switches back to sans."}
@@ -44,7 +70,11 @@ doc{$title"Text"
     }
   }
   section{$id"align" $title"Alignment and line breaks"
-    demo{$code"text(align: center) \"Centered\"\ntext(align: end) \"Right aligned\"\ntext \"Line one\\nLine two\""
+    demo{$code"""
+        t{a:c "Centered"}
+        t{a:e "Right aligned"}
+        "Line one\nLine two"
+        """
       t{a:c "Centered"}
       t{a:e "Right aligned"}
       "Line one\nLine two"

@@ -1,102 +1,109 @@
 # Reference
 
-Every element and attribute of SLML 0.1 on one page. The complete rules, including layout details, are in [SPEC.md](https://github.com/KubeKoslaw/slml/blob/main/SPEC.md).
+Every element and attribute of SLML 0.2 on one page. The complete rules, including layout details, are in [SPEC.md](https://github.com/KubeKoslaw/slml/blob/main/SPEC.md).
 
-Jump to: [containers](#containers) · [text](#text-blocks) · [inline](#inline-elements) · [media](#images-and-spacing) · [forms](#form-fields) · [attributes](#attribute-groups) · [top level](#top-level)
+Jump to: [boxes](#boxes) · [text](#text) · [inline](#formatting-inside-strings) · [media](#images-and-spacing) · [forms](#form-fields) · [attributes](#attributes) · [top level](#top-level)
 
-## Containers
-
-| Name | Values | Description |
-| --- | --- | --- |
-| `page` | frame, flow, text | The visible document. One per file. Defaults: padding 32, gap 16, white, 16 px text. |
-| `column` | frame, flow, text, to | Children top to bottom. |
-| `row` | frame, flow, text, to, wrap | Children side by side; wrap: true moves overflow to new lines. |
-| `grid` | frame, flow, text, columns, cell-width | Equal columns: a fixed number (1–12), or as many of at least cell-width as fit. |
-| `form` | frame, flow, text, to, method | A column that sends its fields to `to` (get or post). Gap 16. |
-| `list` | frame, text, gap, marker | items and nested lists. marker: bullet, number or none. |
-
-## Text blocks
+## Boxes
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `text` | frame, text, align | A paragraph. |
-| `heading` | frame, text, align, level | Level 1–4: 32, 24, 20 and 17 px, bold. |
-| `item` | text, align, id | An entry of a list. |
-| `codeblock` | frame, text, align | Monospaced text on a light background, spaces kept. |
-| `button` | frame, text, align, to | A link that looks like a button. |
-| `submit` | frame, text, align | The button that sends a form. |
+| `page{…}` | box, flow, text | The visible document. One per file. Defaults: p32 g16, white, 16 px text. |
+| `c{…}` | box, flow, text, > | Column: children top to bottom. |
+| `r{…}` | box, flow, text, >, wrap | Row: children side by side; wrap moves overflow to new lines. |
+| `grid{…}` | box, flow, text, cols, cw | Equal columns: cols1–cols12, or as many of at least cw as fit. |
+| `form{…}` | box, flow, text, >, post | A column that sends its fields to >target (get by default). Gap 16. |
+| `-{…} +{…} ={…}` | box, text, g | List: every string is an item; - bullets, + numbers, = no marker. |
 
-## Inline elements
+A bare string in a box is a paragraph.
+
+## Text
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `bold` | text | Bold text. |
-| `italic` | text | Italic text. |
-| `code` | text | Monospaced text. |
-| `link` | text, to | A link; blue and underlined by default. |
-| `span` | text | Any text attributes for part of a sentence. |
+| `"…"  t"…"  t{…}` | box, text, a | A paragraph; t only to add attributes. |
+| `#"…" … ####"…"` | box, text, a | Headings 1–4: 32, 24, 20 and 17 px, bold. |
+| `code"…"` | box, text, a | Monospaced, spaces kept, no formatting. |
+| `btn{>… "…"}` | box, text, a, > | A link that looks like a button. |
+| `send"…"` | box, text, a | The button that sends a form. |
+
+## Formatting inside strings
+
+| Name | Values | Description |
+| --- | --- | --- |
+| `*text*  _text_` |  | Bold, italic. |
+| `` `text` `` |  | Inline code, taken literally. |
+| `[text](target)` |  | A link; blue and underlined by default. |
+| `[text]{attrs}` |  | Text attributes for part of a sentence; {.style} applies a style. |
+| `$name  ${name}` |  | A component parameter. |
+| ``\* \_ \` \[ \] \$`` |  | The characters themselves. |
 
 ## Images and spacing
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `image` | frame, src, alt, to | PNG or JPEG. alt is required; alt: "" for decoration. |
-| `divider` | width, color, thickness, id | A line; vertical inside a row. |
-| `spacer` | width, height | Empty space; without a size it takes all free space. |
+| `img{/a.png "…"}` | box, > | PNG or JPEG. The description is required; "" for decoration. |
+| `\|  \|{…}` | w, c, th, id | A divider line; vertical inside a row. |
+| `~  ~{h24}` | w, h | Empty space; without a size it takes all free space. |
 
 ## Form fields
 
-All fields take `name`, `label` (both required) and `required`. They must be inside a `form`.
+Every field takes `n:name` and a label string (both required) and the flag `req`. Fields must be inside a `form`.
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `input` | frame, text, kind, placeholder, value | kind: text, email, password, number, tel, url, date, search. |
-| `textarea` | frame, text, rows, placeholder, value | rows: 1–50 (default 4). |
-| `checkbox` | text, checked, id | A box with its label next to it. |
-| `select` | frame, text | Contains option elements. |
-| `option` | value, selected | One choice of a select, with a text label. |
+| `in{…}` | box, text, k, ph, v | k: text, email, password, number, tel, url, date, search. |
+| `area{…}` | box, text, rows, ph, v | rows1–rows50 (default 4). |
+| `check{…}` | text, on, id | A box with its label next to it; on ticks it. |
+| `sel{…}` | box, text | Contains opt elements. |
+| `opt"…"  opt{v"…" on "…"}` | v, on | One choice: a label, an optional value, on to select it. |
 
-## Attribute groups
+## Attributes
 
-**frame**
+**box**
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `width, height` | number, fill, auto | Size including padding and border. |
-| `min-width, max-width` | number | Limits for the width. |
-| `padding` | number | Inner space; padding-x and padding-y set one axis. |
-| `fill` | color | Background. |
-| `radius` | number | Corner rounding. |
-| `border, border-color` | number, color | Border width and color. |
-| `shadow` | none, small, large | Drop shadow. |
-| `id` | string | Anchor name for #links; unique per page. |
+| `w h` | number, :f, :a | Width, height (including padding and border). |
+| `nw mw` | number | Min-width, max-width. |
+| `p px py` | number | Padding: all, horizontal, vertical. |
+| `bg` | color | Background. |
+| `r` | number | Corner radius. |
+| `b bc` | number, color | Border width (b1) and color. |
+| `sh` | :n :s :l | Shadow: none, small, large. |
+| `id` | :name | Anchor name for #links; unique per page. |
+| `>` | target | Makes the element a link (or a form's destination). |
 
 **flow**
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `gap` | number | Space between children. |
-| `align` | start, center, end, stretch | Placement across the main direction. |
-| `justify` | start, center, end, between | Distribution along the main direction. |
+| `g` | number | Gap between children. |
+| `a` | :s :c :e :x | Align across: start, center, end, stretch. On text: line alignment. |
+| `j` | :s :c :e :b | Justify along: start, center, end, between. |
+| `wrap` | flag | Rows wrap onto new lines. |
 
 **text (inherited)**
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `color` | color | Text color. |
-| `size` | number | Font size. |
-| `bold, italic, underline` | true, false | Text decoration. |
-| `font` | sans, mono | Font family. |
+| `c` | color | Text color. |
+| `s` | number | Font size. |
+| `b i u` | flags, :0 | Bold, italic, underline; b:0 switches off. |
+| `mono sans` | flags | Font family. |
+
+Full words work as values too: `a:center` is `a:c`.
 
 ## Top level
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `slml 0.1` |  | Version line; always first. |
-| `meta` | title, lang, description, icon | Page information. |
-| `use` | "path.slml" | Import styles and components. |
-| `style` | name(attributes) | A named set of attributes, applied with .name. |
-| `define` | name(params) { … } | A component; $param inside, slot for content. |
+| `slml 0.2` |  | Version line; always first. |
+| `use"…"` | path | Import styles and components. |
+| `@name{…}` | attributes | A style, applied with .name. |
+| `@name(a, b#fff){…}` | parameters | A component; $a inside, slot for content; called as name{$a"…" …}. |
+| `meta{"Title" …}` | lang, desc, icon | Page information. |
+| `page{…}` |  | The page. |
 
 [Coming from HTML](from-html.md)
 

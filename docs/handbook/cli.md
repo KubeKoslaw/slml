@@ -27,6 +27,18 @@
 | `slml serve [folder]` | --port, --open, --web, --html | Serve original SLML sources. --open launches the native browser; --web or --html explicitly selects a web-browser adapter. |
 | `slml view page-or-folder` | --scale | Explicit form of the default native browser action. |
 | `slml render page.slml` | -o, --width, --scale | Render to PNG (same as -o page.png). |
+| `slml upgrade …` | files or folders, --check | Rewrite slml 0.1 files in the short slml 0.2 syntax and re-format 0.2 files. Nothing is written unless every page stays exactly the same. --check only lists files that would change. |
+
+## Upgrading older files
+
+Pages written in the long syntax of SLML 0.1 still open, but the current syntax is 0.2. Convert a whole site at once:
+
+```sh
+slml upgrade my-site/          # rewrite every .slml file in place
+slml upgrade --check my-site/  # only list files that would change
+```
+
+Before writing, `slml upgrade` compiles every page from the old and the new files, imports included, and refuses to write anything if a single page would differ. Comments are kept. Running it on 0.2 files gives them the standard formatting, so it also works as a formatter.
 
 ## Options
 

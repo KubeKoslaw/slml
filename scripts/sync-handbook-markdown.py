@@ -190,7 +190,11 @@ def main():
         outputs["README.md"] = "# SLML Handbook\n\nRead these Markdown chapters on GitHub, or open this folder in Obsidian.\nThe canonical source is the [SLML handbook](../../handbook/).\n\n" + "".join(f"{i}. [{pages[name + '.md'][0]}]({name}.md)\n" for i, name in enumerate(order, 1)) + "\nTo refresh this edition after changing the SLML sources:\n\n```sh\ncargo build -p slml-cli\npython3 scripts/sync-handbook-markdown.py\n```\n"
         for name, text in outputs.items():
             # Every local chapter link must survive outside a web server.
-            for href in re.findall(r"\]\(([^)]+)\)", text):
+            # SLML's own link markup looks like Markdown, so code samples are
+            # left out of the check.
+            prose = re.sub(r"```.*?```", "", text, flags=re.S)
+            prose = re.sub(r"`[^`\n]*`", "", prose)
+            for href in re.findall(r"\]\(([^)]+)\)", prose):
                 parsed = urlsplit(href)
                 if not parsed.scheme and parsed.path.endswith(".md") and not parsed.path.startswith("../"):
                     if parsed.path not in outputs:

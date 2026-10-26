@@ -1,32 +1,37 @@
 # Text
 
-Text lives in **text blocks**: paragraphs, headings, buttons, list items and code blocks. Inside them, **inline elements** change part of the text.
+Text is written in strings. A bare string in a box is a paragraph; headings, buttons and list items take strings too. Inside a string, a few characters format the text.
 
 ## Paragraphs and headings
 
 ```slml
-heading "Level 1 heading"
-heading(level: 2) "Level 2 heading"
-heading(level: 3) "Level 3 heading"
-heading(level: 4) "Level 4 heading"
-text "A paragraph wraps automatically when the line is full."
+#"Level 1 heading"
+##"Level 2 heading"
+###"Level 3 heading"
+####"Level 4 heading"
+"A paragraph wraps automatically when the line is full."
+t{s14 c#5b5b70 "A paragraph with attributes needs t."}
 ```
 
-Strings may only appear inside text blocks. Writing a bare string inside `page` or `column` is an error: wrap it in `text`.
+Several strings in one text are joined without spaces: `t{"Hello, " "world"}` is `Hello, world`. Use it to split long text over several lines of source.
 
-## Inline elements
+## Formatting inside text
 
 ```slml
-text {
-  "You can make text " bold "bold" ", " italic "italic" ", "
-  code "monospaced" ", " span(color: #c2410c) "orange" " or a "
-  link(to: "#inline") "link" "."
-}
+"You can make text *bold*, _italic_, `monospaced`,
+[orange]{c#c2410c}, [big]{s22 b} or a [link](#inline)."
 ```
 
-Strings and inline elements are joined exactly as written: `"Hel" bold "lo"` is one word. Put spaces inside the strings where you want them.
+| Name | Values | Description |
+| --- | --- | --- |
+| `*text*` | bold | Bold. |
+| `_text_` | italic | Italic. |
+| `` `text` `` | code | Monospaced and literal: no formatting inside. |
+| `[text](target)` | link | A link; see Links and navigation. |
+| `[text]{attrs}` | styled text | Any text attributes for part of a sentence: [sale]{c#c2410c b}. |
+| `[text](target){.style}` | styled link | A link with attributes or a style. |
 
-Inline elements can be nested: `bold { italic "both" }`.
+Formatting can be nested: `*bold and _italic_*`. Write `\*`, `\_`, `` \` ``, `\[` or `\]` for the characters themselves.
 
 ## Text attributes
 
@@ -34,33 +39,31 @@ These attributes work on any element and are inherited by everything inside it:
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `color` | color | Text color. |
-| `size` | number | Font size in pixels. The page default is 16. |
-| `bold` | true / false | Bold text. |
-| `italic` | true / false | Italic text. |
-| `underline` | true / false | Underlined text. |
-| `font` | sans / mono | The bundled Noto Sans or Noto Sans Mono. |
+| `c#333` | color | Text color. |
+| `s18` | number | Font size in pixels. The page default is 16. |
+| `b  i  u` | flags | Bold, italic, underlined. b:0, i:0, u:0 switch an inherited value off. |
+| `mono  sans` | flags | The bundled Noto Sans Mono or Noto Sans. |
 
 ```slml
-column(color: #2944a8, size: 18) {
-  text "Blue and larger"
-  text(bold: true) "Also blue, and bold"
+c{c#2944a8 s18
+  "Blue and larger"
+  t{b "Also blue, and bold"}
 }
 ```
 
 ```slml
-column(font: mono, gap: 8) {
-  text "This paragraph inherits the monospace font."
-  text(font: sans) "This paragraph switches back to sans."
+c{mono g8
+  "This paragraph inherits the monospace font."
+  t{sans "This paragraph switches back to sans."}
 }
 ```
 
 ## Alignment and line breaks
 
 ```slml
-text(align: center) "Centered"
-text(align: end) "Right aligned"
-text "Line one\nLine two"
+t{a:c "Centered"}
+t{a:e "Right aligned"}
+"Line one\nLine two"
 ```
 
 **Whitespace is never collapsed**

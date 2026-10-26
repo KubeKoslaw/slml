@@ -2,46 +2,62 @@ slml 0.2
 use"layout.slml"
 
 doc{$title"Syntax basics"
-  t.lead"SLML has one simple shape for everything: a name, optional attributes in parentheses, and either a text label or a block of content in braces."
+  t.lead"SLML has one shape for everything: a short name, then either a string or a block in braces. Inside a block come attributes (glued to their values) and content. Spaces and line breaks don't matter: a whole page can be one line."
   section{$id"elements" $title"Elements"
     code"""
-        name                          // just the name
-        name(attribute: value)        // with attributes
-        name "label"                  // with a text label
-        name(attribute: value) {      // with a block of content
-          child
-          child
-        }
+        t"Hello"                 // an element with a text label
+        c{p20 bg#fff "Hello"}    // an element with a block: attributes, then content
+        ~                        // a few symbols need nothing at all
         """
-    "A label is a short form of a block with one string: `text \"Hi\"` means the same as `text { \"Hi\" }`. An element takes a label _or_ a block, never both."
+    "The most used elements:"
+    c{g0
+      ref{$name"c{…}  r{…}" $values"column, row" $about"Boxes that stack their content vertically or side by side."}
+      ref{$name"grid{…}" $values"grid" $about"Equal columns: grid{cols3 …} or grid{cw200 …}."}
+      ref{$name"\"…\"  t\"…\"" $values"paragraph" $about"A bare string in a box is a paragraph; t is only needed for attributes: t{s14 \"…\"}."}
+      ref{$name"#\"…\" … ####\"…\"" $values"heading 1–4" $about"The number of # is the level."}
+      ref{$name"-{…}  +{…}" $values"lists" $about"Each string is an item: - bullets, + numbers, = no marker."}
+      ref{$name"img{/a.png \"…\"}" $values"image" $about"A path and a required description."}
+      ref{$name"btn{>/x \"…\"}" $values"button" $about"A link that looks like a button."}
+      ref{$name"code\"…\"" $values"code block" $about"Monospaced text, shown exactly as written."}
+      ref{$name"|  ~" $values"divider, spacer" $about"A line, and flexible empty space."}
+    }
+    "The full list is in the [Reference](/reference.slml)."
   }
   section{$id"attributes" $title"Attributes"
-    "Attributes are written `name: value` inside parentheses. Commas between them are optional, so long lists can be written one per line:"
-    code"""
-        column(
-          padding: 24
-          fill: #ffffff
-          radius: 12
-        ) { text "Card" }
-        """
-    "A value is one of:"
+    "An attribute is a short key *glued* to its value, with no space in between. The kind of value decides how it is written:"
     c{g0
-      ref{$name"16" $values"number" $about"Pixels, sizes, counts. No units are written."}
-      ref{$name"\"Hello\"" $values"string" $about"Text in double quotes."}
-      ref{$name"#2457d6" $values"color" $about"Hex: #rgb, #rgba, #rrggbb or #rrggbbaa. There are no color names."}
-      ref{$name"center" $values"name" $about"One of the words an attribute accepts, such as center, fill or true."}
+      ref{$name"p20 w320 s18" $values"number" $about"Pixels, sizes, counts. No units."}
+      ref{$name"bg#fff c#2457d6" $values"color" $about"Hex: #rgb, #rgba, #rrggbb or #rrggbbaa. There are no color names."}
+      ref{$name"a:c w:f j:b" $values"choice" $about"A colon and a short word: a:c is align center, w:f is width fill."}
+      ref{$name"ph\"Your name\"" $values"string" $about"Text in double quotes, glued to the key."}
+      ref{$name">/about.slml" $values"target" $about"> starts a link target: a path, #anchor or URL."}
+      ref{$name"b i u wrap req" $values"flag" $about"A bare word switches something on: b is bold. b:0 switches an inherited value off."}
     }
-    "Every attribute is checked: an unknown name, a value of the wrong kind or an attribute the element doesn't accept is an error."
+    "Names never contain digits: in `cols3`, `w320` and `p20` the digits are always the value. Every attribute is checked: an unknown key, a value of the wrong kind or an attribute the element doesn't accept is an error."
   }
-  section{$id"strings" $title"Strings"
-    "Strings are *literal*: what you write is what you get. Spaces are kept, and there are no entities like `&amp;`."
-    -{g6
-      "`\\n` starts a new line, `\\t` is a tab, `\\\"` is a quote and `\\\\` is a backslash."
-      "`\\u{1F600}` is any Unicode character by its number."
-      "A normal string must end on the same line."
+  section{$id"strings" $title"Strings and text"
+    "Strings are *literal*: spaces are kept, and there are no entities like `&amp;`. Inside text, a few characters format the text:"
+    demo{$code"\"*bold*, _italic_, `code`, a [link](#strings) and [orange]{c#c2410c}\""
+      "*bold*, _italic_, `code`, a [link](#strings) and [orange]{c#c2410c}"
     }
-    "For longer text, especially code, use a *block string* between triple quotes. Nothing inside it is escaped, and the indentation of the closing `\"\"\"` is removed from every line:"
-    code"codeblock \"\"\"\n    first line\n      indented line\n    \"\"\""
+    -{g6
+      "`\\n` starts a new line, `\\t` is a tab, `\\\"` is a quote and `\\\\` a backslash. `\\u{1F600}` is any Unicode character."
+      "`\\*`, `\\_`, `\\\``, `\\[`, `\\]` and `\\$` write the formatting characters themselves. An opening star, underscore, backtick or bracket that is never closed is an error, so a stray star can't silently turn half a page bold."
+      "A normal string ends on the same line."
+    }
+    "For longer text, especially code, use a *block string* between triple quotes. Nothing inside it is escaped or formatted, and the indentation of the closing `\"\"\"` is removed from every line:"
+    code"code\"\"\"\n    first line\n      indented line\n    \"\"\""
+  }
+  section{$id"styles" $title"Styles and components"
+    code"""
+        @card{p20 bg#fff r12}               // a style: a named set of attributes
+        @badge(label){t{bg#2457d6 c#fff $label}}   // a component
+        page{
+          c.card{"Styled with .card"}
+          badge{$label"New"}
+        }
+        """
+    "See [Boxes and styles](/styling.slml) and [Components and imports](/components.slml)."
   }
   section{$id"comments" $title"Comments and whitespace"
     code"""
@@ -49,19 +65,21 @@ doc{$title"Syntax basics"
         /* a comment
            over several lines */
         """
-    "Spaces, tabs and line breaks between elements have no meaning. Indent however you like: re-formatting a file never changes the page."
+    "Spaces, tabs and line breaks between elements have no meaning. `slml upgrade` re-formats a file without changing the page."
   }
   section{$id"structure" $title"File structure"
     code"""
-        slml 0.1                         // version line, always first
-
-        use "layout.slml"                // imports (optional)
-        style card(padding: 16)          // styles (optional)
-        define badge(label) { ... }      // components (optional)
-
-        meta(title: "Page title")        // page information (optional)
-        page { ... }                     // the page itself
+        slml 0.2                        // version line, always first
+        use"layout.slml"                // imports (optional)
+        @card{p16}                      // styles (optional)
+        @badge(label){…}                // components (optional)
+        meta{"Page title" lang:en}      // page information (optional)
+        page{…}                         // the page itself
         """
+  }
+  section{$id"older" $title"Files in the older syntax"
+    "SLML 0.1 used long names: `column(padding: 20) { text \"Hi\" }`. Those files still work. `slml upgrade` rewrites them in the short syntax and checks that every page stays exactly the same:"
+    code"slml upgrade my-site/"
   }
   pager{$prev"/first-page.slml" $prev-label"Your first page" $next"/text.slml" $next-label"Text"}
 }

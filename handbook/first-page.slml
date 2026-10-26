@@ -5,19 +5,28 @@ doc{$title"Your first page"
   t.lead"In this chapter you write a small page and open it directly in SLML's own browser."
   section{$id"write" $title"1. Write the page"
     "Create a folder for your site and a file named `index.slml` in it:"
-    demo{$code"slml 0.1\n\nmeta(title: \"My first page\")\n\npage {\n  heading \"Hello, world!\"\n  text \"This is my first SLML page.\"\n  button(to: \"#write\") \"Click me\"\n}"
+    demo{$code"""
+        slml 0.2
+        meta{"My first page"}
+        page{
+          #"Hello, world!"
+          "This is my first *SLML* page."
+          r{btn{>#write "Click me"}}
+        }
+        """
       #"Hello, world!"
-      "This is my first SLML page."
+      "This is my first *SLML* page."
       r{btn{>#write "Click me"}}
     }
     "Every SLML file has the same three parts:"
     -{g8
-      "`slml 0.1` — the version line. It is always first, so a page can never be misread by a newer compiler."
-      "`meta(...)` — information about the page: its title, language, description and icon. Optional."
-      "`page { ... }` — the visible content. Exactly one per file."
+      "`slml 0.2` — the version line. It is always first, so a page can never be misread by a newer program."
+      "`meta{…}` — information about the page: its title (the string), language (`lang:pl`), description (`desc\"…\"`) and icon. Optional."
+      "`page{…}` — the visible content. Exactly one per file."
     }
+    "Inside `page`, `#\"…\"` is a heading, a bare string is a paragraph, `r{…}` is a row and `btn{…}` a button. `>#write` is where the button leads."
   }
-  section{$id"preview" $title"2. Preview it"
+  section{$id"preview" $title"2. Open it"
     "Open a terminal in the folder and start SLML:"
     code"slml index.slml"
     "The native SLML browser opens your document. Change the text in `index.slml`, save, and the page updates by itself. Errors are drawn as an SLML error page in the same window. Close the window to exit."
@@ -29,16 +38,16 @@ doc{$title"Your first page"
     "Use `slml render index.slml -o preview.png` when you want a picture of the page."
   }
   section{$id"mistakes" $title"4. Make a mistake on purpose"
-    "Change `heading` to `headng` and run `slml check index.slml`:"
+    "Change `r{` to `rw{` and run `slml check index.slml`:"
     code"""
-        error: unknown element `headng`
+        error: unknown element `rw`
          --> index.slml:6:3
           |
-        6 |   headng "Hello, world!"
-          |   ^^^^^^
-          = hint: did you mean `heading`?
+        6 |   rw{btn{>#write "Click me"}}
+          |   ^^
+          = hint: did you mean `r`?
         """
-    "SLML never guesses. Each mistake is reported with its place and a suggestion, and nothing is written until the file is correct."
+    "SLML never guesses. Each mistake is reported with its place and a suggestion, in the same short names you wrote, and nothing is drawn until the file is correct."
   }
   pager{$prev"/install.slml" $prev-label"Installing" $next"/syntax.slml" $next-label"Syntax basics"}
 }

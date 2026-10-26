@@ -19,7 +19,7 @@ page{bg#f6f6f9 p0 g0
   c{p32 a:c
     c{w:f mw880 g24
       c{g12 py24
-        r{t.pill"version 0.1 — experimental"}
+        r{t.pill"version 0.2 — experimental"}
         #{s40 "Documents without the guesswork"}
         t.muted{s18 "SLML is a small, strict language for documents and interfaces, with its own renderer written in Rust. One syntax for structure _and_ style, layout built in, and errors instead of silent guessing."}
         r{g12 py8
@@ -43,7 +43,17 @@ page{bg#f6f6f9 p0 g0
       }
       c.card{g12
         ##"What it looks like"
-        t{mono s14 bg#f6f6f9 p16 r8 "slml 0.1\n\nstyle card(padding: 20, radius: 12, fill: #ffffff)\n\npage {\n  heading \"Hello\"\n  row(gap: 16) {\n    column.card { text \"Left\" }\n    column.card(width: fill) { text \"Right\" }\n  }\n}"}
+        code{bg#f6f6f9 """
+            slml 0.2
+            @card{p20 r12 bg#fff}
+            page{
+              #"Hello"
+              r{g16
+                c.card{"Left"}
+                c.card{w:f "Right"}
+              }
+            }
+            """}
       }
       |
       r{a:c

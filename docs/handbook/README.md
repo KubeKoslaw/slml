@@ -4,7 +4,7 @@ Read these Markdown chapters on GitHub, or open this folder in Obsidian.
 The canonical source is the [SLML handbook](../../handbook/).
 
 1. [The SLML Handbook](index.md)
-2. [Installing the compiler](install.md)
+2. [Installing SLML](install.md)
 3. [Your first page](first-page.md)
 4. [Syntax basics](syntax.md)
 5. [Text](text.md)

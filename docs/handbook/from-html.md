@@ -1,6 +1,15 @@
 # Coming from HTML
 
-If you know HTML and CSS, most of SLML will feel familiar. This page maps what you know to SLML.
+SLML does what HTML and CSS do in a fraction of the characters, and without the parts that cause trouble. This page maps what you know to SLML.
+
+```slml
+c{bg#fff p20 r12 g8
+  ##"Welcome"
+  "Read *more* [here](/syntax.slml)."
+}
+```
+
+The same in HTML and CSS needs a `div` with a `style` (or a class in a separate stylesheet), an `h2`, a `p`, a `strong` and an `a`: about four times as many characters.
 
 ## Element by element
 
@@ -10,63 +19,71 @@ If you know HTML and CSS, most of SLML will feel familiar. This page maps what y
 
 `<!DOCTYPE html>`
 
-`slml 0.1`
+`slml 0.2`
 
 `<title>Home</title>`
 
-`meta(title: "Home")`
+`meta{"Home"}`
 
 `<body>…</body>`
 
-`page { … }`
+`page{…}`
 
-`<div>, <section>, <header>`
+`<div>, <main>, <aside>, <nav>, <section>`
 
-`column { … } or row { … }`
+`c{…} or r{…}`
 
 `<h1>Title</h1>`
 
-`heading "Title"`
+`#"Title"`
 
 `<h2>Title</h2>`
 
-`heading(level: 2) "Title"`
+`##"Title"`
 
 `<p>Text</p>`
 
-`text "Text"`
+`"Text"`
 
 `<b>, <strong>`
 
-`bold "…"`
+`*text*`
 
 `<i>, <em>`
 
-`italic "…"`
+`_text_`
 
-`<a href="x.html">`
+`<code>`
 
-`link(to: "x.slml") "…"`
+`` `text` ``
+
+`<a href="x.html">text</a>`
+
+`[text](x.slml)`
+
+`<span style="color:red">`
+
+`[text]{c#f00}`
 
 `<img src="a.png" alt="A">`
 
-`image(src: "a.png", alt: "A")`
+`img{./a.png "A"}`
 
 `<ul><li>One</li></ul>`
 
-`list { item "One" }`
+`-{"One"}`
 
 `<ol>`
 
-`list(marker: number)`
+`+{…}`
 
 `<pre>`
 
-`codeblock`
+`code"…"`
 
 `<hr>`
 
-`divider`
+`|`
 
 `<br>`
 
@@ -78,108 +95,109 @@ If you know HTML and CSS, most of SLML will feel familiar. This page maps what y
 
 `<form action=… method=post>`
 
-`form(to: …, method: post)`
+`form{>… post …}`
 
 `<label>Name <input name=n></label>`
 
-`input(name: "n", label: "Name")`
+`in{n:n "Name"}`
 
 `<button type=submit>`
 
-`submit "Send"`
+`send"Send"`
 
 `<table>`
 
-`grid(columns: N) or rows`
+`grid{colsN …} or rows`
 
 ## CSS to attributes
 
 `display: flex; flex-direction: column`
 
-`column`
+`c{…}`
 
 `display: flex`
 
-`row`
+`r{…}`
 
 `flex-wrap: wrap`
 
-`row(wrap: true)`
+`wrap`
 
-`display: grid; grid-template-columns: repeat(3, 1fr)`
+`grid-template-columns: repeat(3, 1fr)`
 
-`grid(columns: 3)`
+`grid{cols3 …}`
 
 `repeat(auto-fill, minmax(200px, 1fr))`
 
-`grid(cell-width: 200)`
+`grid{cw200 …}`
 
 `gap: 16px`
 
-`gap: 16`
+`g16`
 
 `align-items: center`
 
-`align: center`
+`a:c`
 
 `justify-content: space-between`
 
-`justify: between`
+`j:b`
 
 `flex: 1`
 
-`width: fill`
+`w:f`
 
 `max-width: 760px; margin: 0 auto`
 
-`max-width: 760 inside a column(align: center)`
+`mw760 in a c{a:c …}`
 
 `padding: 8px 16px`
 
-`padding-y: 8, padding-x: 16`
+`py8 px16`
 
 `background: #fff`
 
-`fill: #fff`
+`bg#fff`
 
 `border-radius: 12px`
 
-`radius: 12`
+`r12`
 
 `border: 1px solid #ddd`
 
-`border: 1, border-color: #ddd`
+`b1 bc#ddd`
 
 `box-shadow: …`
 
-`shadow: small / large`
+`sh:s / sh:l`
 
 `font-weight: bold`
 
-`bold: true`
+`b`
 
 `font-size: 18px`
 
-`size: 18`
+`s18`
 
 `color: #333`
 
-`color: #333`
+`c#333`
 
 `text-align: center`
 
-`align: center (on text)`
+`a:c (on text)`
 
 `.card { … } + class="card"`
 
-`style card(…) + column.card`
+`@card{…} + c.card{…}`
 
 ## Things that work differently
 
-- **No margins.** Space between elements is the parent's `gap`. There are no collapsing margins to fight.
+- **No landmark elements.** There is no `main`, `aside`, `nav`, `header` or `section`, and no rules about which may contain which. A box is a box; place it wherever the layout needs it.
+- **No margins.** Space between elements is the parent's `g`. There are no collapsing margins to fight.
 - **No cascade.** A style applies only where you write `.name`. Only text properties (color, size, …) are inherited.
-- **No JavaScript.** SLML pages are documents. Built sites contain no scripts, which also makes them fast and safe.
-- **Literal text.** Spaces and line breaks in strings are kept as written.
+- **No JavaScript.** SLML pages are documents. Exported sites contain no scripts, which also makes them fast and safe.
+- **Literal text.** Spaces and line breaks in strings are kept as written; only `*`, `_`, backticks and brackets format text.
 - **Errors instead of repairs.** See [Understanding errors](errors.md).
 
 [Understanding errors](errors.md)

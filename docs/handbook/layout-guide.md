@@ -1,116 +1,117 @@
 # Layout
 
-Layout is part of SLML. Four containers, `column`, `row`, `grid` and `page`, and a handful of attributes describe almost any page.
+Layout is the language. Three boxes, `c` (column), `r` (row) and `grid`, plus a handful of attributes describe almost any page. Boxes mean nothing beyond their layout, so any box can go anywhere.
 
 ## Columns and rows
 
-`column` stacks its children from top to bottom, `row` places them side by side. `gap` is the space between them.
+`c` stacks its children from top to bottom, `r` places them side by side. `g` is the gap between them.
 
 ```slml
-column(gap: 8) {
-  text.box "One"
-  row(gap: 8) {
-    text.box "Two"
-    text.box "Three"
-  }
+@box{bg#e8edff p10 r8}
+
+c{g8
+  t.box"One"
+  r{g8 t.box"Two" t.box"Three"}
 }
 ```
 
-The `page` itself is a column with 32 pixels of padding and a gap of 16.
+The `page` itself is a column with 32 pixels of padding (`p32`) and a gap of 16.
 
 ## Sizes: auto, fill and pixels
 
-`width` and `height` take three kinds of values:
+`w` (width) and `h` (height) take three kinds of values:
 
 | Name | Values | Description |
 | --- | --- | --- |
-| `auto` | default | As big as the content. In a column, auto width fills the column unless align says otherwise. |
-| `fill` | share space | Take the free space. Several fill children share it equally. |
-| `240` | pixels | Exactly this size, padding and border included. |
+| `w:a` | auto (default) | As big as the content. In a column, auto width fills the column unless a says otherwise. |
+| `w:f` | fill | Take the free space. Several fill children share it equally. |
+| `w240` | pixels | Exactly this size, padding and border included. |
 
 ```slml
-row(gap: 8) {
-  text.box(width: 80) "80 px"
-  text.box(width: fill) "fill"
-  text.box(width: fill) "fill"
-  text.box "auto"
+r{g8
+  t.box{w80 "80 px"}
+  t.box{w:f "fill"}
+  t.box{w:f "fill"}
+  t.box"auto"
 }
 ```
 
-`max-width` limits a size and `min-width` sets a lower bound. They are the key to readable pages: `column(width: fill, max-width: 760)` is a column that grows with the window but never gets too wide.
+`mw` (max-width) limits a size and `nw` (min-width) sets a lower bound. They are the key to readable pages: `c{w:f mw760 …}` is a column that grows with the window but never gets too wide.
 
 ## Alignment
 
-`align` places children across the container (horizontally in a column, vertically in a row): `start`, `center`, `end` or `stretch` (the default). `justify` distributes them along it: `start`, `center`, `end` or `between`.
+`a` places children across the box (horizontally in a column, vertically in a row): `a:s` start, `a:c` center, `a:e` end, `a:x` stretch (the default). `j` distributes them along it: `j:s`, `j:c`, `j:e` or `j:b` (space between).
 
 ```slml
-row(justify: between, align: center, fill: #f4f4f8, padding: 10) {
-  text.box "Left"
-  text.box(padding: 20) "Middle"
-  text.box "Right"
+r{j:b a:c bg#f4f4f8 p10
+  t.box"Left"
+  t.box{p20 "Middle"}
+  t.box"Right"
 }
-column(align: center) { text.box "Centered" }
+c{a:c t.box"Centered"}
 ```
 
-A `spacer` absorbs free space; it is the easiest way to push things apart:
+A spacer `~` absorbs free space; it is the easiest way to push things apart:
 
 ```slml
-row { text "Logo"  spacer  text "Menu" }
+r{"Logo" ~ "Menu"}
 ```
 
 ## Responsive layouts
 
 Pages are viewed on phones and wide screens. Two tools adapt a layout to the space available:
 
-**Wrapping rows.** With `wrap: true`, children that don't fit move to the next line. Give `fill` children a `min-width` to say how narrow they may get:
+**Wrapping rows.** With `wrap`, children that don't fit move to the next line. Give `w:f` children an `nw` to say how narrow they may get:
 
 ```slml
-row(wrap: true, gap: 8) {
-  text.box(width: fill, min-width: 160) "Sidebar"
-  text.box(width: fill, min-width: 260) "Content"
+r{wrap g8
+  t.box{w:f nw160 "Sidebar"}
+  t.box{w:f nw260 "Content"}
 }
 ```
 
-**Grids.** `grid(columns: 3)` makes three equal columns. `grid(cell-width: 200)` fits as many columns of at least 200 pixels as the width allows: four on a laptop, one on a phone.
+**Grids.** `grid{cols3 …}` makes three equal columns. `grid{cw200 …}` fits as many columns of at least 200 pixels as the width allows: four on a laptop, one on a phone. Both together mean “at most three”.
 
 ```slml
-grid(cell-width: 140, gap: 8) {
-  text.box "A"  text.box "B"  text.box "C"
-  text.box "D"  text.box "E"
+grid{cw140 g8
+  t.box"A" t.box"B" t.box"C"
+  t.box"D" t.box"E"
 }
 ```
 
 **Try it**
 
-Make this browser window narrower: the sidebar of this handbook moves above the text and the grid above drops columns. Both are just a wrapping row and a grid.
+Make this window narrower: the sidebar of this handbook moves above the text and the grid above drops columns. Both are just a wrapping row and a grid.
+
+## Why there is no main, aside or nav
+
+HTML has elements whose only job is meaning — `main`, `aside`, `nav`, `header`, `section`, `article` — with rules about where each may appear. SLML leaves them out. A sidebar is a column, a menu is a row of links, and either may be placed anywhere. What readers and assistive technology need is still there and required: heading levels, lists, links, image descriptions and form labels.
 
 ## Recipes
 
 **Centered page content**
 
 ```slml
-page(align: center) {
-  column(width: fill, max-width: 760, gap: 20) { ... }
-}
+page{a:c c{w:f mw760 g20 …}}
 ```
 
 **Header with logo and menu**
 
 ```slml
-row(align: center, gap: 16, padding: 16) {
-  image(src: "/logo.png", alt: "Home", width: 32, to: "/index.slml")
-  spacer
-  text { link(to: "/about.slml") "About" }
-  text { link(to: "/contact.slml") "Contact" }
+r{a:c g16 p16
+  img{/logo.png w32 >/index.slml "Home"}
+  ~
+  "[About](/about.slml)"
+  "[Contact](/contact.slml)"
 }
 ```
 
 **Sidebar layout that stacks on phones**
 
 ```slml
-row(wrap: true, gap: 24) {
-  column(width: 240) { ...menu... }
-  column(width: fill, min-width: 320) { ...content... }
+r{wrap g24
+  c{w240 …menu…}
+  c{w:f nw320 …content…}
 }
 ```
 

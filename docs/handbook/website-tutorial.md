@@ -24,21 +24,20 @@ my-site/
 
 ## 2. Make the layout yours
 
-Open `layout.slml`. Change the studio name, colors and menu once; every page imports this file with `use "layout.slml"`. The `site` component provides the frame, and `slot` receives the content of each page.
+Open `layout.slml`. Change the studio name, colors and menu once; every page imports this file with `use"layout.slml"`. The `site` component provides the frame, and `slot` receives the content of each page.
 
 ```slml
-slml 0.1
-use "layout.slml"
-
-site(title: "About — My studio", description: "What we do and how we work.") {
-  heading "A useful, welcoming website."
-  text "Replace this with your own story."
+slml 0.2
+use"layout.slml"
+site{$title"About — My studio" $description"What we do and how we work."
+  #"A useful, welcoming website."
+  "Replace this with your own story."
 }
 ```
 
-Set the right language in the shared `meta` element. Each page supplies its own title and search description through the component parameters. Add images with `image(src: "photo.jpg", alt: "A description of the photo")`. Put photo.jpg next to the page.
+Set the right language in the shared `meta` element. Each page supplies its own title and search description through the component parameters. Add images with `img{./photo.jpg "A description of the photo"}`. Put photo.jpg next to the page.
 
-The service grid uses `grid(columns: 3, cell-width: 260, gap: 16)`: up to three equal columns, fewer when the window is narrow. The menu uses a wrapping row, so links move to another line instead of disappearing on a phone.
+The service grid uses `grid{cols3 cw260 g16 …}`: up to three equal columns, fewer when the window is narrow. The menu uses a wrapping row, so links move to another line instead of disappearing on a phone.
 
 ## 3. Try the form, then connect a real endpoint
 
@@ -48,14 +47,14 @@ Contact shows the declared form layout in the native browser. Native field editi
 
 The starter uses GET so you can test navigation without a server or account. Values are visible in the URL. The destination does not read them, store them or send a message. Use made-up details only.
 
-For real messages, replace the form's `to` with your HTTPS endpoint and change `method` to `post`:
+For real messages, replace the form's `>target` with your HTTPS endpoint and add the flag `post`:
 
 ```slml
-form.card(to: "https://example.com/contact", method: post, gap: 18) {
-  input(name: "name", label: "Your name", required: true)
-  input(name: "email", label: "Email address", kind: email, required: true)
-  textarea(name: "message", label: "Message", required: true)
-  submit.action "Send message"
+form.card{>https://example.com/contact post g18
+  in{n:name "Your name" req}
+  in{n:email "Email address" k:email req}
+  area{n:message "Message" req}
+  send.action"Send message"
 }
 ```
 

@@ -7,24 +7,24 @@ In this chapter you write a small page and open it directly in SLML's own browse
 Create a folder for your site and a file named `index.slml` in it:
 
 ```slml
-slml 0.1
-
-meta(title: "My first page")
-
-page {
-  heading "Hello, world!"
-  text "This is my first SLML page."
-  button(to: "#write") "Click me"
+slml 0.2
+meta{"My first page"}
+page{
+  #"Hello, world!"
+  "This is my first *SLML* page."
+  r{btn{>#write "Click me"}}
 }
 ```
 
 Every SLML file has the same three parts:
 
-- `slml 0.1` — the version line. It is always first, so a page can never be misread by a newer compiler.
-- `meta(...)` — information about the page: its title, language, description and icon. Optional.
-- `page { ... }` — the visible content. Exactly one per file.
+- `slml 0.2` — the version line. It is always first, so a page can never be misread by a newer program.
+- `meta{…}` — information about the page: its title (the string), language (`lang:pl`), description (`desc"…"`) and icon. Optional.
+- `page{…}` — the visible content. Exactly one per file.
 
-## 2. Preview it
+Inside `page`, `#"…"` is a heading, a bare string is a paragraph, `r{…}` is a row and `btn{…}` a button. `>#write` is where the button leads.
+
+## 2. Open it
 
 Open a terminal in the folder and start SLML:
 
@@ -48,18 +48,18 @@ Use `slml render index.slml -o preview.png` when you want a picture of the page.
 
 ## 4. Make a mistake on purpose
 
-Change `heading` to `headng` and run `slml check index.slml`:
+Change `r{` to `rw{` and run `slml check index.slml`:
 
 ```slml
-error: unknown element `headng`
+error: unknown element `rw`
  --> index.slml:6:3
   |
-6 |   headng "Hello, world!"
-  |   ^^^^^^
-  = hint: did you mean `heading`?
+6 |   rw{btn{>#write "Click me"}}
+  |   ^^
+  = hint: did you mean `r`?
 ```
 
-SLML never guesses. Each mistake is reported with its place and a suggestion, and nothing is written until the file is correct.
+SLML never guesses. Each mistake is reported with its place and a suggestion, in the same short names you wrote, and nothing is drawn until the file is correct.
 
 [Installing](install.md)
 

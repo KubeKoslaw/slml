@@ -2,8 +2,17 @@ slml 0.2
 use"layout.slml"
 
 doc{$title"The SLML Handbook"
-  t.lead"SLML, the *Strict Layout Markup Language*, is a language for web pages and documents. It replaces HTML and CSS with one small, strict grammar in which layout is built in. You write `.slml` files and the `slml` native browser reads and draws them directly."
-  demo{$code"slml 0.1\n\npage {\n  heading \"Hello!\"\n  row(gap: 12) {\n    button(to: \"about.slml\") \"About me\"\n    text { \"Made with \" bold \"SLML\" }\n  }\n}"
+  t.lead"SLML, the *Strict Layout Markup Language*, is a short, strict language for web pages and documents. One small grammar replaces HTML and CSS, and layout is built in. You write `.slml` files and the `slml` native browser reads and draws them directly."
+  demo{$code"""
+      slml 0.2
+      page{
+        #"Hello!"
+        r{g12 a:c
+          btn{>#why "About me"}
+          "Made with *SLML*"
+        }
+      }
+      """
     #"Hello!"
     r{g12 a:c
       btn{>#why "About me"}
@@ -12,12 +21,12 @@ doc{$title"The SLML Handbook"
   }
   section{$id"why" $title"Why SLML?"
     -{g8
+      "*Short.* `c{p20 bg#fff \"Hi\"}` is a padded white box with a paragraph. Frequent things cost one or two characters."
       "*Strict.* A mistake is an error with a line number and a hint, never a silently broken page."
-      "*Layout first.* Rows, columns, grids, gaps and alignment are part of the language; there are no floats or positioning tricks."
+      "*Layout, not semantics.* Rows, columns, grids, gaps and alignment are the language. There is no `main`, `aside` or `section` with rules about where each may go."
       "*One syntax.* Structure, appearance and reusable components share one grammar instead of three languages."
       "*Predictable.* Fonts are bundled and every default is written down, so a page looks the same everywhere."
       "*Accessible.* Images must describe themselves and form fields must have labels."
-      "*Real websites.* Multi-page documents, navigation, reusable components and responsive layouts are written directly in SLML."
     }
   }
   section{$id"how" $title"How it works"
@@ -25,27 +34,27 @@ doc{$title"The SLML Handbook"
     +{g8
       "*Open a page or site.* Run `slml page.slml` or `slml my-site/`. SLML opens its own window, parses the original source and draws it with its Rust renderer."
       "*Edit and save.* The window reloads when the page, an import or an image changes. Local links stay in SLML."
-      "*Use adapters only when you choose them.* `slml build` explicitly exports HTML. The optional `slml serve --web` runtime and Firefox extension host SLML in existing web browsers."
+      "*Use adapters only when you choose them.* `slml build` explicitly exports HTML. The optional `slml serve --web` runtime and the Firefox extension host SLML in existing web browsers."
     }
   }
   section{$id"start" $title"Where to start"
     grid{cw220 g14
-      c{>/install.slml bg#fff p18 r12 b1 bc#e6e6ee g6
+      c.tile{>/install.slml
         ####"1. Install"
-        t.muted"Get the slml compiler for Linux, macOS or Windows."
+        t.muted"Get the slml program for Linux, macOS or Windows."
       }
-      c{>/first-page.slml bg#fff p18 r12 b1 bc#e6e6ee g6
+      c.tile{>/first-page.slml
         ####"2. First page"
-        t.muted"Write, preview and compile your first page in five minutes."
+        t.muted"Write and open your first page in five minutes."
       }
-      c{>/sites.slml bg#fff p18 r12 b1 bc#e6e6ee g6
-        ####"3. Build a site"
-        t.muted"Share a header across pages and publish the result."
+      c.tile{>/syntax.slml
+        ####"3. Learn the syntax"
+        t.muted"Everything SLML can say, on one page."
       }
     }
   }
   note{$title"This handbook is written in SLML"
     "Every page you are reading is an `.slml` file in the `handbook/` folder of the repository. Open them to see real-world SLML."
   }
-  pager{$prev"/reference.slml" $prev-label"Reference" $next"/install.slml" $next-label"Install the compiler"}
+  pager{$prev"/reference.slml" $prev-label"Reference" $next"/install.slml" $next-label"Install SLML"}
 }
