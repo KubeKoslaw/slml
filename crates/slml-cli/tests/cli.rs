@@ -32,6 +32,10 @@ fn builds_a_site() {
         "features.html",
         "site/index.html",
         "site/logo.png",
+        "starter/index.html",
+        "starter/about.html",
+        "starter/contact.html",
+        "starter/preview.html",
         "_slml/slml.css",
         "_slml/fonts/NotoSans-Regular.ttf",
     ] {
@@ -40,6 +44,11 @@ fn builds_a_site() {
     let index = std::fs::read_to_string(out.join("site/index.html")).unwrap();
     assert!(index.contains("href=\"../_slml/slml.css\""));
     assert!(index.contains("href=\"about.html\""));
+    assert!(!out.join("starter/layout.html").exists());
+    let contact = std::fs::read_to_string(out.join("starter/contact.html")).unwrap();
+    assert!(contact.contains("action=\"preview.html\" method=\"get\""));
+    assert!(contact.contains("name=\"email\""));
+    assert!(contact.contains("required"));
 }
 
 #[test]

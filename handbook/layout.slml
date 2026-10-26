@@ -44,6 +44,7 @@ define doc(title, description: "The SLML handbook: learn the Strict Layout Marku
         spacer(height: 10)
         text(size: 12, bold: true, color: #8a8a99) "WEBSITES"
         nav(to: "/sites.slml", label: "Building a website")
+        nav(to: "/website-tutorial.slml", label: "A complete website")
         nav(to: "/cli.slml", label: "Command line")
         nav(to: "/errors.slml", label: "Understanding errors")
         nav(to: "/from-html.slml", label: "Coming from HTML")

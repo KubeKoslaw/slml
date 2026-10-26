@@ -45,5 +45,5 @@ doc(title: "Command line") {
     text { code "0" " when everything compiled, " code "1" " when any file has errors. Scripts and CI can rely on it." }
   }
 
-  pager(prev: "/sites.slml", prev-label: "Building a website", next: "/errors.slml", next-label: "Understanding errors")
+  pager(prev: "/website-tutorial.slml", prev-label: "A complete website", next: "/errors.slml", next-label: "Understanding errors")
 }

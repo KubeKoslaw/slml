@@ -1,0 +1,24 @@
+slml 0.1
+use "layout.slml"
+
+site(title: "About — Fieldwork", description: "How the fictional Fieldwork studio approaches a website project.") {
+  column(gap: 16, max-width: 720) {
+    text(size: 13, bold: true, color: #176b52) "ABOUT THE STUDIO"
+    heading "Useful things, made together."
+    text.muted(size: 20) "Fieldwork is a fictional independent studio. Replace this story with your own when you use the starter."
+    text "We believe a website should help people understand what you do and how to get in touch. Our process keeps those two needs at the centre."
+  }
+  column.card {
+    heading(level: 2) "How a project works"
+    list(marker: number, gap: 12) {
+      item { bold "Listen." " We start with your audience, goals and existing content." }
+      item { bold "Build." " We turn that into a shared layout and a small set of clear pages." }
+      item { bold "Refine." " We test navigation, forms and small screens together." }
+      item { bold "Publish." " You receive the files and instructions to keep the site up to date." }
+    }
+  }
+  row(wrap: true, gap: 12) {
+    button.action(to: "contact.slml") "Tell us about your idea"
+    button(to: "index.slml", fill: #ffffff, color: #173b35) "Back to home"
+  }
+}

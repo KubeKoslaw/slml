@@ -1,0 +1,25 @@
+slml 0.1
+use "layout.slml"
+
+site(title: "Contact — Fieldwork", description: "Try the accessible contact form in the SLML starter.") {
+  column(gap: 12, max-width: 720) {
+    text(size: 13, bold: true, color: #176b52) "LET'S TALK"
+    heading "What would you like to make?"
+    text.muted(size: 18) "Try the form using made-up details. This demo goes to a local page; it does not send or save a message. Values appear in the browser address bar, so do not enter private information."
+  }
+  form.card(to: "preview.slml", method: get, gap: 18, max-width: 720) {
+    input(name: "name", label: "Your name", placeholder: "Alex Example", required: true)
+    input(name: "email", label: "Email address", kind: email, placeholder: "alex@example.invalid", required: true)
+    select(name: "service", label: "What do you need?") {
+      option(value: "website") "A new website"
+      option(value: "refresh") "A website refresh"
+      option(value: "content") "Help with content"
+    }
+    textarea(name: "message", label: "Tell us about your idea", rows: 5, required: true)
+    checkbox(name: "demo", label: "I am using made-up details for this demo", required: true)
+    row(wrap: true, gap: 12) {
+      submit.action "Preview submission"
+    }
+  }
+  text.muted(size: 14) "For a real contact form, change the form destination to your server or form service and use method: post. The handbook explains how."
+}

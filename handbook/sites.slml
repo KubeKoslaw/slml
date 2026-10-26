@@ -74,5 +74,5 @@ doc(title: "Building a website") {
     text { "The compiler writes semantic HTML: headings are " code "h1" "–" code "h4" ", lists are " code "ul" "/" code "ol" ", forms are real forms. Layout uses CSS flexbox and grid, so pages are responsive. Built pages contain " bold "no JavaScript" "; the live-reload script exists only in the preview server." }
   }
 
-  pager(prev: "/forms.slml", prev-label: "Forms", next: "/cli.slml", next-label: "Command line")
+  pager(prev: "/forms.slml", prev-label: "Forms", next: "/website-tutorial.slml", next-label: "A complete website")
 }

@@ -1,0 +1,37 @@
+slml 0.1
+
+style muted(color: #536260)
+style nav(color: #173b35, underline: false)
+style card(fill: #ffffff, border: 1, border-color: #dbe5df, padding: 24, radius: 14, gap: 12)
+style action(fill: #176b52, radius: 8)
+
+define site(title, description) {
+  meta(title: $title, description: $description, lang: "en")
+  page(padding: 20, gap: 28, fill: #f5f7f2, color: #173b35, align: center) {
+    column(width: fill, max-width: 1040, gap: 32) {
+      row(wrap: true, gap: 20, align: center, justify: between) {
+        text(size: 22, bold: true) { link.nav(to: "index.slml") "FIELDWORK / STUDIO" }
+        row(wrap: true, gap: 20, align: center) {
+          text { link.nav(to: "index.slml#services") "Services" }
+          text { link.nav(to: "about.slml") "About" }
+          text { link.nav(to: "contact.slml") "Contact" }
+        }
+      }
+      divider(color: #ccd9d0)
+      slot
+      divider(color: #ccd9d0)
+      row(wrap: true, gap: 12, justify: between) {
+        text.muted(size: 14) "Fieldwork is a fictional studio. This is an SLML starter."
+        text(size: 14) { link(to: "contact.slml") "Try the form" }
+      }
+    }
+  }
+}
+
+define service(number, title) {
+  column.card {
+    text(size: 13, bold: true, color: #176b52) $number
+    heading(level: 3) $title
+    slot
+  }
+}

@@ -59,6 +59,11 @@ slml view page.slml            # native SLML viewer (own renderer)
 
 **Read the [handbook](handbook/)**, which is itself written in SLML: `slml serve handbook --open`.
 
+For a complete four-page website with shared components, responsive navigation
+and a working local form demo, run `slml serve examples/starter --open`.
+The [website tutorial](handbook/website-tutorial.slml) explains how to copy,
+customize and publish it, and connect a real form endpoint.
+
 When something is wrong, SLML tells you exactly what and where:
 
 ```text
