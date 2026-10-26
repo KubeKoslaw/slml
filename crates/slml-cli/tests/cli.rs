@@ -262,3 +262,58 @@ fn serve_open_uses_the_native_browser() {
     assert!(!dir.join("index.html").exists());
     assert!(!dir.join("_site").exists());
 }
+
+fn copy_dir(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap().flatten() {
+        let path = entry.path();
+        let target = to.join(entry.file_name());
+        if path.is_dir() {
+            copy_dir(&path, &target);
+        } else {
+            std::fs::copy(&path, &target).unwrap();
+        }
+    }
+}
+
+#[test]
+fn upgrade_converts_and_then_is_stable() {
+    let dir = temp_dir("upgrade");
+    let book = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../handbook");
+    copy_dir(&book, &dir.join("handbook"));
+    let first = slml()
+        .arg("upgrade")
+        .arg(dir.join("handbook"))
+        .arg("-q")
+        .output()
+        .unwrap();
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    let index = std::fs::read_to_string(dir.join("handbook/index.slml")).unwrap();
+    assert!(index.starts_with("slml 0.2"), "{index}");
+    let check = slml()
+        .arg("upgrade")
+        .arg("--check")
+        .arg(dir.join("handbook"))
+        .output()
+        .unwrap();
+    assert!(
+        check.status.success(),
+        "{}",
+        String::from_utf8_lossy(&check.stdout)
+    );
+    let built = slml()
+        .arg("check")
+        .arg(dir.join("handbook"))
+        .arg("-q")
+        .output()
+        .unwrap();
+    assert!(
+        built.status.success(),
+        "{}",
+        String::from_utf8_lossy(&built.stderr)
+    );
+}

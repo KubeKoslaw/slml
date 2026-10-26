@@ -1334,7 +1334,12 @@ impl<'a> Analyzer<'a> {
         let mut out = Vec::new();
         for child in children {
             match child {
-                Child::Text(s, _) => out.push(Inline::Text(s.clone())),
+                // Adjacent strings are one run of text, whichever way they
+                // were written (`"a " "b"` or `"a b"`).
+                Child::Text(s, _) => match out.last_mut() {
+                    Some(Inline::Text(prev)) => prev.push_str(s),
+                    _ => out.push(Inline::Text(s.clone())),
+                },
                 Child::Param(_, span) => {
                     self.err(*span, "parameters can only be used inside `define`")
                 }

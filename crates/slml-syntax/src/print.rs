@@ -228,6 +228,15 @@ impl Printer {
     /// elsewhere (`level`, `marker`, positional `src`, `alt`, `label` …).
     fn attr(&mut self, a: &Attr, element: &str) -> Option<String> {
         let name = a.name.trim_start_matches('\u{0}');
+        if element_is_component(element) {
+            // Every argument of a component call is a `$parameter`.
+            let v = match &a.value {
+                Value::Ident(i) => format!(":{i}"),
+                Value::Str(s) => quote(s),
+                other => self.value_glued(other, "", a.span),
+            };
+            return Some(format!("${name}{v}"));
+        }
         let flag = |on: &str, off: &str, v: &Value| -> Option<String> {
             match v {
                 Value::Ident(i) if i == "true" => Some(on.to_string()),
@@ -875,5 +884,69 @@ mod tests {
         let out = to_compact(&crate::parse(src).unwrap()).unwrap();
         assert!(out.contains("// top\npage"), "{out}");
         assert!(out.contains("  // inside\n"), "{out}");
+    }
+}
+
+#[cfg(test)]
+mod corpus {
+    use std::path::Path;
+
+    /// Every example without imports converts to an identical document.
+    #[test]
+    fn examples_round_trip() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples");
+        let mut stack = vec![dir];
+        let mut checked = 0;
+        while let Some(d) = stack.pop() {
+            for entry in std::fs::read_dir(&d).unwrap().flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                    continue;
+                }
+                if path.extension().is_none_or(|e| e != "slml") {
+                    continue;
+                }
+                let src = std::fs::read_to_string(&path).unwrap();
+                let ast = crate::parse(&src).unwrap();
+                if !ast.uses.is_empty() || ast.nodes.is_empty() {
+                    continue;
+                }
+                let Ok(long) = crate::compile(&src) else {
+                    continue;
+                };
+                let compact = super::to_compact(&ast).unwrap();
+                let short = crate::compile(&compact)
+                    .unwrap_or_else(|e| panic!("{}\n{compact}\n{e:#?}", path.display()));
+                let strip = |d: crate::model::Document| crate::model::Document {
+                    version: String::new(),
+                    ..d
+                };
+                let (a, b) = (strip(long), strip(short));
+                if a != b {
+                    let (sa, sb) = (format!("{a:#?}"), format!("{b:#?}"));
+                    let line = sa
+                        .lines()
+                        .zip(sb.lines())
+                        .position(|(x, y)| x != y)
+                        .unwrap_or(0);
+                    let ctx = |s: &str| {
+                        s.lines()
+                            .skip(line.saturating_sub(8))
+                            .take(14)
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    };
+                    panic!(
+                        "{} differs at line {line}\n--- original\n{}\n--- upgraded\n{}\n{compact}",
+                        path.display(),
+                        ctx(&sa),
+                        ctx(&sb)
+                    );
+                }
+                checked += 1;
+            }
+        }
+        assert!(checked > 0);
     }
 }

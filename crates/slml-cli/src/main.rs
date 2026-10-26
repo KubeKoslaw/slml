@@ -3,6 +3,7 @@
 mod build;
 mod project;
 mod serve;
+mod upgrade;
 #[cfg(feature = "viewer")]
 mod viewer;
 
@@ -23,6 +24,7 @@ USAGE:
     slml build <file-or-folder>...       explicitly export HTML (page.slml → page.html)
     slml <file-or-folder> -o <output>    explicitly export HTML or PNG
     slml render <file.slml> [-o out.png] render to an image with the native renderer
+    slml upgrade <file-or-folder>...     rewrite files in the compact slml 0.2 syntax (--check: only report)
 
 OPTIONS:
     -o, --output <path>   export file or folder; `.png` renders an image, anything else is HTML
@@ -34,6 +36,7 @@ OPTIONS:
         --open            `serve`: also open the native SLML browser
         --web             `serve`: explicitly use the web-hosted WebAssembly viewer
         --html            explicitly select HTML export / HTML server preview
+        --check           `upgrade`: only list files that would change (exit status 1 if any)
     -q, --quiet           print only errors
     -h, --help            show this help
     -V, --version         show the version
@@ -61,6 +64,7 @@ struct Args {
     quiet: bool,
     html: bool,
     web: bool,
+    check: bool,
 }
 
 fn parse_args(raw: Vec<String>) -> Result<Args, String> {
@@ -74,7 +78,7 @@ fn parse_args(raw: Vec<String>) -> Result<Args, String> {
     if let Some(first) = it.peek()
         && matches!(
             first.as_str(),
-            "check" | "serve" | "view" | "render" | "build"
+            "check" | "serve" | "view" | "render" | "build" | "upgrade"
         )
     {
         a.command = it.next();
@@ -111,12 +115,16 @@ fn parse_args(raw: Vec<String>) -> Result<Args, String> {
             "--open" => a.open = true,
             "--html" => a.html = true,
             "--web" => a.web = true,
+            "--check" => a.check = true,
             "-q" | "--quiet" => a.quiet = true,
             flag if flag.starts_with('-') && flag.len() > 1 => {
                 return Err(format!("error: unknown option {flag}\n\n{USAGE}"));
             }
             input => a.inputs.push(input.into()),
         }
+    }
+    if a.check && a.command.as_deref() != Some("upgrade") {
+        return Err("error: `--check` is only supported by `upgrade`".into());
     }
     if a.web && a.html {
         return Err("error: choose either `--web` or `--html`".into());
@@ -140,6 +148,7 @@ enum Action {
     Serve,
     Render,
     Build,
+    Upgrade,
 }
 
 fn action(a: &Args) -> Action {
@@ -148,6 +157,7 @@ fn action(a: &Args) -> Action {
         Some("serve") => Action::Serve,
         Some("render") => Action::Render,
         Some("build") => Action::Build,
+        Some("upgrade") => Action::Upgrade,
         Some("view") => Action::View,
         _ if a.output.is_some() || a.html => Action::Build,
         _ => Action::View,
@@ -177,6 +187,7 @@ fn main() -> ExitCode {
         Action::View => view(&args),
         Action::Render => render(&args),
         Action::Build => compile(&args),
+        Action::Upgrade => upgrade(&args),
     });
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -247,6 +258,35 @@ fn compile(a: &Args) -> Result<(), String> {
     match build::compile_pages(&a.inputs, a.output.as_deref(), a.root.as_deref(), a.quiet) {
         0 => Ok(()),
         n => Err(format!("{n} file{} failed", if n == 1 { "" } else { "s" })),
+    }
+}
+
+fn upgrade(a: &Args) -> Result<(), String> {
+    need_inputs(a)?;
+    let mut files = Vec::new();
+    for input in &a.inputs {
+        if input.is_dir() {
+            files.extend(
+                build::site_files(input, &input.join("_site"))
+                    .into_iter()
+                    .filter(|f| f.extension().is_some_and(|e| e == "slml")),
+            );
+        } else {
+            files.push(input.clone());
+        }
+    }
+    let root = match (&a.root, a.inputs.as_slice()) {
+        (Some(r), _) => r.clone(),
+        (None, [dir]) if dir.is_dir() => dir.clone(),
+        (None, _) => std::env::current_dir().map_err(|e| format!("error: {e}"))?,
+    };
+    let opts = upgrade::Options {
+        check: a.check,
+        quiet: a.quiet,
+    };
+    match upgrade::run(&files, &root, &opts) {
+        0 => Ok(()),
+        n => Err(format!("{n} problem{}", if n == 1 { "" } else { "s" })),
     }
 }
 

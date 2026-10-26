@@ -1782,7 +1782,7 @@ mod tests {
         };
         assert_eq!(link.link.as_deref(), Some("/a.slml"));
         assert_eq!(link.text.underline, Some(false));
-        assert_eq!(t.content[2], Inline::Text("Home".into()));
+        assert_eq!(t.content[1], Inline::Text(" and Homes".into()));
     }
 
     #[test]
