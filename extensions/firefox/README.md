@@ -91,6 +91,7 @@ submits a form, to the destination specified by that document.
 make web
 node web/test-wasm.mjs
 npx web-ext lint --source-dir target/firefox --warnings-as-errors
+python3 scripts/test-firefox.py
 cargo test --all
 ```
 
@@ -99,3 +100,8 @@ images, diagnostics, control geometry, URL boundaries and Firefox request
 interception. `web-ext` is an optional Mozilla development tool, not a
 runtime dependency. Rust owns the parser and renderer; no JavaScript parser
 or layout engine is maintained alongside it.
+
+The Firefox smoke test creates an isolated temporary profile and a local
+static source server, installs a temporary test copy, checks WASM rendering
+and form metadata, and verifies that an actual `.slml` tab navigation reaches
+the viewer. It does not open or change the user's Firefox profile.

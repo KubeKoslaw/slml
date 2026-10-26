@@ -11,6 +11,9 @@ files = {
     "background.mjs": root / "extensions/firefox/background.mjs",
     **{name: root / "web" / name for name in ("viewer.html", "viewer.css", "viewer.mjs", "engine.mjs")},
     "slml.wasm": root / "target/wasm32-unknown-unknown/release/slml_web.wasm",
+    "OFL.txt": root / "assets/fonts/OFL.txt",
+    "LICENSE-MIT": root / "LICENSE-MIT",
+    "LICENSE-APACHE": root / "LICENSE-APACHE",
 }
 for name, source in files.items():
     shutil.copyfile(source, package / name)
