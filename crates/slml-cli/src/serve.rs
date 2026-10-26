@@ -24,7 +24,7 @@ pub fn run(root: PathBuf, port: u16, open: bool) -> Result<(), String> {
     if !root.is_dir() {
         return Err(format!("error: {} is not a folder", root.display()));
     }
-    let (listener, port) = (port..port.saturating_add(20))
+    let (listener, port) = (port..=port.saturating_add(19))
         .find_map(|p| TcpListener::bind(("127.0.0.1", p)).ok().map(|l| (l, p)))
         .ok_or_else(|| format!("error: no free port from {port}"))?;
     let url = format!("http://127.0.0.1:{port}/");
@@ -121,6 +121,9 @@ fn respond(target: &str, root: &Path) -> Response {
     if path.split('/').any(|c| c == "..") || path.contains('\\') {
         return Response::html("403 Forbidden", "forbidden".into());
     }
+    if path.chars().any(char::is_control) {
+        return Response::html("400 Bad Request", "invalid URL path".into());
+    }
 
     match path.as_str() {
         "/_slml/version" => return Response::ok("text/plain", version(root).into_bytes()),
@@ -165,7 +168,14 @@ fn respond(target: &str, root: &Path) -> Response {
         }
     }
     if file.is_dir() {
-        return Response::redirect(format!("{path}/"));
+        // Keep the original escaping and GET form data in the URL.
+        let (raw_path, query) = target.split_once('?').unwrap_or((target, ""));
+        let suffix = if query.is_empty() {
+            String::new()
+        } else {
+            format!("?{query}")
+        };
+        return Response::redirect(format!("{raw_path}/{suffix}"));
     }
     match std::fs::read(&file) {
         Ok(body) => Response::ok(content_type(&file), body),

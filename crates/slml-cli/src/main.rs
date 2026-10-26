@@ -99,7 +99,10 @@ fn parse_args(raw: Vec<String>) -> Result<Args, String> {
             "--port" => {
                 a.port = value(&arg)?
                     .parse()
-                    .map_err(|_| "error: --port must be a number from 1 to 65535")?
+                    .map_err(|_| "error: --port must be a number from 1 to 65535")?;
+                if a.port == 0 {
+                    return Err("error: --port must be a number from 1 to 65535".into());
+                }
             }
             "--open" => a.open = true,
             "-q" | "--quiet" => a.quiet = true,
