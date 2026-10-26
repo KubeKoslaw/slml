@@ -53,7 +53,7 @@ navigations before the server's MIME type can cause a download.
 
 ## Supported behavior
 
-- The complete SLML 0.1 syntax, styles, components and imports.
+- The complete SLML syntax (the current 0.2 and the older 0.1), styles, components and imports.
 - Responsive layout, scrolling, clickable links, anchors and browser history.
 - The bundled SLML fonts and same-origin PNG/JPEG images.
 - Mouse text selection, **Ctrl+C** / **Cmd+C**, and **Ctrl+A** / **Cmd+A**
