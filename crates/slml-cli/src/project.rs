@@ -69,6 +69,22 @@ pub fn errors_text(errors: &[slml_syntax::Diagnostic], sources: &SourceMap) -> S
     sources.render_all(errors)
 }
 
+/// Opens a URL with the system's default program (browser, mail client).
+pub fn open_external(url: &str) {
+    let result = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(url).spawn()
+    } else if cfg!(windows) {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .spawn()
+    } else {
+        std::process::Command::new("xdg-open").arg(url).spawn()
+    };
+    if let Err(e) = result {
+        eprintln!("slml: cannot open {url}: {e}");
+    }
+}
+
 /// Is this file a page (as opposed to a library of styles and components)?
 pub fn is_page(path: &Path) -> bool {
     std::fs::read_to_string(path).is_ok_and(|src| !slml_syntax::is_library(&src))

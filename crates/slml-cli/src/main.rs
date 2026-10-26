@@ -6,6 +6,7 @@
 mod build;
 mod project;
 mod serve;
+#[cfg(feature = "viewer")]
 mod viewer;
 
 use std::path::{Path, PathBuf};
@@ -289,9 +290,15 @@ fn render(a: &Args) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(feature = "viewer")]
 fn view(a: &Args) -> Result<(), String> {
     let file = single(a, "view")?;
     viewer::run(file.clone(), root_for(a, &file), a.scale)
+}
+
+#[cfg(not(feature = "viewer"))]
+fn view(_: &Args) -> Result<(), String> {
+    Err("error: this slml was built without the native viewer; use `slml serve` instead".into())
 }
 
 fn serve(a: &Args) -> Result<(), String> {

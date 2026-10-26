@@ -9,7 +9,7 @@ use slml_render::images::ImageStore;
 use slml_render::{Layout, Pixmap, Renderer};
 use slml_syntax::model::Document;
 
-use crate::project::{base_dir, compile_file, resolve};
+use crate::project::{base_dir, compile_file, open_external, resolve};
 
 const LINE_STEP: f32 = 48.0;
 
@@ -37,21 +37,6 @@ fn classify(to: &str, page: &Path, root: &Path) -> Target {
         Some(("", id)) => Target::Anchor(id.to_string()),
         Some((path, id)) => Target::Document(resolve(root, page, path), Some(id.to_string())),
         None => Target::Document(resolve(root, page, to), None),
-    }
-}
-
-pub fn open_external(url: &str) {
-    let result = if cfg!(target_os = "macos") {
-        std::process::Command::new("open").arg(url).spawn()
-    } else if cfg!(windows) {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", url])
-            .spawn()
-    } else {
-        std::process::Command::new("xdg-open").arg(url).spawn()
-    };
-    if let Err(e) = result {
-        eprintln!("slml: cannot open {url}: {e}");
     }
 }
 

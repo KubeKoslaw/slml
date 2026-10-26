@@ -31,7 +31,7 @@ pub fn run(root: PathBuf, port: u16, open: bool) -> Result<(), String> {
     println!("SLML preview of {} at {url}", root.display());
     println!("Pages reload automatically when you save. Press Ctrl+C to stop.");
     if open {
-        crate::viewer::open_external(&url);
+        crate::project::open_external(&url);
     }
     for stream in listener.incoming().flatten() {
         let root = root.clone();

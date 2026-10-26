@@ -23,5 +23,7 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test --all
+      - name: Build without the native viewer
+        run: cargo build -p slml-cli --no-default-features
       - name: Check examples
         run: cargo run --quiet -- check examples
