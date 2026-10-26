@@ -6,6 +6,7 @@
 
 pub mod fonts;
 pub mod images;
+pub mod inspect;
 pub mod layout;
 pub mod paint;
 
@@ -16,7 +17,8 @@ pub use tiny_skia::Pixmap;
 
 use fonts::Fonts;
 use images::ImageStore;
-pub use layout::{Layout, LinkArea};
+use layout::Item;
+pub use layout::{ElementBox, Layout, LinkArea};
 use paint::Painter;
 
 /// Owns everything that is expensive to create: fonts, glyph and image caches.
@@ -51,6 +53,25 @@ impl Renderer {
             scroll_y,
             scale,
         );
+    }
+
+    /// Draws extra items over what is already in `target`, e.g. a host's
+    /// highlights or its own interface. Coordinates work like in
+    /// [`Renderer::paint`].
+    pub fn paint_items(&mut self, items: &[Item], target: &mut Pixmap, scroll_y: f32, scale: f32) {
+        self.painter.draw(
+            items,
+            &self.fonts,
+            &mut self.images,
+            target,
+            scroll_y,
+            scale,
+        );
+    }
+
+    /// The bundled fonts, for hosts that measure or shape their own text.
+    pub fn fonts(&self) -> &Fonts {
+        &self.fonts
     }
 
     /// Renders the whole page into one image.

@@ -31,8 +31,22 @@ impl Painter {
         scale: f32,
     ) {
         target.fill(sk_color(layout.background));
+        self.draw(&layout.items, fonts, images, target, scroll_y, scale);
+    }
+
+    /// Draws `items` over the current contents of `target`, skipping those
+    /// outside the visible part.
+    pub fn draw(
+        &mut self,
+        items: &[Item],
+        fonts: &Fonts,
+        images: &mut ImageStore,
+        target: &mut Pixmap,
+        scroll_y: f32,
+        scale: f32,
+    ) {
         let view_h = target.height() as f32 / scale;
-        for item in &layout.items {
+        for item in items {
             let (top, bottom) = item.y_range();
             if bottom < scroll_y || top > scroll_y + view_h {
                 continue;

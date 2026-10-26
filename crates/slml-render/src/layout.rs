@@ -16,6 +16,7 @@ use slml_syntax::model::*;
 
 use crate::fonts::{Face, Fonts, Glyph, LINE_HEIGHT};
 use crate::images::ImageStore;
+use crate::inspect::Element;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Rect {
@@ -150,6 +151,23 @@ pub struct TextRun {
     pub link: Option<String>,
 }
 
+/// The box of one block element (including the `page`), for hosts that
+/// hit-test or inspect the document. [`crate::inspect::element`] turns
+/// `path` back into the element.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ElementBox {
+    /// Element name as written in SLML (`row`, `heading`, `input` …).
+    pub name: &'static str,
+    /// Child indices from the page, like [`ControlArea::path`]. Entries of a
+    /// `list` count as its children.
+    pub path: Vec<usize>,
+    /// The border box.
+    pub rect: Rect,
+    /// The content box: `rect` without border and padding.
+    pub content: Rect,
+    pub radius: f32,
+}
+
 /// A laid-out page, ready to paint.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Layout {
@@ -162,6 +180,8 @@ pub struct Layout {
     pub anchors: Vec<(String, f32)>,
     pub controls: Vec<ControlArea>,
     pub text: Vec<TextArea>,
+    /// Every element's box, parents before their children (document order).
+    pub elements: Vec<ElementBox>,
 }
 
 impl Layout {
@@ -176,6 +196,16 @@ impl Layout {
     pub fn anchor(&self, id: &str) -> Option<f32> {
         self.anchors.iter().find(|(a, _)| a == id).map(|(_, y)| *y)
     }
+
+    /// The innermost element under a point; of overlapping siblings, the one
+    /// painted last.
+    pub fn element_at(&self, x: f32, y: f32) -> Option<&ElementBox> {
+        self.elements.iter().rev().find(|e| e.rect.contains(x, y))
+    }
+
+    pub fn element(&self, path: &[usize]) -> Option<&ElementBox> {
+        self.elements.iter().find(|e| e.path == path)
+    }
 }
 
 #[derive(Debug, Default)]
@@ -187,6 +217,7 @@ struct Fragment {
     anchors: Vec<(String, f32)>,
     controls: Vec<ControlArea>,
     text: Vec<TextArea>,
+    elements: Vec<ElementBox>,
 }
 
 impl Fragment {
@@ -225,13 +256,52 @@ impl Fragment {
             control.input_rect.y += dy;
             self.controls.push(control);
         }
+        for mut element in child.elements {
+            element.rect.x += dx;
+            element.rect.y += dy;
+            element.content.x += dx;
+            element.content.y += dy;
+            self.elements.push(element);
+        }
     }
 
     fn place_child(&mut self, mut child: Fragment, index: usize, dx: f32, dy: f32) {
         for control in &mut child.controls {
             control.path.insert(0, index);
         }
+        for element in &mut child.elements {
+            element.path.insert(0, index);
+        }
         self.place(child, dx, dy);
+    }
+
+    /// Records the element this fragment is the box of, before the boxes of
+    /// its children.
+    fn record(&mut self, element: Element) {
+        let rect = Rect::new(0.0, 0.0, self.w, self.h);
+        let (content, radius) = match element.frame() {
+            Some(f) if !matches!(element, Element::Field(_)) => {
+                let (ix, iy) = (f.padding_x + f.border, f.padding_y + f.border);
+                let content = Rect::new(
+                    ix,
+                    iy,
+                    (self.w - 2.0 * ix).max(0.0),
+                    (self.h - 2.0 * iy).max(0.0),
+                );
+                (content, f.radius)
+            }
+            _ => (rect, 0.0),
+        };
+        self.elements.insert(
+            0,
+            ElementBox {
+                name: element.name(),
+                path: Vec::new(),
+                rect,
+                content,
+                radius,
+            },
+        );
     }
 }
 
@@ -328,6 +398,7 @@ pub fn layout(
         // Let `justify` and spacers work against the window height.
         frag = engine.container(page, root, WidthMode::Stretch(width), Some(min_height));
     }
+    frag.record(Element::Container(page));
     Layout {
         width,
         height: frag.h,
@@ -337,6 +408,7 @@ pub fn layout(
         anchors: frag.anchors,
         controls: frag.controls,
         text: frag.text,
+        elements: frag.elements,
     }
 }
 
@@ -354,7 +426,7 @@ impl Engine<'_> {
         forced_h: Option<f32>,
         axis: Axis,
     ) -> Fragment {
-        match n {
+        let mut frag = match n {
             Node::Container(c) => self.container(c, style, mode, forced_h),
             Node::Text(t) => self.text_block(t, style, mode, forced_h),
             Node::Image(i) => self.image(i, style, mode),
@@ -395,7 +467,9 @@ impl Engine<'_> {
                 });
                 Fragment::new(w, h)
             }
-        }
+        };
+        frag.record(Element::of(n));
+        frag
     }
 
     fn resolve_width(
@@ -1168,6 +1242,7 @@ impl Engine<'_> {
                 }
                 ListEntry::List(sub) => self.list(sub, style, WidthMode::Exact(body_w), None),
             };
+            frag.record(Element::of_entry(entry));
             if let (ListEntry::Item(t), Some(area)) = (entry, frag.text.first_mut()) {
                 let marker = &markers[k];
                 if !marker.is_empty() {
@@ -1194,7 +1269,7 @@ impl Engine<'_> {
                 }
             }
             let h = frag.h;
-            content.place(frag, indent, y);
+            content.place_child(frag, k, indent, y);
             y += h;
         }
         content.h = y;
@@ -1882,5 +1957,91 @@ mod tests {
             400.0,
         );
         assert!(l.items.iter().any(|i| matches!(i, Item::Glyphs { .. })));
+    }
+
+    #[test]
+    fn element_boxes_cover_every_element_in_document_order() {
+        let l = lay(
+            r#"slml 0.1 page(padding: 10, gap: 6) {
+            row(gap: 8, padding: 4, border: 1) { text(width: 50) "A" spacer text "B" }
+            list { item "one" list { item "two" } }
+            divider
+        }"#,
+            300.0,
+        );
+        let names: Vec<_> = l.elements.iter().map(|e| e.name).collect();
+        assert_eq!(
+            names,
+            [
+                "page", "row", "text", "spacer", "text", "list", "item", "list", "item", "divider"
+            ]
+        );
+        let paths: Vec<_> = l.elements.iter().map(|e| e.path.clone()).collect();
+        assert_eq!(paths[0], Vec::<usize>::new());
+        assert_eq!(paths[3], vec![0, 1]);
+        assert_eq!(paths[8], vec![1, 1, 0], "list entries count as children");
+        let page = &l.elements[0];
+        assert_eq!(page.rect, Rect::new(0.0, 0.0, 300.0, l.height));
+        assert_eq!(page.content, Rect::new(10.0, 10.0, 280.0, l.height - 20.0));
+        let row = &l.elements[1];
+        assert_eq!((row.rect.x, row.rect.y, row.rect.w), (10.0, 10.0, 280.0));
+        assert_eq!(
+            (row.content.x, row.content.y),
+            (15.0, 15.0),
+            "padding + border"
+        );
+        let first = &l.elements[2];
+        assert_eq!((first.rect.x, first.rect.w), (15.0, 50.0));
+        // The spacer takes the free space between the two texts.
+        let spacer = &l.elements[3];
+        assert_eq!(spacer.rect.x, 15.0 + 50.0 + 8.0);
+        assert!(spacer.rect.w > 100.0);
+        // Every child lies inside its parent.
+        for e in &l.elements[1..] {
+            let parent = l.element(&e.path[..e.path.len() - 1]).unwrap();
+            assert!(
+                e.rect.x >= parent.rect.x && e.rect.y >= parent.rect.y,
+                "{e:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn element_at_finds_the_innermost_box() {
+        let l = lay(
+            r#"slml 0.1 page(padding: 20) {
+            column(padding: 10, fill: #eee) { button(to: "x.slml", padding: 6) "Go" }
+        }"#,
+            300.0,
+        );
+        let button = l.element(&[0, 0]).unwrap();
+        assert_eq!(button.name, "button");
+        let (cx, cy) = (button.rect.x + 2.0, button.rect.y + 2.0);
+        assert_eq!(l.element_at(cx, cy).unwrap().path, vec![0, 0]);
+        // Inside the column's padding: the column itself.
+        assert_eq!(l.element_at(25.0, 25.0).unwrap().name, "column");
+        // Inside the page's padding: the page.
+        assert_eq!(l.element_at(5.0, 5.0).unwrap().name, "page");
+        assert!(l.element_at(-1.0, 5.0).is_none());
+        assert_eq!(l.link_at(cx, cy), Some("x.slml"));
+    }
+
+    #[test]
+    fn element_boxes_survive_stretching_and_grid_measurement_without_duplicates() {
+        let l = lay(
+            r#"slml 0.1 page {
+            row { column(height: fill) { text "tall\ntext" } column { text "short" } }
+            grid(columns: 2) { text "A" text "B" text "C" }
+        }"#,
+            200.0,
+        );
+        let mut paths: Vec<_> = l.elements.iter().map(|e| e.path.clone()).collect();
+        let count = paths.len();
+        paths.dedup();
+        assert_eq!(paths.len(), count);
+        assert_eq!(count, 1 + 5 + 4);
+        // The stretched column is as tall as the row.
+        let row = l.element(&[0]).unwrap();
+        assert_eq!(l.element(&[0, 1]).unwrap().rect.h, row.rect.h);
     }
 }
