@@ -3,7 +3,8 @@
 Opens HTTP(S) `.slml` addresses with the SLML parser, validator, layout engine
 and software painter compiled to WebAssembly. Documents are not translated
 into HTML elements and CSS layouts. A small extension page supplies the
-canvas, navigation, source editor and interactive form controls. The same
+canvas, navigation, source editor, interactive form controls and a
+transparent text layer positioned by the Rust renderer. The same
 runtime is used by `slml serve`.
 
 ## Build and load
@@ -54,6 +55,10 @@ navigations before the server's MIME type can cause a download.
 - The complete SLML 0.1 syntax, styles, components and imports.
 - Responsive layout, scrolling, clickable links, anchors and browser history.
 - The bundled SLML fonts and same-origin PNG/JPEG images.
+- Mouse text selection, **Ctrl+C** / **Cmd+C**, and **Ctrl+A** / **Cmd+A**
+  to select document text. Copy preserves literal spaces, code indentation
+  and explicit newlines; soft line wrapping adds no newlines. Paragraphs
+  are separated by a newline. Editable fields retain native copy behavior.
 - Labeled form inputs, textareas, checkboxes, selects, required-field and
   input-type browser validation. GET forms targeting `.slml` pages stay in
   the viewer; other GET and POST submissions navigate to their endpoint.
@@ -66,8 +71,7 @@ navigations before the server's MIME type can cause a download.
 The origin (`scheme://host:port`) is the site root for `/` paths. Imports
 and images are read only from that origin. Requests omit credentials and
 reject redirects. Authenticated sites that need cookies, remote images,
-local `file://` documents, text selection and a full screen-reader text
-tree are not supported yet. Unavailable images use their `alt` placeholder.
+local `file://` documents and a full screen-reader text tree are not supported yet. Unavailable images use their `alt` placeholder.
 The canvas is limited to 32 million device pixels per viewport.
 
 ## Permissions and privacy
@@ -96,12 +100,13 @@ cargo test --all
 ```
 
 The Node test executes the actual WASM binary and checks pixels, imports,
-images, diagnostics, control geometry, URL boundaries and Firefox request
+images, diagnostics, text and control geometry, URL boundaries and Firefox request
 interception. `web-ext` is an optional Mozilla development tool, not a
 runtime dependency. Rust owns the parser and renderer; no JavaScript parser
 or layout engine is maintained alongside it.
 
 The Firefox smoke test creates an isolated temporary profile and a local
 static source server, installs a temporary test copy, checks WASM rendering
-and form metadata, and verifies that an actual `.slml` tab navigation reaches
-the viewer. It does not open or change the user's Firefox profile.
+and form metadata, verifies that an actual `.slml` tab navigation reaches
+the viewer, and exercises partial selection, literal copying, select all
+and navigation through selectable links. It does not open or change the user's Firefox profile.

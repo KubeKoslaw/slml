@@ -9,7 +9,7 @@ package.mkdir(parents=True, exist_ok=True)
 files = {
     "manifest.json": root / "extensions/firefox/manifest.json",
     "background.mjs": root / "extensions/firefox/background.mjs",
-    **{name: root / "web" / name for name in ("viewer.html", "viewer.css", "viewer.mjs", "engine.mjs")},
+    **{name: root / "web" / name for name in ("viewer.html", "viewer.css", "viewer.mjs", "engine.mjs", "text.mjs")},
     "slml.wasm": root / "target/wasm32-unknown-unknown/release/slml_web.wasm",
     "OFL.txt": root / "assets/fonts/OFL.txt",
     "LICENSE-MIT": root / "LICENSE-MIT",

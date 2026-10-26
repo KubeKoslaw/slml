@@ -67,6 +67,14 @@ text "Line one\nLine two"
 
 Unlike HTML, two spaces are two spaces and a line break is written as \n. What you write is what you see.
 
+## Selecting and copying
+
+In the browser preview and Firefox extension, drag across text to select it and press `Ctrl+C` (`Cmd+C` on macOS) to copy. `Ctrl+A` selects the document when you are not editing a field or the source.
+
+Copying keeps literal spaces, code indentation and explicit newlines. A line wrapped only to fit the screen remains part of the same paragraph; separate text blocks are joined by a newline. Editable form fields keep their normal browser selection and copy behavior.
+
+Text selection is not yet available in the native desktop viewer.
+
 ## Symbols and emoji
 
 The bundled fonts cover Latin, Greek and Cyrillic, symbols, arrows, math and monochrome emoji: ★ ✓ → ∑ ♥ 😀. Pages look the same on every computer because the fonts travel with them.

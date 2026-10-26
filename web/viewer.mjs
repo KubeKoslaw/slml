@@ -1,14 +1,18 @@
 import { SlmlEngine, documentURL, loadDocument, targetURL } from "./engine.mjs";
+import { positionText, installTextSelection } from "./text.mjs";
 
 const $ = id => document.getElementById(id);
 const stage = $("stage"), canvas = $("canvas"), links = $("links"), status = $("status"), error = $("error");
 const context = canvas.getContext("2d");
+const textLayer = $("text-layer");
+installTextSelection(textLayer);
 const values = new Map();
 let module, engine, page, initialURL, revision = null, edited = false, generation = 0, frame = null;
 
 function fail(reason) {
   stage.hidden = true;
   links.replaceChildren();
+  textLayer.replaceChildren();
   $("controls").replaceChildren();
   error.textContent = String(reason.message || reason);
   error.hidden = false;
@@ -49,24 +53,30 @@ function positionLinks() {
   }
   for (const area of areas) {
     const link = document.createElement("a");
-    const url = targetURL(area.to, page.url);
-    link.href = url.href;
-    link.setAttribute("aria-label", area.to.startsWith("#") ? `Jump to ${area.to.slice(1)}` : `Open ${area.to}`);
+    configureLink(link, area.to);
     Object.assign(link.style, { left:`${area.x}px`, top:`${area.y}px`, width:`${area.w}px`, height:`${area.h}px` });
-    link.addEventListener("click", event => {
-      if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-      if (url.origin === page.url.origin && url.pathname === page.url.pathname && url.hash) {
-        event.preventDefault();
-        const y = engine.info().anchors?.[url.hash.slice(1)];
-        if (y !== undefined) scrollTo(0, y);
-      } else if (["http:","https:"].includes(url.protocol) && url.pathname.endsWith(".slml")) {
-        event.preventDefault();
-        navigate(url.href, true);
-      }
-    });
     links.append(link);
   }
+  positionText(textLayer, info.text || [], configureLink);
   positionControls(info.controls || []);
+}
+
+function configureLink(link, target) {
+  const url = targetURL(target, page.url);
+  link.href = url.href;
+  link.setAttribute("aria-label", target.startsWith("#") ? `Jump to ${target.slice(1)}` : `Open ${target}`);
+  link.addEventListener("click", event => {
+    if (event.detail && !document.getSelection().isCollapsed) { event.preventDefault(); return; }
+    if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (url.origin === page.url.origin && url.pathname === page.url.pathname && url.hash) {
+      event.preventDefault();
+      const y = engine.info().anchors?.[url.hash.slice(1)];
+      if (y !== undefined) scrollTo(0, y);
+    } else if (["http:","https:"].includes(url.protocol) && url.pathname.endsWith(".slml")) {
+      event.preventDefault();
+      navigate(url.href, true);
+    }
+  });
 }
 
 function rectangle(element, area) {
@@ -221,7 +231,7 @@ try {
   if (!response.ok) throw new Error("The SLML WebAssembly module is missing. Build the browser assets first.");
   module = await WebAssembly.compile(await response.arrayBuffer());
   const fonts = await SlmlEngine.create(module);
-  const faces = [["SLML Sans",400,"normal"],["SLML Sans",700,"normal"],["SLML Sans",400,"italic"],["SLML Sans",700,"italic"],["SLML Mono",400,"normal"],["SLML Mono",700,"normal"]];
+  const faces = [["SLML Sans",400,"normal"],["SLML Sans",700,"normal"],["SLML Sans",400,"italic"],["SLML Sans",700,"italic"],["SLML Mono",400,"normal"],["SLML Mono",700,"normal"],["SLML Symbols 2",400,"normal"],["SLML Symbols",400,"normal"],["SLML Math",400,"normal"],["SLML Emoji",400,"normal"]];
   for (const [index, [family, weight, style]] of faces.entries()) {
     const bytes = new Uint8Array(fonts.wasm.memory.buffer, fonts.wasm.slml_font(index), fonts.wasm.slml_font_len(index)).slice();
     const font = new FontFace(family, bytes, {weight:String(weight),style});

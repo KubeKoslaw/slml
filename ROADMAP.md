@@ -36,7 +36,8 @@ before work starts. Items marked **good first issue** are self-contained.
 
 ## 0.3 — a real browser
 
-- [ ] Text selection and copy
+- [x] Text selection and copy in the WASM preview and Firefox extension
+- [ ] Text selection and copy in the native desktop viewer
 - [ ] Find in page
 - [ ] HiDPI detection (instead of `--scale`)
 - [x] JPEG/WebP/SVG images

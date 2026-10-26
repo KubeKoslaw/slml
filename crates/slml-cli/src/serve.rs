@@ -149,6 +149,10 @@ fn respond_native(target: &str, root: &Path) -> Response {
             "text/javascript; charset=utf-8",
             include_bytes!("../../../web/viewer.mjs").as_slice(),
         )),
+        Some("text.mjs") => Some((
+            "text/javascript; charset=utf-8",
+            include_bytes!("../../../web/text.mjs").as_slice(),
+        )),
         Some("engine.mjs") => Some((
             "text/javascript; charset=utf-8",
             include_bytes!("../../../web/engine.mjs").as_slice(),
@@ -449,7 +453,7 @@ mod tests {
             "404 Not Found"
         );
         assert_eq!(
-            respond_native("/_slml/web/engine.mjs", &site.0).content_type,
+            respond_native("/_slml/web/text.mjs", &site.0).content_type,
             "text/javascript; charset=utf-8"
         );
         #[cfg(slml_web_built)]
