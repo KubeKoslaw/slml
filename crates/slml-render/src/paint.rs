@@ -38,6 +38,37 @@ impl Painter {
                 continue;
             }
             match item {
+                Item::Shadow {
+                    rect,
+                    radius,
+                    blur,
+                    offset_y,
+                    strength,
+                } => {
+                    // Approximate a blurred shadow with stacked translucent
+                    // rounded rectangles, largest first.
+                    let layers = (blur / 2.0).ceil().max(1.0) as usize;
+                    let alpha = (strength / layers as f32 * 255.0).round().clamp(1.0, 255.0) as u8;
+                    for k in 0..layers {
+                        let spread = blur * (1.0 - k as f32 / layers as f32) - blur / 2.0;
+                        let r = Rect::new(
+                            rect.x - spread,
+                            rect.y - spread + offset_y,
+                            rect.w + 2.0 * spread,
+                            rect.h + 2.0 * spread,
+                        );
+                        let r = scaled(r, scroll_y, scale);
+                        if let Some(path) = rounded_rect(r, (radius + spread).max(0.0) * scale) {
+                            target.fill_path(
+                                &path,
+                                &paint(Color(alpha as u32)),
+                                FillRule::Winding,
+                                Transform::identity(),
+                                None,
+                            );
+                        }
+                    }
+                }
                 Item::Fill {
                     rect,
                     color,
@@ -78,21 +109,21 @@ impl Painter {
                     }
                 }
                 Item::Glyphs {
-                    face,
                     size,
                     color,
                     x,
                     baseline,
                     glyphs,
+                    ..
                 } => {
                     let px = size * scale;
-                    let font = fonts.font(*face);
-                    for (gi, gx) in glyphs {
+                    for g in glyphs {
+                        let font = fonts.font(g.face);
                         let (m, cov) = self
                             .glyphs
-                            .entry((*face, *gi, px.to_bits()))
-                            .or_insert_with(|| font.rasterize_indexed(*gi, px));
-                        let left = ((x + gx) * scale + m.xmin as f32).round() as i32;
+                            .entry((g.face, g.id, px.to_bits()))
+                            .or_insert_with(|| font.rasterize_indexed(g.id, px));
+                        let left = ((x + g.x) * scale + m.xmin as f32).round() as i32;
                         let top = ((baseline - scroll_y) * scale - m.height as f32 - m.ymin as f32)
                             .round() as i32;
                         blend_coverage(target, left, top, m.width, m.height, cov, *color);

@@ -7,8 +7,9 @@ use crate::ast::*;
 use crate::diagnostic::{Diagnostic, Span};
 use crate::lexer::{Token, TokenKind, tokenize};
 
-pub fn parse(src: &str) -> Result<Document, Diagnostic> {
-    let tokens = tokenize(src)?;
+/// Parses `src`. `file` is the index recorded in spans (0 for a single file).
+pub fn parse(src: &str, file: u32) -> Result<Document, Diagnostic> {
+    let tokens = tokenize(src, file)?;
     Parser { tokens, pos: 0 }.document()
 }
 
@@ -83,26 +84,42 @@ impl Parser {
             _ => return Err(self.unexpected("a version number").with_hint(header_hint)),
         };
 
-        let mut styles = Vec::new();
-        let mut nodes = Vec::new();
+        let mut doc = Document {
+            version,
+            version_span,
+            uses: Vec::new(),
+            styles: Vec::new(),
+            defines: Vec::new(),
+            nodes: Vec::new(),
+        };
         loop {
             match &self.peek().kind {
                 TokenKind::Eof => break,
-                TokenKind::Ident(k) if k == "style" => styles.push(self.style_def()?),
-                TokenKind::Ident(_) => nodes.push(self.node()?),
+                TokenKind::Ident(k) if k == "style" => doc.styles.push(self.style_def()?),
+                TokenKind::Ident(k) if k == "define" => doc.defines.push(self.define()?),
+                TokenKind::Ident(k) if k == "use" => {
+                    self.next();
+                    match self.peek().kind.clone() {
+                        TokenKind::Str(path) => {
+                            let span = self.next().span;
+                            doc.uses.push((path, span));
+                        }
+                        _ => {
+                            return Err(self
+                                .unexpected("a file path after `use`")
+                                .with_hint("e.g. `use \"components.slml\"`"));
+                        }
+                    }
+                }
+                TokenKind::Ident(_) => doc.nodes.push(self.node()?),
                 TokenKind::Str(_) => {
                     return Err(Diagnostic::new(self.peek().span, "text outside of `page`")
                         .with_hint("put text inside an element, e.g. `text \"...\"`"));
                 }
-                _ => return Err(self.unexpected("`meta`, `style` or `page`")),
+                _ => return Err(self.unexpected("`meta`, `use`, `style`, `define` or `page`")),
             }
         }
-        Ok(Document {
-            version,
-            version_span,
-            styles,
-            nodes,
-        })
+        Ok(doc)
     }
 
     fn style_def(&mut self) -> Result<StyleDef, Diagnostic> {
@@ -117,6 +134,44 @@ impl Parser {
         Ok(StyleDef { name, span, attrs })
     }
 
+    fn define(&mut self) -> Result<Define, Diagnostic> {
+        self.next(); // `define`
+        let (name, span) = self.ident("a component name after `define`")?;
+        let mut params = Vec::new();
+        if self.eat(&TokenKind::LParen) {
+            loop {
+                if self.eat(&TokenKind::RParen) {
+                    break;
+                }
+                let (pname, pspan) = self.ident("a parameter name or `)`")?;
+                let default = if self.eat(&TokenKind::Colon) {
+                    let tok = self.next();
+                    Some((self.value(tok.kind, &pname, tok.span)?, tok.span))
+                } else {
+                    None
+                };
+                params.push(ParamDef {
+                    name: pname,
+                    span: pspan,
+                    default,
+                });
+                self.eat(&TokenKind::Comma);
+            }
+        }
+        if self.peek().kind != TokenKind::LBrace {
+            return Err(self
+                .unexpected("`{` with the component's content")
+                .with_hint("e.g. `define card(title) { column { heading $title slot } }`"));
+        }
+        let body = self.block(&name, span)?;
+        Ok(Define {
+            name,
+            span,
+            params,
+            body,
+        })
+    }
+
     fn node(&mut self) -> Result<Node, Diagnostic> {
         let (name, span) = self.ident("an element name")?;
         let mut classes = Vec::new();
@@ -129,37 +184,22 @@ impl Parser {
             Vec::new()
         };
         let mut children = Vec::new();
-        if let TokenKind::Str(text) = self.peek().kind.clone() {
-            let tspan = self.next().span;
-            children.push(Child::Text(text, tspan));
+        let label = match self.peek().kind.clone() {
+            TokenKind::Str(text) => Some(Child::Text(text, self.peek().span)),
+            TokenKind::Param(p) => Some(Child::Param(p, self.peek().span)),
+            _ => None,
+        };
+        if let Some(label) = label {
+            self.next();
+            children.push(label);
             if self.peek().kind == TokenKind::LBrace {
                 return Err(Diagnostic::new(
                     self.peek().span,
                     "an element takes either a text label or a `{ }` block, not both",
                 ));
             }
-        } else if self.eat(&TokenKind::LBrace) {
-            loop {
-                match self.peek().kind.clone() {
-                    TokenKind::RBrace => {
-                        self.next();
-                        break;
-                    }
-                    TokenKind::Eof => {
-                        return Err(Diagnostic::new(
-                            span,
-                            format!("`{name}` block is never closed"),
-                        )
-                        .with_hint("add the matching `}`"));
-                    }
-                    TokenKind::Str(text) => {
-                        let tspan = self.next().span;
-                        children.push(Child::Text(text, tspan));
-                    }
-                    TokenKind::Ident(_) => children.push(Child::Node(self.node()?)),
-                    _ => return Err(self.unexpected("an element, a string or `}`")),
-                }
-            }
+        } else if self.peek().kind == TokenKind::LBrace {
+            children = self.block(&name, span)?;
         }
         Ok(Node {
             name,
@@ -167,6 +207,52 @@ impl Parser {
             classes,
             attrs,
             children,
+        })
+    }
+
+    fn block(&mut self, owner: &str, owner_span: Span) -> Result<Vec<Child>, Diagnostic> {
+        self.expect(TokenKind::LBrace, "to start a block")?;
+        let mut children = Vec::new();
+        loop {
+            match self.peek().kind.clone() {
+                TokenKind::RBrace => {
+                    self.next();
+                    return Ok(children);
+                }
+                TokenKind::Eof => {
+                    return Err(Diagnostic::new(
+                        owner_span,
+                        format!("`{owner}` block is never closed"),
+                    )
+                    .with_hint("add the matching `}`"));
+                }
+                TokenKind::Str(text) => {
+                    let tspan = self.next().span;
+                    children.push(Child::Text(text, tspan));
+                }
+                TokenKind::Param(p) => {
+                    let tspan = self.next().span;
+                    children.push(Child::Param(p, tspan));
+                }
+                TokenKind::Ident(_) => children.push(Child::Node(self.node()?)),
+                _ => return Err(self.unexpected("an element, a string or `}`")),
+            }
+        }
+    }
+
+    fn value(&self, kind: TokenKind, name: &str, span: Span) -> Result<Value, Diagnostic> {
+        Ok(match kind {
+            TokenKind::Number(n, _) => Value::Number(n),
+            TokenKind::Str(s) => Value::Str(s),
+            TokenKind::Color(c) => Value::Color(c),
+            TokenKind::Ident(i) => Value::Ident(i),
+            TokenKind::Param(p) => Value::Param(p),
+            other => {
+                return Err(Diagnostic::new(
+                    span,
+                    format!("expected a value for `{name}`, found {}", other.describe()),
+                ));
+            }
         })
     }
 
@@ -185,18 +271,7 @@ impl Parser {
             }
             self.next();
             let tok = self.next();
-            let value = match tok.kind {
-                TokenKind::Number(n, _) => Value::Number(n),
-                TokenKind::Str(s) => Value::Str(s),
-                TokenKind::Color(c) => Value::Color(c),
-                TokenKind::Ident(i) => Value::Ident(i),
-                other => {
-                    return Err(Diagnostic::new(
-                        tok.span,
-                        format!("expected a value for `{name}`, found {}", other.describe()),
-                    ));
-                }
-            };
+            let value = self.value(tok.kind, &name, tok.span)?;
             attrs.push(Attr {
                 name,
                 span,
@@ -224,6 +299,7 @@ mod tests {
                 image(src: "a.png", alt: "A")
               }
             }"#,
+            0,
         )
         .unwrap();
         assert_eq!(doc.version, "0.1");
@@ -237,19 +313,42 @@ mod tests {
     }
 
     #[test]
+    fn parses_defines_and_uses() {
+        let doc = parse(
+            r#"slml 0.1
+            use "parts.slml"
+            define card(title, tone: "plain") { column { heading $title slot } }
+            define footer { text "bye" }
+            page { card(title: "x") { text "body" } }"#,
+            0,
+        )
+        .unwrap();
+        assert_eq!(doc.uses[0].0, "parts.slml");
+        assert_eq!(doc.defines.len(), 2);
+        assert_eq!(doc.defines[0].params.len(), 2);
+        assert!(doc.defines[0].params[1].default.is_some());
+        assert!(doc.defines[1].params.is_empty());
+    }
+
+    #[test]
     fn rejects_label_and_block() {
-        let err = parse("slml 0.1 page { text \"a\" { } }").unwrap_err();
+        let err = parse("slml 0.1 page { text \"a\" { } }", 0).unwrap_err();
         assert!(err.message.contains("not both"));
     }
 
     #[test]
     fn requires_header() {
-        assert!(parse("page { }").unwrap_err().message.contains("version"));
+        assert!(
+            parse("page { }", 0)
+                .unwrap_err()
+                .message
+                .contains("version")
+        );
     }
 
     #[test]
     fn unclosed_block_points_at_opener() {
-        let err = parse("slml 0.1\npage {\n  column {\n").unwrap_err();
+        let err = parse("slml 0.1\npage {\n  column {\n", 0).unwrap_err();
         assert_eq!(err.span.line, 3);
     }
 }

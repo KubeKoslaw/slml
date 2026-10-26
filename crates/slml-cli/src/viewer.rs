@@ -9,7 +9,7 @@ use slml_render::images::ImageStore;
 use slml_render::{Layout, Pixmap, Renderer};
 use slml_syntax::model::Document;
 
-use crate::{base_dir, load};
+use crate::project::{base_dir, compile_file, resolve};
 
 const LINE_STEP: f32 = 48.0;
 
@@ -19,9 +19,45 @@ struct Page {
     modified: Option<SystemTime>,
 }
 
-fn open(path: &Path) -> Page {
+/// What clicking a link does.
+enum Target {
+    /// `https:`, `mailto:` …: handed to the system's default program.
+    External(String),
+    /// Another document, optionally scrolled to an anchor.
+    Document(PathBuf, Option<String>),
+    /// `#id` on the current page.
+    Anchor(String),
+}
+
+fn classify(to: &str, page: &Path, root: &Path) -> Target {
+    if slml_syntax::analyze::is_external(to) {
+        return Target::External(to.to_string());
+    }
+    match to.split_once('#') {
+        Some(("", id)) => Target::Anchor(id.to_string()),
+        Some((path, id)) => Target::Document(resolve(root, page, path), Some(id.to_string())),
+        None => Target::Document(resolve(root, page, to), None),
+    }
+}
+
+fn open_external(url: &str) {
+    let result = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(url).spawn()
+    } else if cfg!(windows) {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .spawn()
+    } else {
+        std::process::Command::new("xdg-open").arg(url).spawn()
+    };
+    if let Err(e) = result {
+        eprintln!("slml: cannot open {url}: {e}");
+    }
+}
+
+fn open(path: &Path, root: &Path) -> Page {
     let modified = std::fs::metadata(path).and_then(|m| m.modified()).ok();
-    let doc = load(path).unwrap_or_else(|errors| {
+    let doc = compile_file(path, root).unwrap_or_else(|errors| {
         eprintln!("{errors}");
         error_page(path, &errors)
     });
@@ -77,12 +113,14 @@ fn title_of(page: &Page) -> String {
     }
 }
 
-pub fn run(path: PathBuf, scale: f32) -> Result<(), String> {
+pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
     if !path.exists() {
         return Err(format!("error: {} does not exist", path.display()));
     }
-    let mut page = open(&path);
+    let mut page = open(&path, &root);
     let mut renderer = Renderer::new(base_dir(&path));
+    renderer.images = ImageStore::with_root(base_dir(&path), &root);
+    let mut pending_anchor: Option<String> = None;
     let mut history: Vec<PathBuf> = Vec::new();
 
     let mut window = Window::new(
@@ -129,7 +167,7 @@ pub fn run(path: PathBuf, scale: f32) -> Result<(), String> {
             reload |= modified != page.modified;
         }
         if reload {
-            page = open(&page.path);
+            page = open(&page.path, &root);
             renderer.images.clear();
             window.set_title(&title_of(&page));
             layout = None;
@@ -140,6 +178,9 @@ pub fn run(path: PathBuf, scale: f32) -> Result<(), String> {
             renderer.layout(&page.doc, view_w, view_h)
         });
         let max_scroll = (lay.height - view_h).max(0.0);
+        if let Some(id) = pending_anchor.take() {
+            scroll = lay.anchor(&id).unwrap_or(0.0);
+        }
 
         // Scrolling.
         let before = scroll;
@@ -184,30 +225,34 @@ pub fn run(path: PathBuf, scale: f32) -> Result<(), String> {
         let clicked = down && !mouse_was_down;
         mouse_was_down = down;
 
-        let mut go_to: Option<PathBuf> = None;
+        let mut go_to: Option<(PathBuf, Option<String>)> = None;
         if clicked && let Some(t) = &target {
-            if t.contains("://") {
-                eprintln!("slml: external links are not supported yet: {t}");
-            } else {
-                go_to = Some(base_dir(&page.path).join(t));
+            match classify(t, &page.path, &root) {
+                Target::External(url) => open_external(&url),
+                Target::Anchor(id) => {
+                    scroll = lay.anchor(&id).unwrap_or(scroll).clamp(0.0, max_scroll);
+                    dirty = true;
+                }
+                Target::Document(path, anchor) => go_to = Some((path, anchor)),
             }
         }
         if window.is_key_pressed(Key::Backspace, KeyRepeat::No)
             && let Some(prev) = history.pop()
         {
-            page = open(&prev);
+            page = open(&prev, &root);
             go_to = None;
             layout = None;
             scroll = 0.0;
-            renderer.images = ImageStore::new(base_dir(&page.path));
+            renderer.images = ImageStore::with_root(base_dir(&page.path), &root);
             window.set_title(&title_of(&page));
         }
-        if let Some(next) = go_to {
+        if let Some((next, anchor)) = go_to {
             history.push(page.path.clone());
-            page = open(&next);
+            page = open(&next, &root);
             layout = None;
             scroll = 0.0;
-            renderer.images = ImageStore::new(base_dir(&page.path));
+            pending_anchor = anchor;
+            renderer.images = ImageStore::with_root(base_dir(&page.path), &root);
             window.set_title(&title_of(&page));
         }
 

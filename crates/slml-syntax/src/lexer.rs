@@ -6,9 +6,11 @@ use crate::diagnostic::{Diagnostic, Span};
 pub enum TokenKind {
     /// `column`, `max-width`, `padding-x` …
     Ident(String),
+    /// `$title`: a component parameter (without the `$`).
+    Param(String),
     /// `16`, `0.5`. The original text is kept so `slml 0.1` can be read exactly.
     Number(f64, String),
-    /// `"Hello"` with escapes already resolved.
+    /// `"Hello"` with escapes already resolved, or a raw `"""` block.
     Str(String),
     /// `#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa`, normalized to 0xRRGGBBAA.
     Color(u32),
@@ -26,6 +28,7 @@ impl TokenKind {
     pub fn describe(&self) -> String {
         match self {
             TokenKind::Ident(s) => format!("`{s}`"),
+            TokenKind::Param(s) => format!("`${s}`"),
             TokenKind::Number(_, s) => format!("number `{s}`"),
             TokenKind::Str(_) => "a string".into(),
             TokenKind::Color(_) => "a color".into(),
@@ -47,27 +50,27 @@ pub struct Token {
     pub span: Span,
 }
 
-pub fn tokenize(src: &str) -> Result<Vec<Token>, Diagnostic> {
-    Lexer::new(src).run()
+/// Tokenizes `src`; `file` is recorded in every span (see [`Span::file`]).
+pub fn tokenize(src: &str, file: u32) -> Result<Vec<Token>, Diagnostic> {
+    Lexer {
+        src,
+        file,
+        pos: 0,
+        line: 1,
+        col: 1,
+    }
+    .run()
 }
 
 struct Lexer<'a> {
     src: &'a str,
+    file: u32,
     pos: usize,
     line: u32,
     col: u32,
 }
 
-impl<'a> Lexer<'a> {
-    fn new(src: &'a str) -> Self {
-        Self {
-            src,
-            pos: 0,
-            line: 1,
-            col: 1,
-        }
-    }
-
+impl Lexer<'_> {
     fn peek(&self) -> Option<char> {
         self.src[self.pos..].chars().next()
     }
@@ -90,13 +93,18 @@ impl<'a> Lexer<'a> {
         Some(c)
     }
 
-    fn span_from(&self, start: usize, line: u32, col: u32) -> Span {
+    fn span(&self, start: usize, end: usize, line: u32, col: u32) -> Span {
         Span {
+            file: self.file,
             start,
-            end: self.pos,
+            end,
             line,
             col,
         }
+    }
+
+    fn span_from(&self, start: usize, line: u32, col: u32) -> Span {
+        self.span(start, self.pos, line, col)
     }
 
     fn run(mut self) -> Result<Vec<Token>, Diagnostic> {
@@ -119,8 +127,29 @@ impl<'a> Lexer<'a> {
                 ':' => TokenKind::Colon,
                 ',' => TokenKind::Comma,
                 '.' => TokenKind::Dot,
+                '"' if self.src[self.pos..].starts_with("\"\"") => {
+                    self.bump();
+                    self.bump();
+                    self.raw_string(start, line, col)?
+                }
                 '"' => self.string(start, line, col)?,
                 '#' => self.color(start, line, col)?,
+                '$' => {
+                    if !self
+                        .peek()
+                        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                    {
+                        return Err(Diagnostic::new(
+                            self.span_from(start, line, col),
+                            "expected a parameter name after `$`",
+                        ));
+                    }
+                    let name_start = self.pos;
+                    match self.ident(name_start) {
+                        TokenKind::Ident(name) => TokenKind::Param(name),
+                        other => other,
+                    }
+                }
                 c if c.is_ascii_digit() => self.number(start),
                 c if c.is_ascii_alphabetic() || c == '_' => self.ident(start),
                 other => {
@@ -221,16 +250,11 @@ impl<'a> Lexer<'a> {
                 Some('"') => return Ok(TokenKind::Str(out)),
                 Some('\n') | None => {
                     return Err(Diagnostic::new(
-                        Span {
-                            start,
-                            end: start + 1,
-                            line,
-                            col,
-                        },
+                        self.span(start, start + 1, line, col),
                         "unterminated string",
                     )
                     .with_hint(
-                        "strings end on the same line; use `\\n` for a line break or split text into several strings",
+                        "strings end on the same line; use `\\n` for a line break or a \"\"\" block for several lines",
                     ));
                 }
                 Some('\\') => match self.bump() {
@@ -250,6 +274,31 @@ impl<'a> Lexer<'a> {
                 Some(c) => out.push(c),
             }
         }
+    }
+
+    /// `"""` block string: raw (no escapes), may span lines. The line break
+    /// after the opening `"""` is dropped, and if the closing `"""` stands on
+    /// its own line, that line is dropped and its indentation is removed
+    /// from every line. See SPEC.md §2.
+    fn raw_string(&mut self, start: usize, line: u32, col: u32) -> Result<TokenKind, Diagnostic> {
+        let body_start = self.pos;
+        loop {
+            if self.src[self.pos..].starts_with("\"\"\"") {
+                break;
+            }
+            if self.bump().is_none() {
+                return Err(Diagnostic::new(
+                    self.span(start, start + 3, line, col),
+                    "unterminated \"\"\" string",
+                )
+                .with_hint("close it with \"\"\""));
+            }
+        }
+        let body = &self.src[body_start..self.pos];
+        self.bump();
+        self.bump();
+        self.bump();
+        Ok(TokenKind::Str(dedent(body)))
     }
 
     fn unicode_escape(&mut self, esc: (usize, u32, u32)) -> Result<char, Diagnostic> {
@@ -282,12 +331,7 @@ impl<'a> Lexer<'a> {
         let hex = &self.src[hex_start..self.pos];
         let bad = || {
             Diagnostic::new(
-                Span {
-                    start,
-                    end: hex_start + hex.len(),
-                    line,
-                    col,
-                },
+                self.span(start, hex_start + hex.len(), line, col),
                 format!("invalid color `#{hex}`"),
             )
             .with_hint("colors are #rgb, #rgba, #rrggbb or #rrggbbaa")
@@ -308,18 +352,58 @@ impl<'a> Lexer<'a> {
     }
 }
 
+fn dedent(body: &str) -> String {
+    let body = body
+        .strip_prefix("\r\n")
+        .or_else(|| body.strip_prefix('\n'))
+        .unwrap_or(body);
+    let mut lines: Vec<&str> = body
+        .split('\n')
+        .map(|l| l.strip_suffix('\r').unwrap_or(l))
+        .collect();
+    let indent = match lines.last() {
+        Some(last) if last.chars().all(|c| c == ' ' || c == '\t') && lines.len() > 1 => {
+            let n = last.chars().count();
+            lines.pop();
+            n
+        }
+        Some(last) if last.chars().all(|c| c == ' ' || c == '\t') => {
+            lines.pop();
+            0
+        }
+        _ => 0,
+    };
+    lines
+        .iter()
+        .map(|l| {
+            let strip = l
+                .chars()
+                .take(indent)
+                .take_while(|c| *c == ' ' || *c == '\t')
+                .map(char::len_utf8)
+                .sum::<usize>();
+            &l[strip..]
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn kinds(src: &str) -> Vec<TokenKind> {
-        tokenize(src).unwrap().into_iter().map(|t| t.kind).collect()
+        tokenize(src, 0)
+            .unwrap()
+            .into_iter()
+            .map(|t| t.kind)
+            .collect()
     }
 
     #[test]
     fn basic_tokens() {
         assert_eq!(
-            kinds(r##"row(max-width: 12.5, fill: #fff) { "a\"b" } // hi"##),
+            kinds(r##"row(max-width: 12.5, fill: #fff) { "a\"b" $t } // hi"##),
             vec![
                 TokenKind::Ident("row".into()),
                 TokenKind::LParen,
@@ -333,6 +417,7 @@ mod tests {
                 TokenKind::RParen,
                 TokenKind::LBrace,
                 TokenKind::Str("a\"b".into()),
+                TokenKind::Param("t".into()),
                 TokenKind::RBrace,
                 TokenKind::Eof,
             ]
@@ -341,27 +426,46 @@ mod tests {
 
     #[test]
     fn unicode_and_positions() {
-        let toks = tokenize("\"zażółć\"\n  \"\\u{1F600}\"").unwrap();
+        let toks = tokenize("\"zażółć\"\n  \"\\u{1F600}\"", 3).unwrap();
         assert_eq!(toks[0].kind, TokenKind::Str("zażółć".into()));
         assert_eq!(toks[1].kind, TokenKind::Str("😀".into()));
-        assert_eq!((toks[1].span.line, toks[1].span.col), (2, 3));
+        assert_eq!(
+            (toks[1].span.line, toks[1].span.col, toks[1].span.file),
+            (2, 3, 3)
+        );
+    }
+
+    #[test]
+    fn raw_block_strings_are_dedented() {
+        let src = "codeblock \"\"\"\n    page {\n      text \"hi\"\n    }\n    \"\"\" x";
+        let toks = kinds(src);
+        assert_eq!(toks[1], TokenKind::Str("page {\n  text \"hi\"\n}".into()));
+        assert_eq!(toks[2], TokenKind::Ident("x".into()));
+        assert_eq!(kinds(r#""""a\nb""""#)[0], TokenKind::Str("a\\nb".into()));
     }
 
     #[test]
     fn errors() {
         assert!(
-            tokenize("\"open")
+            tokenize("\"open", 0)
                 .unwrap_err()
                 .message
                 .contains("unterminated")
         );
         assert!(
-            tokenize("#12345")
+            tokenize("\"\"\"open", 0)
+                .unwrap_err()
+                .message
+                .contains("unterminated")
+        );
+        assert!(
+            tokenize("#12345", 0)
                 .unwrap_err()
                 .message
                 .contains("invalid color")
         );
-        assert!(tokenize("<p>").unwrap_err().hint.is_some());
-        assert!(tokenize("/* x").is_err());
+        assert!(tokenize("<p>", 0).unwrap_err().hint.is_some());
+        assert!(tokenize("/* x", 0).is_err());
+        assert!(tokenize("$ x", 0).is_err());
     }
 }

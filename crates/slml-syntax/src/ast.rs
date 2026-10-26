@@ -1,5 +1,6 @@
 //! Untyped syntax tree, exactly as written in the source.
-//! [`crate::analyze`] turns it into the typed [`crate::model`].
+//! [`crate::expand`] replaces component calls, then [`crate::analyze`] turns
+//! the tree into the typed [`crate::model`].
 
 use crate::diagnostic::Span;
 
@@ -8,7 +9,10 @@ pub struct Document {
     /// The `0.1` in `slml 0.1`.
     pub version: String,
     pub version_span: Span,
+    /// `use "components.slml"`
+    pub uses: Vec<(String, Span)>,
     pub styles: Vec<StyleDef>,
+    pub defines: Vec<Define>,
     /// Top-level nodes: `meta` and `page`.
     pub nodes: Vec<Node>,
 }
@@ -19,6 +23,22 @@ pub struct StyleDef {
     pub name: String,
     pub span: Span,
     pub attrs: Vec<Attr>,
+}
+
+/// `define card(title, tone: "plain") { column { heading $title  slot } }`
+#[derive(Debug, Clone, PartialEq)]
+pub struct Define {
+    pub name: String,
+    pub span: Span,
+    pub params: Vec<ParamDef>,
+    pub body: Vec<Child>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParamDef {
+    pub name: String,
+    pub span: Span,
+    pub default: Option<(Value, Span)>,
 }
 
 /// `row.card(gap: 8) { ... }` or `text "Hello"`.
@@ -36,6 +56,8 @@ pub struct Node {
 pub enum Child {
     Node(Node),
     Text(String, Span),
+    /// `$title` used as content inside a `define`.
+    Param(String, Span),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -53,6 +75,8 @@ pub enum Value {
     /// 0xRRGGBBAA
     Color(u32),
     Ident(String),
+    /// `$name`, only valid inside a `define`.
+    Param(String),
 }
 
 impl Value {
@@ -62,6 +86,7 @@ impl Value {
             Value::Str(_) => "a string",
             Value::Color(_) => "a color",
             Value::Ident(_) => "a name",
+            Value::Param(_) => "a parameter",
         }
     }
 }

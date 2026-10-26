@@ -1,5 +1,6 @@
 //! The `slml` command.
 
+mod project;
 mod viewer;
 
 use std::path::{Path, PathBuf};
@@ -54,22 +55,7 @@ fn main() -> ExitCode {
 
 /// Reads and compiles a file; on failure returns all diagnostics, formatted.
 pub fn load(path: &Path) -> Result<Document, String> {
-    let src = std::fs::read_to_string(path)
-        .map_err(|e| format!("error: cannot read {}: {e}", path.display()))?;
-    let name = path.display().to_string();
-    slml_syntax::compile(&src).map_err(|errors| {
-        let mut out: String = errors
-            .iter()
-            .map(|d| d.render(&src, &name))
-            .collect::<Vec<_>>()
-            .join("\n");
-        out.push_str(&format!(
-            "\n{} error{} in {name}",
-            errors.len(),
-            if errors.len() == 1 { "" } else { "s" }
-        ));
-        out
-    })
+    project::compile_file(path, &project::default_root(path))
 }
 
 struct Opts {
@@ -139,7 +125,11 @@ fn render(args: &[String]) -> Result<(), String> {
         return Err("render takes exactly one file".into());
     };
     let doc = load(file)?;
-    let mut renderer = Renderer::new(base_dir(file));
+    let mut renderer = Renderer::new(project::base_dir(file));
+    renderer.images = slml_render::images::ImageStore::with_root(
+        project::base_dir(file),
+        project::default_root(file),
+    );
     let pixmap = renderer.render_page(&doc, o.width, o.scale);
     let out = o.out.unwrap_or_else(|| file.with_extension("png"));
     pixmap
@@ -159,12 +149,5 @@ fn view(args: &[String]) -> Result<(), String> {
     let [file] = o.files.as_slice() else {
         return Err("view takes exactly one file".into());
     };
-    viewer::run(file.clone(), o.scale)
-}
-
-pub fn base_dir(file: &Path) -> PathBuf {
-    file.parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from("."))
+    viewer::run(file.clone(), project::default_root(file), o.scale)
 }

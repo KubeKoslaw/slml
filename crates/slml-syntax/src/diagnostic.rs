@@ -7,9 +7,11 @@
 use std::fmt;
 
 /// A position range in the source text. Lines and columns are 1-based,
-/// columns count Unicode scalar values.
+/// columns count Unicode scalar values. `file` indexes a [`SourceMap`]
+/// (0 is the document being compiled, higher numbers are imported files).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Span {
+    pub file: u32,
     pub start: usize,
     pub end: usize,
     pub line: u32,
@@ -85,6 +87,53 @@ impl fmt::Display for Diagnostic {
             write!(f, " (hint: {hint})")?;
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceFile {
+    /// Display name, usually the path.
+    pub name: String,
+    pub src: String,
+}
+
+/// All files that took part in a compilation, so diagnostics can be shown
+/// with the right source line.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SourceMap {
+    pub files: Vec<SourceFile>,
+}
+
+impl SourceMap {
+    pub fn add(&mut self, name: impl Into<String>, src: impl Into<String>) -> u32 {
+        self.files.push(SourceFile {
+            name: name.into(),
+            src: src.into(),
+        });
+        (self.files.len() - 1) as u32
+    }
+
+    pub fn render(&self, d: &Diagnostic) -> String {
+        match self.files.get(d.span.file as usize) {
+            Some(f) => d.render(&f.src, &f.name),
+            None => format!("error: {d}\n"),
+        }
+    }
+
+    /// All diagnostics plus a summary line.
+    pub fn render_all(&self, diagnostics: &[Diagnostic]) -> String {
+        let mut out: Vec<String> = diagnostics.iter().map(|d| self.render(d)).collect();
+        let main = self
+            .files
+            .first()
+            .map(|f| f.name.as_str())
+            .unwrap_or("input");
+        let n = diagnostics.len();
+        out.push(format!(
+            "{n} error{} in {main}",
+            if n == 1 { "" } else { "s" }
+        ));
+        out.join("\n")
     }
 }
 

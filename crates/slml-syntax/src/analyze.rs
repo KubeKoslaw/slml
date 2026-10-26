@@ -1,8 +1,10 @@
-//! Validation: turns the untyped [`ast`] into the typed [`model`].
+//! Validation: turns the (component-expanded) [`ast`] into the typed
+//! [`model`].
 //!
 //! This is where SLML's strictness lives. Unknown elements, unknown or
 //! misplaced attributes, wrong value types, missing required attributes
-//! (like an image's `alt`) and content in the wrong place are all errors.
+//! (like an image's `alt` or a field's `label`), content in the wrong place,
+//! nested links, duplicate ids and links to missing anchors are all errors.
 //! All errors in a document are collected, not just the first one.
 
 use std::collections::{HashMap, HashSet};
@@ -19,12 +21,23 @@ enum Kind {
     Page,
     Column,
     Row,
+    Grid,
+    Form,
+    List,
+    Item,
     Text,
     Heading,
     Button,
+    Submit,
+    Codeblock,
     Image,
     Divider,
     Spacer,
+    Input,
+    Textarea,
+    Checkbox,
+    Select,
+    Option,
     Bold,
     Italic,
     Code,
@@ -37,12 +50,23 @@ const ELEMENTS: &[(&str, Kind)] = &[
     ("page", Kind::Page),
     ("column", Kind::Column),
     ("row", Kind::Row),
+    ("grid", Kind::Grid),
+    ("form", Kind::Form),
+    ("list", Kind::List),
+    ("item", Kind::Item),
     ("text", Kind::Text),
     ("heading", Kind::Heading),
     ("button", Kind::Button),
+    ("submit", Kind::Submit),
+    ("codeblock", Kind::Codeblock),
     ("image", Kind::Image),
     ("divider", Kind::Divider),
     ("spacer", Kind::Spacer),
+    ("input", Kind::Input),
+    ("textarea", Kind::Textarea),
+    ("checkbox", Kind::Checkbox),
+    ("select", Kind::Select),
+    ("option", Kind::Option),
     ("bold", Kind::Bold),
     ("italic", Kind::Italic),
     ("code", Kind::Code),
@@ -54,14 +78,18 @@ const ELEMENTS: &[(&str, Kind)] = &[
 enum Category {
     Meta,
     Container,
+    List,
     TextBlock,
     Leaf,
+    Field,
+    Option,
     Inline,
 }
 
 const FRAME: &[&str] = &[
     "width",
     "height",
+    "min-width",
     "max-width",
     "padding",
     "padding-x",
@@ -70,9 +98,12 @@ const FRAME: &[&str] = &[
     "radius",
     "border",
     "border-color",
+    "shadow",
+    "id",
 ];
 const FLOW: &[&str] = &["gap", "align", "justify"];
 const TEXT: &[&str] = &["color", "size", "bold", "italic", "font", "underline"];
+const FIELD: &[&str] = &["name", "label", "required"];
 
 impl Kind {
     fn name(self) -> &'static str {
@@ -86,23 +117,42 @@ impl Kind {
     fn category(self) -> Category {
         match self {
             Kind::Meta => Category::Meta,
-            Kind::Page | Kind::Column | Kind::Row => Category::Container,
-            Kind::Text | Kind::Heading | Kind::Button => Category::TextBlock,
+            Kind::Page | Kind::Column | Kind::Row | Kind::Grid | Kind::Form => Category::Container,
+            Kind::List => Category::List,
+            Kind::Item
+            | Kind::Text
+            | Kind::Heading
+            | Kind::Button
+            | Kind::Submit
+            | Kind::Codeblock => Category::TextBlock,
             Kind::Image | Kind::Divider | Kind::Spacer => Category::Leaf,
+            Kind::Input | Kind::Textarea | Kind::Checkbox | Kind::Select => Category::Field,
+            Kind::Option => Category::Option,
             Kind::Bold | Kind::Italic | Kind::Code | Kind::Link | Kind::Span => Category::Inline,
         }
     }
 
     fn attr_groups(self) -> &'static [&'static [&'static str]] {
         match self {
-            Kind::Meta => &[&["title", "lang", "description"]],
-            Kind::Page | Kind::Column | Kind::Row => &[FRAME, FLOW, TEXT],
-            Kind::Text => &[FRAME, TEXT, &["align"]],
+            Kind::Meta => &[&["title", "lang", "description", "icon"]],
+            Kind::Page => &[FRAME, FLOW, TEXT],
+            Kind::Column => &[FRAME, FLOW, TEXT, &["to"]],
+            Kind::Row => &[FRAME, FLOW, TEXT, &["to", "wrap"]],
+            Kind::Grid => &[FRAME, FLOW, TEXT, &["columns", "cell-width"]],
+            Kind::Form => &[FRAME, FLOW, TEXT, &["to", "method"]],
+            Kind::List => &[FRAME, TEXT, &["gap", "marker"]],
+            Kind::Item => &[TEXT, &["align", "id"]],
+            Kind::Text | Kind::Submit | Kind::Codeblock => &[FRAME, TEXT, &["align"]],
             Kind::Heading => &[FRAME, TEXT, &["align", "level"]],
             Kind::Button => &[FRAME, TEXT, &["align", "to"]],
-            Kind::Image => &[FRAME, &["src", "alt"]],
-            Kind::Divider => &[&["width", "color", "thickness"]],
+            Kind::Image => &[FRAME, &["src", "alt", "to"]],
+            Kind::Divider => &[&["width", "color", "thickness", "id"]],
             Kind::Spacer => &[&["width", "height"]],
+            Kind::Input => &[FRAME, TEXT, FIELD, &["kind", "placeholder", "value"]],
+            Kind::Textarea => &[FRAME, TEXT, FIELD, &["placeholder", "value", "rows"]],
+            Kind::Checkbox => &[TEXT, FIELD, &["checked", "id"]],
+            Kind::Select => &[FRAME, TEXT, FIELD],
+            Kind::Option => &[&["value", "selected"]],
             Kind::Bold | Kind::Italic | Kind::Code | Kind::Span => &[TEXT],
             Kind::Link => &[TEXT, &["to"]],
         }
@@ -127,7 +177,8 @@ fn all_attr_names() -> Vec<&'static str> {
     names
 }
 
-fn element_names() -> Vec<&'static str> {
+/// Names of all built-in elements (components may not reuse them).
+pub fn element_names() -> Vec<&'static str> {
     ELEMENTS.iter().map(|(n, _)| *n).collect()
 }
 
@@ -136,6 +187,7 @@ fn element_names() -> Vec<&'static str> {
 struct Props {
     width: Option<Size>,
     height: Option<Size>,
+    min_width: Option<f32>,
     max_width: Option<f32>,
     padding: Option<f32>,
     padding_x: Option<f32>,
@@ -144,10 +196,17 @@ struct Props {
     radius: Option<f32>,
     border: Option<f32>,
     border_color: Option<Color>,
+    shadow: Option<Shadow>,
+    id: Option<String>,
     gap: Option<f32>,
     align: Option<Align>,
     text_align: Option<TextAlign>,
     justify: Option<Justify>,
+    wrap: Option<bool>,
+    columns: Option<u32>,
+    cell_width: Option<f32>,
+    method: Option<Method>,
+    marker: Option<Marker>,
     text: TextStyle,
     level: Option<u8>,
     to: Option<String>,
@@ -157,8 +216,21 @@ struct Props {
     title: Option<String>,
     lang: Option<String>,
     description: Option<String>,
+    icon: Option<String>,
+    name: Option<String>,
+    label: Option<String>,
+    required: Option<bool>,
+    input_kind: Option<InputKind>,
+    placeholder: Option<String>,
+    value: Option<String>,
+    rows: Option<u32>,
+    checked: Option<bool>,
+    selected: Option<bool>,
     /// Attributes that were written, even if their value was invalid.
     given: HashSet<String>,
+    /// Where `id` and `to` were written, for later checks.
+    id_span: Span,
+    to_span: Span,
 }
 
 impl Props {
@@ -168,6 +240,9 @@ impl Props {
         }
         if let Some(v) = self.height {
             f.height = v;
+        }
+        if self.min_width.is_some() {
+            f.min_width = self.min_width;
         }
         if self.max_width.is_some() {
             f.max_width = self.max_width;
@@ -194,6 +269,13 @@ impl Props {
         if self.border_color.is_some() {
             f.border_color = self.border_color;
         }
+        if let Some(v) = self.shadow {
+            f.shadow = v;
+        }
+        f.id = self.id.clone();
+        if self.to.is_some() {
+            f.link = self.to.clone();
+        }
         f
     }
 
@@ -206,6 +288,9 @@ impl Props {
         }
         if let Some(v) = self.justify {
             f.justify = v;
+        }
+        if let Some(v) = self.wrap {
+            f.wrap = v;
         }
         f
     }
@@ -242,6 +327,17 @@ fn number(a: &ast::Attr) -> Result<f32, Diagnostic> {
         Value::Number(n) => Ok(n as f32),
         _ => Err(type_error(a, "a number")),
     }
+}
+
+fn whole(a: &ast::Attr, min: u32, max: u32) -> Result<u32, Diagnostic> {
+    let n = number(a)?;
+    if n.fract() != 0.0 || n < min as f32 || n > max as f32 {
+        return Err(Diagnostic::new(
+            a.value_span,
+            format!("`{}` must be a whole number from {min} to {max}", a.name),
+        ));
+    }
+    Ok(n as u32)
 }
 
 fn size(a: &ast::Attr) -> Result<Size, Diagnostic> {
@@ -296,10 +392,95 @@ fn choice(a: &ast::Attr, options: &[&'static str]) -> Result<&'static str, Diagn
     }
 }
 
+fn valid_id(s: &str) -> bool {
+    let mut chars = s.chars();
+    chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Checks a local file path: relative to the document, or starting with `/`
+/// for the site root. It may never leave the site (`..`).
+pub fn check_path(path: &str) -> Result<(), &'static str> {
+    if path.is_empty() {
+        return Err("the path is empty");
+    }
+    if path.contains('\\') {
+        return Err("use `/` as the path separator");
+    }
+    if path.starts_with("//") || path.get(1..2) == Some(":") {
+        return Err("only paths inside the site are allowed");
+    }
+    if path.split('/').any(|c| c == "..") {
+        return Err("`..` is not allowed; start the path with `/` to begin at the site root");
+    }
+    Ok(())
+}
+
+const SCHEMES: &[&str] = &["https", "http", "mailto", "tel"];
+
+/// Is `to` an external URL (`https:`, `mailto:` …)?
+pub fn is_external(to: &str) -> bool {
+    to.split_once(':')
+        .is_some_and(|(scheme, _)| !scheme.contains('/') && !scheme.contains('#'))
+}
+
+fn link_target(a: &ast::Attr) -> Result<String, Diagnostic> {
+    let s = string(a)?;
+    let err = |msg: &str| Diagnostic::new(a.value_span, format!("invalid link target: {msg}"));
+    if s.is_empty() {
+        return Err(err("it is empty"));
+    }
+    if is_external(&s) {
+        let scheme = s.split(':').next().unwrap_or("");
+        if !SCHEMES.contains(&scheme) {
+            return Err(err(&format!("`{scheme}:` links are not allowed"))
+                .with_hint("use https:, http:, mailto: or tel:, or a path to a .slml file"));
+        }
+        return Ok(s);
+    }
+    let (path, fragment) = match s.split_once('#') {
+        Some((p, f)) => (p, Some(f)),
+        None => (s.as_str(), None),
+    };
+    if let Some(f) = fragment
+        && !valid_id(f)
+    {
+        return Err(err("`#` must be followed by an element id"));
+    }
+    if !path.is_empty() {
+        check_path(path).map_err(err)?;
+    }
+    Ok(s)
+}
+
+fn file_path(a: &ast::Attr) -> Result<String, Diagnostic> {
+    let s = string(a)?;
+    if s.starts_with("https://") || s.starts_with("http://") {
+        return Ok(s);
+    }
+    check_path(&s).map_err(|msg| {
+        Diagnostic::new(a.value_span, format!("invalid path: {msg}"))
+            .with_hint("use a path relative to this file, or one starting with `/`")
+    })?;
+    Ok(s)
+}
+
+fn non_empty(a: &ast::Attr) -> Result<String, Diagnostic> {
+    let s = string(a)?;
+    if s.trim().is_empty() {
+        return Err(Diagnostic::new(
+            a.value_span,
+            format!("`{}` cannot be empty", a.name),
+        ));
+    }
+    Ok(s)
+}
+
 fn apply_attr(p: &mut Props, kind: Kind, a: &ast::Attr) -> Result<(), Diagnostic> {
     match a.name.as_str() {
         "width" => p.width = Some(size(a)?),
         "height" => p.height = Some(size(a)?),
+        "min-width" => p.min_width = Some(number(a)?),
         "max-width" => p.max_width = Some(number(a)?),
         "padding" => p.padding = Some(number(a)?),
         "padding-x" => p.padding_x = Some(number(a)?),
@@ -308,8 +489,26 @@ fn apply_attr(p: &mut Props, kind: Kind, a: &ast::Attr) -> Result<(), Diagnostic
         "radius" => p.radius = Some(number(a)?),
         "border" => p.border = Some(number(a)?),
         "border-color" => p.border_color = Some(color(a)?),
+        "shadow" => {
+            p.shadow = Some(match choice(a, &["none", "small", "large"])? {
+                "small" => Shadow::Small,
+                "large" => Shadow::Large,
+                _ => Shadow::None,
+            })
+        }
+        "id" => {
+            let s = string(a)?;
+            if !valid_id(&s) {
+                return Err(
+                    Diagnostic::new(a.value_span, format!("`{s}` is not a valid id"))
+                        .with_hint("ids start with a letter and use letters, digits, `-` and `_`"),
+                );
+            }
+            p.id = Some(s);
+            p.id_span = a.value_span;
+        }
         "gap" => p.gap = Some(number(a)?),
-        "align" if kind.category() == Category::TextBlock => {
+        "align" if matches!(kind.category(), Category::TextBlock) => {
             p.text_align = Some(match choice(a, &["start", "center", "end"])? {
                 "center" => TextAlign::Center,
                 "end" => TextAlign::End,
@@ -332,6 +531,31 @@ fn apply_attr(p: &mut Props, kind: Kind, a: &ast::Attr) -> Result<(), Diagnostic
                 _ => Justify::Start,
             })
         }
+        "wrap" => p.wrap = Some(boolean(a)?),
+        "columns" => p.columns = Some(whole(a, 1, 12)?),
+        "cell-width" => {
+            let n = number(a)?;
+            if n <= 0.0 {
+                return Err(Diagnostic::new(
+                    a.value_span,
+                    "`cell-width` must be greater than 0",
+                ));
+            }
+            p.cell_width = Some(n);
+        }
+        "method" => {
+            p.method = Some(match choice(a, &["get", "post"])? {
+                "post" => Method::Post,
+                _ => Method::Get,
+            })
+        }
+        "marker" => {
+            p.marker = Some(match choice(a, &["bullet", "number", "none"])? {
+                "number" => Marker::Number,
+                "none" => Marker::None,
+                _ => Marker::Bullet,
+            })
+        }
         "color" => p.text.color = Some(color(a)?),
         "size" => {
             let n = number(a)?;
@@ -347,42 +571,57 @@ fn apply_attr(p: &mut Props, kind: Kind, a: &ast::Attr) -> Result<(), Diagnostic
         "italic" => p.text.italic = Some(boolean(a)?),
         "underline" => p.text.underline = Some(boolean(a)?),
         "font" => p.text.mono = Some(choice(a, &["sans", "mono"])? == "mono"),
-        "level" => {
-            let n = number(a)?;
-            if n.fract() != 0.0 || !(1.0..=3.0).contains(&n) {
-                return Err(Diagnostic::new(a.value_span, "`level` must be 1, 2 or 3"));
-            }
-            p.level = Some(n as u8);
+        "level" => p.level = Some(whole(a, 1, 4)? as u8),
+        "to" if kind == Kind::Form => {
+            p.to = Some(match string(a)? {
+                s if is_external(&s) => link_target(a).map(|_| s)?,
+                s => file_path(a).map(|_| s)?,
+            });
+            p.to_span = a.value_span;
         }
         "to" => {
-            let s = string(a)?;
-            if s.is_empty() {
-                return Err(Diagnostic::new(a.value_span, "`to` cannot be empty"));
-            }
-            p.to = Some(s);
+            p.to = Some(link_target(a)?);
+            p.to_span = a.value_span;
         }
-        "src" => {
-            let s = string(a)?;
-            // Documents may only read files inside their own folder.
-            let escapes = s.starts_with('/')
-                || s.starts_with('\\')
-                || s.split(['/', '\\']).any(|c| c == "..");
-            if !s.contains("://") && (escapes || s.get(1..2) == Some(":")) {
-                return Err(Diagnostic::new(
-                    a.value_span,
-                    "image path leaves the document's folder",
-                )
-                .with_hint(
-                    "use a path relative to this file without `..`, e.g. \"img/logo.png\"",
-                ));
-            }
-            p.src = Some(s);
-        }
+        "src" => p.src = Some(file_path(a)?),
+        "icon" => p.icon = Some(file_path(a)?),
         "alt" => p.alt = Some(string(a)?),
         "thickness" => p.thickness = Some(number(a)?),
         "title" => p.title = Some(string(a)?),
         "lang" => p.lang = Some(string(a)?),
         "description" => p.description = Some(string(a)?),
+        "name" => {
+            let s = non_empty(a)?;
+            if s.chars().any(|c| c.is_whitespace()) {
+                return Err(Diagnostic::new(
+                    a.value_span,
+                    "field names cannot contain spaces",
+                ));
+            }
+            p.name = Some(s);
+        }
+        "label" => p.label = Some(non_empty(a)?),
+        "required" => p.required = Some(boolean(a)?),
+        "kind" => {
+            let k = choice(a, &InputKind::NAMES)?;
+            p.input_kind = InputKind::NAMES.iter().position(|n| *n == k).map(|i| {
+                [
+                    InputKind::Text,
+                    InputKind::Email,
+                    InputKind::Password,
+                    InputKind::Number,
+                    InputKind::Tel,
+                    InputKind::Url,
+                    InputKind::Date,
+                    InputKind::Search,
+                ][i]
+            });
+        }
+        "placeholder" => p.placeholder = Some(string(a)?),
+        "value" => p.value = Some(string(a)?),
+        "rows" => p.rows = Some(whole(a, 1, 50)?),
+        "checked" => p.checked = Some(boolean(a)?),
+        "selected" => p.selected = Some(boolean(a)?),
         other => unreachable!("attribute `{other}` passed validation but has no handler"),
     }
     Ok(())
@@ -390,28 +629,48 @@ fn apply_attr(p: &mut Props, kind: Kind, a: &ast::Attr) -> Result<(), Diagnostic
 
 // ---- tree walk -------------------------------------------------------------
 
-pub fn analyze(doc: &ast::Document) -> Result<Document, Vec<Diagnostic>> {
+/// Everything the analyzer needs: the document header, styles from the
+/// document and its imports, and component-expanded top-level nodes.
+pub struct Input<'a> {
+    pub version: &'a str,
+    pub version_span: Span,
+    pub styles: Vec<&'a ast::StyleDef>,
+    pub nodes: &'a [ast::Node],
+}
+
+/// Where we are in the tree.
+#[derive(Debug, Clone, Copy, Default)]
+struct Ctx {
+    /// Inside a link, button or linked container.
+    interactive: bool,
+    in_form: bool,
+}
+
+pub fn analyze(input: Input<'_>, mut errors: Vec<Diagnostic>) -> Result<Document, Vec<Diagnostic>> {
     let mut an = Analyzer {
         styles: HashMap::new(),
         errors: Vec::new(),
+        ids: HashMap::new(),
+        anchor_links: Vec::new(),
     };
+    an.errors.append(&mut errors);
 
-    if doc.version != SUPPORTED_VERSION {
+    if input.version != SUPPORTED_VERSION {
         an.errors.push(
             Diagnostic::new(
-                doc.version_span,
-                format!("unsupported SLML version `{}`", doc.version),
+                input.version_span,
+                format!("unsupported SLML version `{}`", input.version),
             )
             .with_hint(format!("this build understands `slml {SUPPORTED_VERSION}`")),
         );
     }
 
-    an.register_styles(&doc.styles);
+    an.register_styles(&input.styles);
 
     let mut meta = Meta::default();
     let mut page: Option<Container> = None;
     let mut seen_meta = false;
-    for node in &doc.nodes {
+    for node in input.nodes {
         match an.lookup(node) {
             Some(Kind::Meta) => {
                 if std::mem::replace(&mut seen_meta, true) {
@@ -423,12 +682,12 @@ pub fn analyze(doc: &ast::Document) -> Result<Document, Vec<Diagnostic>> {
                 if page.is_some() {
                     an.err(node.span, "a document can have only one `page`");
                 } else {
-                    page = Some(an.container(node, Kind::Page));
+                    page = Some(an.container(node, Kind::Page, Ctx::default()));
                 }
             }
             Some(k) => an.errors.push(
                 Diagnostic::new(node.span, format!("`{}` must be inside `page`", k.name()))
-                    .with_hint("the top level may only contain `meta`, `style` and `page`"),
+                    .with_hint("the top level may only contain `meta`, `use`, `style`, `define` and `page`"),
             ),
             None => {}
         }
@@ -436,20 +695,38 @@ pub fn analyze(doc: &ast::Document) -> Result<Document, Vec<Diagnostic>> {
 
     let page = page.unwrap_or_else(|| {
         an.errors.push(
-            Diagnostic::new(doc.version_span, "document has no `page`")
+            Diagnostic::new(input.version_span, "document has no `page`")
                 .with_hint("add `page { text \"Hello\" }`"),
         );
-        an.empty_page()
+        Container {
+            kind: ContainerKind::Page,
+            frame: Frame::default(),
+            flow: Flow::default(),
+            text: TextStyle::default(),
+            children: Vec::new(),
+        }
     });
+
+    for (target, span) in std::mem::take(&mut an.anchor_links) {
+        if !an.ids.contains_key(&target) {
+            let names: Vec<&str> = an.ids.keys().map(String::as_str).collect();
+            let mut d = Diagnostic::new(span, format!("no element has `id: \"{target}\"`"));
+            if let Some(s) = suggest(&target, &names) {
+                d = d.with_hint(format!("did you mean `#{s}`?"));
+            }
+            an.errors.push(d);
+        }
+    }
 
     if an.errors.is_empty() {
         Ok(Document {
-            version: doc.version.clone(),
+            version: input.version.to_string(),
             meta,
             page,
         })
     } else {
-        an.errors.sort_by_key(|d| d.span.start);
+        an.errors.sort_by_key(|d| (d.span.file, d.span.start));
+        an.errors.dedup();
         Err(an.errors)
     }
 }
@@ -457,6 +734,9 @@ pub fn analyze(doc: &ast::Document) -> Result<Document, Vec<Diagnostic>> {
 struct Analyzer<'a> {
     styles: HashMap<&'a str, &'a ast::StyleDef>,
     errors: Vec<Diagnostic>,
+    ids: HashMap<String, Span>,
+    /// `#id` links to check once all ids are known.
+    anchor_links: Vec<(String, Span)>,
 }
 
 impl<'a> Analyzer<'a> {
@@ -464,11 +744,17 @@ impl<'a> Analyzer<'a> {
         self.errors.push(Diagnostic::new(span, msg));
     }
 
-    fn register_styles(&mut self, defs: &'a [ast::StyleDef]) {
+    fn register_styles(&mut self, defs: &[&'a ast::StyleDef]) {
         let known = all_attr_names();
         for def in defs {
-            if self.styles.insert(&def.name, def).is_some() {
-                self.err(def.span, format!("style `{}` is defined twice", def.name));
+            if let Some(prev) = self.styles.insert(&def.name, def) {
+                self.errors.push(
+                    Diagnostic::new(def.span, format!("style `{}` is defined twice", def.name))
+                        .with_hint(format!(
+                            "the first definition is on line {}",
+                            prev.span.line
+                        )),
+                );
             }
             let mut seen = HashSet::new();
             for a in &def.attrs {
@@ -481,6 +767,9 @@ impl<'a> Analyzer<'a> {
                 } else if !seen.insert(a.name.as_str()) {
                     self.err(a.span, format!("`{}` is set twice", a.name));
                 }
+                if let Value::Param(p) = &a.value {
+                    self.err(a.value_span, format!("`${p}` cannot be used in a style"));
+                }
             }
         }
     }
@@ -490,12 +779,14 @@ impl<'a> Analyzer<'a> {
             return Some(*k);
         }
         let mut d = Diagnostic::new(node.span, format!("unknown element `{}`", node.name));
-        if node.name == "style" {
-            d = d.with_hint("styles are defined at the top level: `style name(...)`");
+        if matches!(node.name.as_str(), "style" | "define" | "use") {
+            d = d.with_hint(format!("`{}` is only allowed at the top level", node.name));
         } else if let Some(s) = suggest(&node.name, &element_names()) {
             d = d.with_hint(format!("did you mean `{s}`?"));
         } else if let Some(k) = html_equivalent(&node.name) {
             d = d.with_hint(format!("in SLML this is `{k}`"));
+        } else {
+            d = d.with_hint("components must be defined with `define` before they can be used");
         }
         self.errors.push(d);
         None
@@ -528,7 +819,7 @@ impl<'a> Analyzer<'a> {
                         )
                         .with_hint(format!("`{}` is set on line {}", a.name, a.span.line)),
                     );
-                } else {
+                } else if !matches!(a.value, Value::Param(_)) {
                     p.given.insert(a.name.clone());
                     if let Err(e) = apply_attr(&mut p, kind, a) {
                         self.errors.push(e);
@@ -552,6 +843,8 @@ impl<'a> Analyzer<'a> {
                     d = d.with_hint(format!("did you mean `{s}`?"));
                 } else if !own.is_empty() {
                     d = d.with_hint(format!("`{}` accepts: {}", kind.name(), own.join(", ")));
+                } else {
+                    d = d.with_hint(format!("`{}` takes no attributes", kind.name()));
                 }
                 self.errors.push(d);
                 continue;
@@ -560,6 +853,20 @@ impl<'a> Analyzer<'a> {
             if let Err(e) = apply_attr(&mut p, kind, a) {
                 self.errors.push(e);
             }
+        }
+        if let Some(id) = &p.id {
+            if let Some(prev) = self.ids.insert(id.clone(), p.id_span) {
+                self.errors.push(
+                    Diagnostic::new(p.id_span, format!("id `{id}` is used twice")).with_hint(
+                        format!("ids must be unique; the first one is on line {}", prev.line),
+                    ),
+                );
+            }
+        }
+        if let Some(to) = &p.to
+            && let Some(fragment) = to.strip_prefix('#')
+        {
+            self.anchor_links.push((fragment.to_string(), p.to_span));
         }
         p
     }
@@ -570,12 +877,12 @@ impl<'a> Analyzer<'a> {
     fn require<T>(
         &mut self,
         value: Option<T>,
-        given: &HashSet<String>,
+        p: &Props,
         node: &ast::Node,
         attr: &str,
         hint: &str,
     ) -> Option<T> {
-        if value.is_none() && !given.contains(attr) {
+        if value.is_none() && !p.given.contains(attr) {
             self.errors.push(
                 Diagnostic::new(node.span, format!("`{}` requires `{attr}`", node.name))
                     .with_hint(hint.to_string()),
@@ -588,11 +895,21 @@ impl<'a> Analyzer<'a> {
         if let Some(first) = node.children.first() {
             let span = match first {
                 Child::Node(n) => n.span,
-                Child::Text(_, s) => *s,
+                Child::Text(_, s) | Child::Param(_, s) => *s,
             };
             self.errors.push(
                 Diagnostic::new(span, format!("`{}` cannot have content", node.name))
                     .with_hint(hint.to_string()),
+            );
+        }
+    }
+
+    /// Links, buttons and fields cannot be placed inside each other.
+    fn check_interactive(&mut self, node: &ast::Node, ctx: Ctx, is_interactive: bool) {
+        if ctx.interactive && is_interactive {
+            self.err(
+                node.span,
+                format!("`{}` cannot be placed inside a link or button", node.name),
             );
         }
     }
@@ -604,24 +921,60 @@ impl<'a> Analyzer<'a> {
             title: p.title,
             lang: p.lang,
             description: p.description,
+            icon: p.icon,
         }
     }
 
-    fn empty_page(&self) -> Container {
-        Container {
-            kind: ContainerKind::Page,
-            frame: Frame::default(),
-            flow: Flow::default(),
-            text: TextStyle::default(),
-            children: Vec::new(),
-        }
-    }
-
-    fn container(&mut self, node: &ast::Node, kind: Kind) -> Container {
+    fn container(&mut self, node: &ast::Node, kind: Kind, ctx: Ctx) -> Container {
         let p = self.props(node, kind);
-        let (ckind, frame, flow, text) = match kind {
+        let mut inner = ctx;
+        // `to` on a form is where it is sent; anywhere else it makes the
+        // container a link.
+        if p.to.is_some() && kind != Kind::Form {
+            self.check_interactive(node, ctx, true);
+            inner.interactive = true;
+        }
+        let ckind = match kind {
+            Kind::Page => ContainerKind::Page,
+            Kind::Row => ContainerKind::Row,
+            Kind::Grid => {
+                if p.columns.is_none()
+                    && p.cell_width.is_none()
+                    && !p.given.contains("columns")
+                    && !p.given.contains("cell-width")
+                {
+                    self.errors.push(
+                        Diagnostic::new(node.span, "`grid` requires `columns` or `cell-width`")
+                            .with_hint("e.g. `grid(columns: 3)` or `grid(cell-width: 240)` for a responsive grid"),
+                    );
+                }
+                ContainerKind::Grid(GridSpec {
+                    columns: p.columns,
+                    cell_width: p.cell_width,
+                })
+            }
+            Kind::Form => {
+                if ctx.in_form {
+                    self.err(node.span, "forms cannot be nested");
+                }
+                self.check_interactive(node, ctx, true);
+                inner.in_form = true;
+                let to = self.require(
+                    p.to.clone(),
+                    &p,
+                    node,
+                    "to",
+                    "where the form is sent, e.g. `form(to: \"https://formspree.io/f/abc\", method: post)`",
+                );
+                ContainerKind::Form(FormSpec {
+                    to: to.unwrap_or_default(),
+                    method: p.method.unwrap_or(Method::Get),
+                })
+            }
+            _ => ContainerKind::Column,
+        };
+        let (frame, flow, text) = match kind {
             Kind::Page => (
-                ContainerKind::Page,
                 p.frame(Frame {
                     padding_x: 32.0,
                     padding_y: 32.0,
@@ -633,7 +986,7 @@ impl<'a> Analyzer<'a> {
                     ..Flow::default()
                 }),
                 // The page fixes every inherited property, so nothing is left
-                // to a renderer's taste.
+                // to a backend's taste.
                 p.text_or(TextStyle {
                     color: Some(Color(0x1b1b1fff)),
                     size: Some(16.0),
@@ -643,24 +996,34 @@ impl<'a> Analyzer<'a> {
                     underline: Some(false),
                 }),
             ),
-            Kind::Row => (
-                ContainerKind::Row,
+            Kind::Form => (
                 p.frame(Frame::default()),
-                p.flow(Flow::default()),
+                p.flow(Flow {
+                    gap: 16.0,
+                    ..Flow::default()
+                }),
                 p.text_or(TextStyle::default()),
             ),
             _ => (
-                ContainerKind::Column,
                 p.frame(Frame::default()),
                 p.flow(Flow::default()),
                 p.text_or(TextStyle::default()),
             ),
         };
+        // `to` on a form is its action, not a link around it.
+        let frame = if kind == Kind::Form {
+            Frame {
+                link: None,
+                ..frame
+            }
+        } else {
+            frame
+        };
 
         let mut children = Vec::new();
         for child in &node.children {
             match child {
-                Child::Text(_, span) => self.errors.push(
+                Child::Text(_, span) | Child::Param(_, span) => self.errors.push(
                     Diagnostic::new(
                         *span,
                         format!("text cannot be placed directly in `{}`", node.name),
@@ -668,7 +1031,7 @@ impl<'a> Analyzer<'a> {
                     .with_hint("wrap it in an element: `text \"...\"`"),
                 ),
                 Child::Node(n) => {
-                    if let Some(c) = self.block(n, &node.name) {
+                    if let Some(c) = self.block(n, &node.name, inner) {
                         children.push(c);
                     }
                 }
@@ -685,39 +1048,59 @@ impl<'a> Analyzer<'a> {
 
     /// After reporting an unknown element, keep checking its content as the
     /// element it most likely was, so one typo doesn't hide other errors.
-    fn recover(&mut self, n: &ast::Node) {
+    fn recover(&mut self, n: &ast::Node, ctx: Ctx) {
         let guess = suggest(&n.name, &element_names())
             .or_else(|| html_equivalent(&n.name).map(|h| h.split('(').next().unwrap_or(h)))
             .and_then(|name| ELEMENTS.iter().find(|(e, _)| *e == name))
             .map(|(_, k)| *k);
-        match guess.map(|k| (k, k.category())) {
-            Some((k, Category::Container)) => {
-                self.container(n, k);
+        let Some(k) = guess else { return };
+        let ctx = Ctx {
+            in_form: true,
+            ..ctx
+        };
+        match k.category() {
+            Category::Container => {
+                self.container(n, k, ctx);
             }
-            Some((k, Category::TextBlock)) => {
-                self.text_block(n, k);
+            Category::List => {
+                self.list(n, ctx);
             }
-            Some((k, Category::Leaf)) => {
-                self.leaf(n, k);
+            Category::TextBlock => {
+                self.text_block(n, k, ctx);
             }
-            Some((_, Category::Inline)) => {
-                self.inlines(&n.children, &n.name, false);
+            Category::Leaf => {
+                self.leaf(n, k, ctx);
             }
-            _ => {}
+            Category::Field => {
+                self.field(n, k, ctx);
+            }
+            Category::Inline => {
+                self.inlines(&n.children, &n.name, ctx);
+            }
+            Category::Meta | Category::Option => {}
         }
     }
 
-    fn block(&mut self, n: &ast::Node, parent: &str) -> Option<Node> {
+    fn block(&mut self, n: &ast::Node, parent: &str, ctx: Ctx) -> Option<Node> {
         let Some(kind) = self.lookup(n) else {
-            self.recover(n);
+            self.recover(n, ctx);
             return None;
         };
         match kind.category() {
             Category::Container if kind != Kind::Page => {
-                Some(Node::Container(self.container(n, kind)))
+                Some(Node::Container(self.container(n, kind, ctx)))
             }
-            Category::TextBlock => Some(Node::Text(self.text_block(n, kind))),
-            Category::Leaf => Some(self.leaf(n, kind)),
+            Category::List => Some(Node::List(self.list(n, ctx))),
+            Category::TextBlock if kind == Kind::Item => {
+                self.errors.push(
+                    Diagnostic::new(n.span, "`item` can only be placed inside `list`")
+                        .with_hint("e.g. `list { item \"one\" item \"two\" }`"),
+                );
+                None
+            }
+            Category::TextBlock => Some(Node::Text(self.text_block(n, kind, ctx))),
+            Category::Leaf => Some(self.leaf(n, kind, ctx)),
+            Category::Field => Some(Node::Field(self.field(n, kind, ctx))),
             Category::Inline => {
                 self.errors.push(
                     Diagnostic::new(
@@ -731,6 +1114,10 @@ impl<'a> Analyzer<'a> {
                 );
                 None
             }
+            Category::Option => {
+                self.err(n.span, "`option` can only be placed inside `select`");
+                None
+            }
             _ => {
                 self.err(
                     n.span,
@@ -741,15 +1128,68 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn text_block(&mut self, n: &ast::Node, kind: Kind) -> TextBlock {
+    fn list(&mut self, n: &ast::Node, ctx: Ctx) -> List {
+        let p = self.props(n, Kind::List);
+        let mut items = Vec::new();
+        for child in &n.children {
+            match child {
+                Child::Text(_, span) | Child::Param(_, span) => self.errors.push(
+                    Diagnostic::new(*span, "text cannot be placed directly in `list`")
+                        .with_hint("write each entry as `item \"...\"`"),
+                ),
+                Child::Node(c) => match self.lookup(c) {
+                    Some(Kind::Item) => {
+                        items.push(ListEntry::Item(self.text_block(c, Kind::Item, ctx)))
+                    }
+                    Some(Kind::List) => {
+                        if items.is_empty() {
+                            self.err(c.span, "a nested list must follow an `item`");
+                        }
+                        items.push(ListEntry::List(self.list(c, ctx)));
+                    }
+                    Some(_) => self.errors.push(
+                        Diagnostic::new(
+                            c.span,
+                            format!("`{}` cannot be placed inside `list`", c.name),
+                        )
+                        .with_hint("a list contains `item`s and nested `list`s"),
+                    ),
+                    None => self.recover(c, ctx),
+                },
+            }
+        }
+        List {
+            frame: p.frame(Frame::default()),
+            text: p.text_or(TextStyle::default()),
+            gap: p.gap.unwrap_or(6.0),
+            marker: p.marker.unwrap_or(Marker::Bullet),
+            items,
+        }
+    }
+
+    fn text_block(&mut self, n: &ast::Node, kind: Kind, ctx: Ctx) -> TextBlock {
         let p = self.props(n, kind);
-        let (tkind, frame, text, link) = match kind {
+        let mut inner = ctx;
+        let button_frame = || Frame {
+            padding_x: 18.0,
+            padding_y: 10.0,
+            fill: Some(Color(0x2457d6ff)),
+            radius: 8.0,
+            ..Frame::default()
+        };
+        let button_text = TextStyle {
+            color: Some(Color::WHITE),
+            underline: Some(false),
+            ..TextStyle::default()
+        };
+        let (tkind, frame, text) = match kind {
             Kind::Heading => {
                 let level = p.level.unwrap_or(1);
                 let size = match level {
                     1 => 32.0,
                     2 => 24.0,
-                    _ => 20.0,
+                    3 => 20.0,
+                    _ => 17.0,
                 };
                 (
                     TextKind::Heading(level),
@@ -759,65 +1199,90 @@ impl<'a> Analyzer<'a> {
                         bold: Some(true),
                         ..TextStyle::default()
                     }),
-                    None,
                 )
             }
             Kind::Button => {
-                let to = self.require(
+                self.check_interactive(n, ctx, true);
+                inner.interactive = true;
+                self.require(
                     p.to.clone(),
-                    &p.given,
+                    &p,
                     n,
                     "to",
                     "e.g. `button(to: \"contact.slml\") \"Contact\"`",
                 );
                 (
                     TextKind::Button,
-                    p.frame(Frame {
-                        padding_x: 18.0,
-                        padding_y: 10.0,
-                        fill: Some(Color(0x2457d6ff)),
-                        radius: 8.0,
-                        ..Frame::default()
-                    }),
-                    p.text_or(TextStyle {
-                        color: Some(Color::WHITE),
-                        underline: Some(false),
-                        ..TextStyle::default()
-                    }),
-                    to,
+                    p.frame(button_frame()),
+                    p.text_or(button_text),
                 )
             }
+            Kind::Submit => {
+                if !ctx.in_form {
+                    self.err(n.span, "`submit` must be inside a `form`");
+                }
+                self.check_interactive(n, ctx, true);
+                inner.interactive = true;
+                (
+                    TextKind::Submit,
+                    p.frame(button_frame()),
+                    p.text_or(button_text),
+                )
+            }
+            Kind::Codeblock => (
+                TextKind::Code,
+                p.frame(Frame {
+                    padding_x: 16.0,
+                    padding_y: 14.0,
+                    fill: Some(Color(0xf4f4f7ff)),
+                    radius: 8.0,
+                    ..Frame::default()
+                }),
+                p.text_or(TextStyle {
+                    mono: Some(true),
+                    size: Some(14.0),
+                    ..TextStyle::default()
+                }),
+            ),
+            Kind::Item => (
+                TextKind::Item,
+                p.frame(Frame::default()),
+                p.text_or(TextStyle::default()),
+            ),
             _ => (
                 TextKind::Paragraph,
                 p.frame(Frame::default()),
                 p.text_or(TextStyle::default()),
-                None,
             ),
         };
-        let align = p.text_align.unwrap_or(if kind == Kind::Button {
-            TextAlign::Center
-        } else {
-            TextAlign::Start
-        });
-        let content = self.inlines(&n.children, &n.name, kind == Kind::Button);
+        let align = p
+            .text_align
+            .unwrap_or(if matches!(kind, Kind::Button | Kind::Submit) {
+                TextAlign::Center
+            } else {
+                TextAlign::Start
+            });
+        let content = self.inlines(&n.children, &n.name, inner);
         TextBlock {
             kind: tkind,
             frame,
             text,
             align,
-            link,
             content,
         }
     }
 
-    fn inlines(&mut self, children: &[Child], parent: &str, in_link: bool) -> Vec<Inline> {
+    fn inlines(&mut self, children: &[Child], parent: &str, ctx: Ctx) -> Vec<Inline> {
         let mut out = Vec::new();
         for child in children {
             match child {
                 Child::Text(s, _) => out.push(Inline::Text(s.clone())),
+                Child::Param(_, span) => {
+                    self.err(*span, "parameters can only be used inside `define`")
+                }
                 Child::Node(n) => {
                     let Some(kind) = self.lookup(n) else {
-                        self.recover(n);
+                        self.recover(n, ctx);
                         continue;
                     };
                     if kind.category() != Category::Inline {
@@ -832,8 +1297,10 @@ impl<'a> Analyzer<'a> {
                         );
                         continue;
                     }
-                    if kind == Kind::Link && in_link {
-                        self.err(n.span, "links cannot be nested inside links or buttons");
+                    let mut inner = ctx;
+                    if kind == Kind::Link {
+                        self.check_interactive(n, ctx, true);
+                        inner.interactive = true;
                     }
                     let p = self.props(n, kind);
                     let defaults = match kind {
@@ -859,7 +1326,7 @@ impl<'a> Analyzer<'a> {
                     let link = if kind == Kind::Link {
                         self.require(
                             p.to.clone(),
-                            &p.given,
+                            &p,
                             n,
                             "to",
                             "e.g. `link(to: \"about.slml\") \"About\"`",
@@ -867,7 +1334,7 @@ impl<'a> Analyzer<'a> {
                     } else {
                         None
                     };
-                    let content = self.inlines(&n.children, &n.name, in_link || kind == Kind::Link);
+                    let content = self.inlines(&n.children, &n.name, inner);
                     out.push(Inline::Span(InlineSpan {
                         text: p.text_or(defaults),
                         link,
@@ -879,25 +1346,34 @@ impl<'a> Analyzer<'a> {
         out
     }
 
-    fn leaf(&mut self, n: &ast::Node, kind: Kind) -> Node {
+    fn leaf(&mut self, n: &ast::Node, kind: Kind, ctx: Ctx) -> Node {
         let p = self.props(n, kind);
         match kind {
             Kind::Image => {
                 self.no_children(n, "describe the image with `alt: \"...\"` instead");
+                if p.to.is_some() {
+                    self.check_interactive(n, ctx, true);
+                }
                 let src = self.require(
                     p.src.clone(),
-                    &p.given,
+                    &p,
                     n,
                     "src",
                     "e.g. `image(src: \"logo.png\", alt: \"Logo\")`",
                 );
                 let alt = self.require(
                     p.alt.clone(),
-                    &p.given,
+                    &p,
                     n,
                     "alt",
                     "describe the image for people who cannot see it; use `alt: \"\"` only for decoration",
                 );
+                if p.to.is_some() && alt.as_deref() == Some("") {
+                    self.err(
+                        n.span,
+                        "a linked image needs a non-empty `alt`: it is the link's text",
+                    );
+                }
                 Node::Image(Image {
                     frame: p.frame(Frame::default()),
                     src: src.unwrap_or_default(),
@@ -907,6 +1383,7 @@ impl<'a> Analyzer<'a> {
             Kind::Divider => {
                 self.no_children(n, "a divider is just a line");
                 Node::Divider(Divider {
+                    id: p.id.clone(),
                     width: p.width.unwrap_or(Size::Auto),
                     thickness: p.thickness.unwrap_or(1.0),
                     color: p.text.color.unwrap_or(Color(0xd4d4d8ff)),
@@ -921,12 +1398,118 @@ impl<'a> Analyzer<'a> {
             }
         }
     }
+
+    fn field(&mut self, n: &ast::Node, kind: Kind, ctx: Ctx) -> Field {
+        let p = self.props(n, kind);
+        if !ctx.in_form {
+            self.errors.push(
+                Diagnostic::new(n.span, format!("`{}` must be inside a `form`", n.name)).with_hint(
+                    "e.g. `form(to: \"...\") { input(name: \"email\", label: \"E-mail\") }`",
+                ),
+            );
+        }
+        self.check_interactive(n, ctx, true);
+        let name = self.require(
+            p.name.clone(),
+            &p,
+            n,
+            "name",
+            "the name the value is sent under, e.g. `name: \"email\"`",
+        );
+        let label = self.require(
+            p.label.clone(),
+            &p,
+            n,
+            "label",
+            "every field needs a visible label, e.g. `label: \"Your e-mail\"`",
+        );
+        let field_kind = match kind {
+            Kind::Input => {
+                self.no_children(n, "use `value: \"...\"` or `placeholder: \"...\"`");
+                FieldKind::Input {
+                    kind: p.input_kind.unwrap_or(InputKind::Text),
+                    placeholder: p.placeholder.clone(),
+                    value: p.value.clone(),
+                }
+            }
+            Kind::Textarea => {
+                self.no_children(n, "use `value: \"...\"` or `placeholder: \"...\"`");
+                FieldKind::TextArea {
+                    rows: p.rows.unwrap_or(4),
+                    placeholder: p.placeholder.clone(),
+                    value: p.value.clone(),
+                }
+            }
+            Kind::Checkbox => {
+                self.no_children(n, "the checkbox text is its `label`");
+                FieldKind::Checkbox {
+                    checked: p.checked.unwrap_or(false),
+                }
+            }
+            _ => {
+                let mut options = Vec::new();
+                for child in &n.children {
+                    match child {
+                        Child::Node(o) if o.name == "option" => {
+                            let op = self.props(o, Kind::Option);
+                            let label = match o.children.as_slice() {
+                                [Child::Text(s, _)] if !s.trim().is_empty() => s.clone(),
+                                _ => {
+                                    self.errors.push(
+                                        Diagnostic::new(o.span, "`option` needs a text label")
+                                            .with_hint("e.g. `option \"Poland\"`"),
+                                    );
+                                    String::new()
+                                }
+                            };
+                            options.push(SelectOption {
+                                label,
+                                value: op.value,
+                                selected: op.selected.unwrap_or(false),
+                            });
+                        }
+                        Child::Node(o) => self.errors.push(
+                            Diagnostic::new(
+                                o.span,
+                                format!("`{}` cannot be placed inside `select`", o.name),
+                            )
+                            .with_hint("a select contains `option \"...\"` entries"),
+                        ),
+                        Child::Text(_, span) | Child::Param(_, span) => self.errors.push(
+                            Diagnostic::new(*span, "text cannot be placed directly in `select`")
+                                .with_hint("write it as `option \"...\"`"),
+                        ),
+                    }
+                }
+                if options.is_empty() {
+                    self.errors.push(
+                        Diagnostic::new(n.span, "`select` needs at least one `option`")
+                            .with_hint("e.g. `select(name: \"size\", label: \"Size\") { option \"S\" option \"M\" }`"),
+                    );
+                }
+                if options.iter().filter(|o| o.selected).count() > 1 {
+                    self.err(n.span, "only one `option` can be `selected`");
+                }
+                FieldKind::Select { options }
+            }
+        };
+        Field {
+            frame: p.frame(Frame::default()),
+            text: p.text_or(TextStyle::default()),
+            name: name.unwrap_or_default(),
+            label: label.unwrap_or_default(),
+            required: p.required.unwrap_or(false),
+            kind: field_kind,
+        }
+    }
 }
 
 /// Helps people coming from HTML find the SLML equivalent.
 fn html_equivalent(name: &str) -> Option<&'static str> {
     Some(match name {
-        "div" | "section" | "main" | "article" | "body" => "column",
+        "div" | "section" | "main" | "article" | "body" | "header" | "footer" | "nav" | "aside" => {
+            "column"
+        }
         "p" | "label" => "text",
         "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => "heading(level: N)",
         "a" => "link(to: \"...\")",
@@ -936,6 +1519,11 @@ fn html_equivalent(name: &str) -> Option<&'static str> {
         "i" | "em" => "italic",
         "br" => "\\n inside a string",
         "head" | "title" => "meta(title: \"...\")",
+        "ul" | "ol" => "list",
+        "li" => "item",
+        "pre" => "codeblock",
+        "table" => "grid(columns: N)",
+        "fieldset" => "form",
         _ => return None,
     })
 }
@@ -1028,17 +1616,99 @@ mod tests {
     }
 
     #[test]
-    fn image_paths_stay_in_document_folder() {
-        for bad in ["/etc/passwd", "../secret.png", "a/../../b.png", "C:/x.png"] {
-            let src = format!("slml 0.1 page {{ image(src: \"{bad}\", alt: \"x\") }}");
-            assert!(errors(&src)[0].contains("leaves"), "{bad}");
-        }
-        assert!(compile(r#"slml 0.1 page { image(src: "img/a.png", alt: "x") }"#).is_ok());
+    fn no_nested_interactive_elements() {
+        let e = errors(r#"slml 0.1 page { button(to: "a") { link(to: "b") "x" } }"#);
+        assert!(e[0].contains("inside a link"), "{e:?}");
+        let e = errors(r#"slml 0.1 page { column(to: "a") { button(to: "b") "x" } }"#);
+        assert!(e[0].contains("inside a link"), "{e:?}");
     }
 
     #[test]
-    fn no_nested_links() {
-        let e = errors(r#"slml 0.1 page { button(to: "a") { link(to: "b") "x" } }"#);
-        assert!(e[0].contains("nested"), "{e:?}");
+    fn paths_stay_inside_the_site() {
+        for bad in [
+            "../secret.png",
+            "a/../../b.png",
+            "C:/x.png",
+            "//evil.com/x.png",
+        ] {
+            let src = format!("slml 0.1 page {{ image(src: \"{bad}\", alt: \"x\") }}");
+            assert!(errors(&src)[0].contains("invalid path"), "{bad}");
+        }
+        for good in ["img/a.png", "/img/a.png", "https://example.com/a.png"] {
+            let src = format!("slml 0.1 page {{ image(src: \"{good}\", alt: \"x\") }}");
+            assert!(compile(&src).is_ok(), "{good}");
+        }
+    }
+
+    #[test]
+    fn link_targets_are_checked() {
+        assert!(compile(
+            r##"slml 0.1 page { heading(id: "top") "x" text { link(to: "#top") "a" link(to: "mailto:a@b.c") "m" link(to: "/docs/x.slml#y") "d" } }"##
+        )
+        .is_ok());
+        let e = errors(
+            r##"slml 0.1 page { text { link(to: "#nope") "a" link(to: "javascript:alert(1)") "b" } }"##,
+        );
+        assert_eq!(e.len(), 2, "{e:?}");
+        let e = errors(r#"slml 0.1 page { text(id: "a") "x" text(id: "a") "y" }"#);
+        assert!(e[0].contains("used twice"), "{e:?}");
+    }
+
+    #[test]
+    fn lists_and_grids() {
+        let doc = compile(
+            r#"slml 0.1 page {
+              list(marker: number) { item "a" list { item "nested" } item { bold "b" } }
+              grid(cell-width: 200, gap: 16) { text "1" text "2" }
+            }"#,
+        )
+        .unwrap();
+        let Node::List(l) = &doc.page.children[0] else {
+            panic!()
+        };
+        assert_eq!(l.items.len(), 3);
+        assert!(matches!(l.items[1], ListEntry::List(_)));
+        let e = errors(r#"slml 0.1 page { item "x" list { text "y" } grid { } }"#);
+        assert_eq!(e.len(), 3, "{e:?}");
+    }
+
+    #[test]
+    fn forms_require_labels_and_context() {
+        let doc = compile(
+            r#"slml 0.1 page {
+              form(to: "https://example.com/send", method: post) {
+                input(name: "email", label: "E-mail", kind: email, required: true)
+                textarea(name: "msg", label: "Message", rows: 5)
+                checkbox(name: "news", label: "Newsletter")
+                select(name: "size", label: "Size") { option "S" option(value: "m", selected: true) "M" }
+                submit "Send"
+              }
+            }"#,
+        )
+        .unwrap();
+        let Node::Container(form) = &doc.page.children[0] else {
+            panic!()
+        };
+        assert!(matches!(
+            form.kind,
+            ContainerKind::Form(FormSpec {
+                method: Method::Post,
+                ..
+            })
+        ));
+        assert_eq!(form.children.len(), 5);
+        let e = errors(
+            r#"slml 0.1 page { input(name: "a") form { select(name: "s", label: "S") { } } submit "x" }"#,
+        );
+        assert!(
+            e.iter().any(|m| m.contains("must be inside a `form`")),
+            "{e:?}"
+        );
+        assert!(e.iter().any(|m| m.contains("requires `label`")), "{e:?}");
+        assert!(e.iter().any(|m| m.contains("requires `to`")), "{e:?}");
+        assert!(
+            e.iter().any(|m| m.contains("at least one `option`")),
+            "{e:?}"
+        );
     }
 }

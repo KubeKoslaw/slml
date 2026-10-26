@@ -10,3 +10,4 @@ rust-version.workspace = true
 fontdue = "0.9.5"
 slml-syntax.workspace = true
 tiny-skia = "0.12.0"
+zune-jpeg = "0.4"
