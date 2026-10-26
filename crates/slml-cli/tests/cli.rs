@@ -118,3 +118,24 @@ fn imports_and_root_paths() {
     assert!(post.contains("href=\"../index.html\""), "{post}");
     assert!(!out.join("parts.html").exists(), "libraries are not pages");
 }
+
+#[test]
+fn handbook_builds_without_errors() {
+    let out = temp_dir("handbook");
+    let handbook = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../handbook");
+    let result = slml()
+        .arg(&handbook)
+        .args(["-o", out.to_str().unwrap(), "-q"])
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(out.join("index.html").is_file());
+    assert!(
+        !out.join("layout.html").exists(),
+        "layout.slml is a library"
+    );
+}

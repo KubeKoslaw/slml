@@ -25,5 +25,5 @@ jobs:
         run: cargo test --all
       - name: Build without the native viewer
         run: cargo build -p slml-cli --no-default-features
-      - name: Check examples
-        run: cargo run --quiet -- check examples
+      - name: Check examples and handbook
+        run: cargo run --quiet -- check examples handbook

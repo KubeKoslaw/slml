@@ -1,0 +1,75 @@
+slml 0.1
+
+use "layout.slml"
+
+style card(fill: #ffffff, padding: 20, radius: 12, border: 1, border-color: #e4e4ea, gap: 6)
+style highlight(fill: #fff4d6, border-color: #f0d48a)
+
+doc(title: "Boxes and styles") {
+  text.lead { "Every block element is a box. Its appearance is set with attributes, and sets of attributes you use often become " bold "styles" "." }
+
+  section(id: "box", title: "The box") {
+    column(gap: 0) {
+      ref(name: "padding", values: "number", about: "Space inside the box on all sides.")
+      ref(name: "padding-x / -y", values: "number", about: "Horizontal or vertical padding only; they override padding.")
+      ref(name: "fill", values: "color", about: "Background color.")
+      ref(name: "radius", values: "number", about: "Rounded corners.")
+      ref(name: "border", values: "number", about: "Border width. Its color is border-color (light gray by default).")
+      ref(name: "shadow", values: "none / small / large", about: "A soft drop shadow.")
+    }
+    demo(code: """
+        column(fill: #ffffff, padding: 20, radius: 12,
+               border: 1, border-color: #e4e4ea, shadow: small) {
+          heading(level: 3) "A card"
+          text "Padding, fill, radius, border and shadow."
+        }
+        """) {
+      column(fill: #ffffff, padding: 20, radius: 12, border: 1, border-color: #e4e4ea, shadow: small) {
+        heading(level: 3) "A card"
+        text "Padding, fill, radius, border and shadow."
+      }
+    }
+    note(title: "Sizes include padding and border") {
+      text { "A box with " code "width: 200" " and " code "padding: 20" " is 200 pixels wide in total. There is no box-model arithmetic to remember." }
+    }
+  }
+
+  section(id: "styles", title: "Styles") {
+    text { "A " code "style" " gives a name to a set of attributes. Apply it with a dot after the element name. The element's own attributes win over the style's:" }
+    demo(code: """
+        style card(fill: #ffffff, padding: 20, radius: 12,
+                   border: 1, border-color: #e4e4ea, gap: 6)
+        style highlight(fill: #fff4d6, border-color: #f0d48a)
+
+        row(gap: 12) {
+          column.card(width: fill) { text "Plain card" }
+          column.card.highlight(width: fill) { text "Card + highlight" }
+          column.card(width: fill, radius: 0) { text "Square card" }
+        }
+        """) {
+      row(gap: 12) {
+        column.card(width: fill) { text "Plain card" }
+        column.card.highlight(width: fill) { text "Card + highlight" }
+        column.card(width: fill, radius: 0) { text "Square card" }
+      }
+    }
+    list(gap: 6) {
+      item { "Styles are applied left to right, then the element's own attributes: " code "column.card.highlight(radius: 0)" "." }
+      item { "A style may only contain attributes that fit every element it is used on; " code "text.card" " is an error here, because a text has no " code "gap" "." }
+      item { "Styles never cascade and have no selectors. An element looks the way its own line says." }
+      item { "Put styles you share between pages into a library file and " code "use" " it. See " link(to: "/components.slml#imports") "imports" "." }
+    }
+  }
+
+  section(id: "colors", title: "Colors") {
+    text { "Colors are hexadecimal: " code "#rgb" ", " code "#rrggbb" ", or with transparency " code "#rgba" " / " code "#rrggbbaa" ". There are no color names, so a color always means the same thing." }
+    row(gap: 8, wrap: true) {
+      text(fill: #2457d6, color: #ffffff, padding: 10, radius: 8) "#2457d6"
+      text(fill: #146c43, color: #ffffff, padding: 10, radius: 8) "#146c43"
+      text(fill: #b42318, color: #ffffff, padding: 10, radius: 8) "#b42318"
+      text(fill: #00000014, padding: 10, radius: 8) "#00000014"
+    }
+  }
+
+  pager(prev: "/layout-guide.slml", prev-label: "Layout", next: "/content.slml", next-label: "Lists, code and images")
+}

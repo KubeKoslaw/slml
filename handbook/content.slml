@@ -1,0 +1,85 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "Lists, code and images") {
+  text.lead "The building blocks of real content: lists, code samples, images and dividers."
+
+  section(id: "lists", title: "Lists") {
+    demo(code: """
+        list {
+          item "Bullets are the default"
+          item { "Items can contain " bold "inline" " elements" }
+          list(marker: number) {
+            item "A nested list follows an item"
+            item "and is indented under it"
+          }
+        }
+        """) {
+      list {
+        item "Bullets are the default"
+        item { "Items can contain " bold "inline" " elements" }
+        list(marker: number) {
+          item "A nested list follows an item"
+          item "and is indented under it"
+        }
+      }
+    }
+    column(gap: 0) {
+      ref(name: "marker", values: "bullet / number / none", about: "The symbol before each item. Numbers count 1, 2, 3 …")
+      ref(name: "gap", values: "number", about: "Space between items (default 6).")
+    }
+    text { "A list contains only " code "item" "s and nested " code "list" "s; an " code "item" " can only be inside a list." }
+  }
+
+  section(id: "code", title: "Code blocks") {
+    text { code "codeblock" " shows text in a monospaced font on a light background, keeping every space. It is ideal with a " link(to: "/syntax.slml#strings") "block string" ":" }
+    demo(code: "codeblock \"\"\"\n    fn main() {\n        println!(\"Hello\");\n    }\n    \"\"\"") {
+      codeblock """
+          fn main() {
+              println!("Hello");
+          }
+          """
+    }
+    text { "For a short piece of code inside a sentence use the inline " code "code" " element." }
+  }
+
+  section(id: "images", title: "Images") {
+    demo(code: """
+        row(gap: 16, align: center) {
+          image(src: "/logo.png", alt: "SLML logo", width: 64, radius: 14)
+          image(src: "/logo.png", alt: "Small SLML logo", width: 32)
+          image(src: "missing.png", alt: "This image is missing", width: 160, height: 64)
+        }
+        """) {
+      row(gap: 16, align: center) {
+        image(src: "/logo.png", alt: "SLML logo", width: 64, radius: 14)
+        image(src: "/logo.png", alt: "Small SLML logo", width: 32)
+        image(src: "missing.png", alt: "This image is missing", width: 160, height: 64)
+      }
+    }
+    list(gap: 6) {
+      item { code "src" " is a path to a PNG or JPEG file (or an https address). " code "alt" " describes the image for people who can't see it, and it is " bold "required" "." }
+      item { "Purely decorative images say so with " code "alt: \"\"" "." }
+      item { "Without " code "width" " and " code "height" ", an image has its natural size but never overflows its container. Give one of them and the other follows the image's proportions." }
+      item { code "radius" ", " code "border" ", " code "padding" " and " code "shadow" " work on images too, and " code "to" " turns an image into a link." }
+    }
+  }
+
+  section(id: "dividers", title: "Dividers and spacers") {
+    demo(code: """
+        text "Above"
+        divider
+        text "Below"
+        row(height: 40) { text "Left" divider(color: #2457d6, thickness: 2) text "Right" }
+        """) {
+      text "Above"
+      divider
+      text "Below"
+      row(height: 40, gap: 8) { text "Left" divider(color: #2457d6, thickness: 2) text "Right" }
+    }
+    text { "In a row a divider is vertical. A " code "spacer" " is empty space: without a size it takes all free space, with " code "height: 24" " it is a fixed gap." }
+  }
+
+  pager(prev: "/styling.slml", prev-label: "Boxes and styles", next: "/links.slml", next-label: "Links and navigation")
+}

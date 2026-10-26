@@ -1,0 +1,122 @@
+slml 0.1
+
+// Shared styles and components for every handbook page.
+// This file has no `page`, so `slml handbook/` treats it as a library.
+
+style lead(size: 18, color: #3f3f4e)
+style muted(color: #5b5b70)
+style small(size: 14, color: #5b5b70)
+style navlink(color: #2b2b38, underline: false)
+style section(gap: 12, padding-y: 6)
+
+// One entry in the sidebar.
+define nav(to, label) {
+  text(size: 15) { link.navlink(to: $to) $label }
+}
+
+// The frame of every page: top bar, sidebar, content, footer.
+define doc(title, description: "The SLML handbook: learn the Strict Layout Markup Language") {
+  meta(title: $title, description: $description, lang: "en", icon: "/logo.png")
+  page(fill: #fbfbfd, padding: 0, gap: 0) {
+    row(fill: #ffffff, padding-x: 24, padding-y: 12, align: center, gap: 12, border: 1, border-color: #e6e6ee) {
+      image(src: "/logo.png", alt: "SLML home", width: 28, radius: 7, to: "/index.slml")
+      text(bold: true, size: 17) { link.navlink(to: "/index.slml") "SLML Handbook" }
+      spacer
+      text(size: 14) { link(to: "/reference.slml") "Reference" }
+      text(size: 14) { link(to: "https://github.com/KubeKoslaw/slml") "GitHub" }
+    }
+    row(wrap: true, align: start) {
+      column(width: 260, padding-x: 24, padding-y: 28, gap: 7) {
+        text(size: 12, bold: true, color: #8a8a99) "GETTING STARTED"
+        nav(to: "/index.slml", label: "Introduction")
+        nav(to: "/install.slml", label: "Installing the compiler")
+        nav(to: "/first-page.slml", label: "Your first page")
+        spacer(height: 10)
+        text(size: 12, bold: true, color: #8a8a99) "THE LANGUAGE"
+        nav(to: "/syntax.slml", label: "Syntax basics")
+        nav(to: "/text.slml", label: "Text")
+        nav(to: "/layout-guide.slml", label: "Layout")
+        nav(to: "/styling.slml", label: "Boxes and styles")
+        nav(to: "/content.slml", label: "Lists, code and images")
+        nav(to: "/links.slml", label: "Links and navigation")
+        nav(to: "/components.slml", label: "Components and imports")
+        nav(to: "/forms.slml", label: "Forms")
+        spacer(height: 10)
+        text(size: 12, bold: true, color: #8a8a99) "WEBSITES"
+        nav(to: "/sites.slml", label: "Building a website")
+        nav(to: "/cli.slml", label: "Command line")
+        nav(to: "/errors.slml", label: "Understanding errors")
+        nav(to: "/from-html.slml", label: "Coming from HTML")
+        nav(to: "/reference.slml", label: "Reference")
+      }
+      column(width: fill, min-width: 320, padding-x: 32, padding-y: 36, align: center) {
+        column(width: fill, max-width: 760, gap: 20) {
+          heading $title
+          slot
+          divider(color: #e6e6ee)
+          text.small {
+            "SLML handbook · written in SLML and built with "
+            code "slml handbook/"
+            " · "
+            link(to: "https://github.com/KubeKoslaw/slml") "source on GitHub"
+          }
+        }
+      }
+    }
+  }
+}
+
+// A highlighted remark.
+define note(title: "Note") {
+  column(fill: #eef3ff, padding: 16, radius: 10, gap: 6, border: 1, border-color: #d6e0fb) {
+    text(bold: true, size: 14, color: #2944a8) $title
+    slot
+  }
+}
+
+define warning(title: "Watch out") {
+  column(fill: #fff6e8, padding: 16, radius: 10, gap: 6, border: 1, border-color: #f5ddb0) {
+    text(bold: true, size: 14, color: #8a5300) $title
+    slot
+  }
+}
+
+// Source code followed by what it renders.
+define demo(code) {
+  column(border: 1, border-color: #e6e6ee, radius: 12, fill: #ffffff) {
+    codeblock(radius: 0, fill: #f6f6fa) $code
+    column(padding: 18, gap: 10) {
+      text(size: 12, bold: true, color: #8a8a99) "RESULT"
+      slot
+    }
+  }
+}
+
+// A section with an anchor and a level-2 heading.
+define section(id, title) {
+  column.section(id: $id) {
+    heading(level: 2) $title
+    slot
+  }
+}
+
+// A row of a reference table: name, accepted values, description.
+define ref(name, values, about) {
+  column(gap: 0) {
+    row(wrap: true, gap: 12, padding-y: 9) {
+      text(width: 150) { code(bold: true) $name }
+      text(width: 210, size: 14, color: #3f3f4e) $values
+      text(width: fill, min-width: 220, size: 15) $about
+    }
+    divider(color: #eeeef3)
+  }
+}
+
+// Previous / next links at the bottom of a chapter.
+define pager(prev, prev-label, next, next-label) {
+  row(gap: 12, padding-y: 8) {
+    button(to: $prev, fill: #ffffff, color: #2b2b38, border: 1, border-color: #d8d8e2) $prev-label
+    spacer
+    button(to: $next) $next-label
+  }
+}

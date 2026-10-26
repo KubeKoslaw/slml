@@ -1,0 +1,103 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "Reference") {
+  text.lead { "Every element and attribute of SLML 0.1 on one page. The complete rules, including layout details, are in " link(to: "https://github.com/KubeKoslaw/slml/blob/main/SPEC.md") "SPEC.md" "." }
+
+  text {
+    "Jump to: " link(to: "#containers") "containers" " · " link(to: "#text-elements") "text" " · "
+    link(to: "#inline") "inline" " · " link(to: "#media") "media" " · " link(to: "#form-elements") "forms" " · "
+    link(to: "#attributes") "attributes" " · " link(to: "#top-level") "top level"
+  }
+
+  section(id: "containers", title: "Containers") {
+    column(gap: 0) {
+      ref(name: "page", values: "frame, flow, text", about: "The visible document. One per file. Defaults: padding 32, gap 16, white, 16 px text.")
+      ref(name: "column", values: "frame, flow, text, to", about: "Children top to bottom.")
+      ref(name: "row", values: "frame, flow, text, to, wrap", about: "Children side by side; wrap: true moves overflow to new lines.")
+      ref(name: "grid", values: "frame, flow, text, columns, cell-width", about: "Equal columns: a fixed number (1–12), or as many of at least cell-width as fit.")
+      ref(name: "form", values: "frame, flow, text, to, method", about: "A column that sends its fields to `to` (get or post). Gap 16.")
+      ref(name: "list", values: "frame, text, gap, marker", about: "items and nested lists. marker: bullet, number or none.")
+    }
+  }
+
+  section(id: "text-elements", title: "Text blocks") {
+    column(gap: 0) {
+      ref(name: "text", values: "frame, text, align", about: "A paragraph.")
+      ref(name: "heading", values: "frame, text, align, level", about: "Level 1–4: 32, 24, 20 and 17 px, bold.")
+      ref(name: "item", values: "text, align, id", about: "An entry of a list.")
+      ref(name: "codeblock", values: "frame, text, align", about: "Monospaced text on a light background, spaces kept.")
+      ref(name: "button", values: "frame, text, align, to", about: "A link that looks like a button.")
+      ref(name: "submit", values: "frame, text, align", about: "The button that sends a form.")
+    }
+  }
+
+  section(id: "inline", title: "Inline elements") {
+    column(gap: 0) {
+      ref(name: "bold", values: "text", about: "Bold text.")
+      ref(name: "italic", values: "text", about: "Italic text.")
+      ref(name: "code", values: "text", about: "Monospaced text.")
+      ref(name: "link", values: "text, to", about: "A link; blue and underlined by default.")
+      ref(name: "span", values: "text", about: "Any text attributes for part of a sentence.")
+    }
+  }
+
+  section(id: "media", title: "Images and spacing") {
+    column(gap: 0) {
+      ref(name: "image", values: "frame, src, alt, to", about: "PNG or JPEG. alt is required; alt: \"\" for decoration.")
+      ref(name: "divider", values: "width, color, thickness, id", about: "A line; vertical inside a row.")
+      ref(name: "spacer", values: "width, height", about: "Empty space; without a size it takes all free space.")
+    }
+  }
+
+  section(id: "form-elements", title: "Form fields") {
+    text { "All fields take " code "name" ", " code "label" " (both required) and " code "required" ". They must be inside a " code "form" "." }
+    column(gap: 0) {
+      ref(name: "input", values: "frame, text, kind, placeholder, value", about: "kind: text, email, password, number, tel, url, date, search.")
+      ref(name: "textarea", values: "frame, text, rows, placeholder, value", about: "rows: 1–50 (default 4).")
+      ref(name: "checkbox", values: "text, checked, id", about: "A box with its label next to it.")
+      ref(name: "select", values: "frame, text", about: "Contains option elements.")
+      ref(name: "option", values: "value, selected", about: "One choice of a select, with a text label.")
+    }
+  }
+
+  section(id: "attributes", title: "Attribute groups") {
+    text(bold: true) "frame"
+    column(gap: 0) {
+      ref(name: "width, height", values: "number, fill, auto", about: "Size including padding and border.")
+      ref(name: "min-width, max-width", values: "number", about: "Limits for the width.")
+      ref(name: "padding", values: "number", about: "Inner space; padding-x and padding-y set one axis.")
+      ref(name: "fill", values: "color", about: "Background.")
+      ref(name: "radius", values: "number", about: "Corner rounding.")
+      ref(name: "border, border-color", values: "number, color", about: "Border width and color.")
+      ref(name: "shadow", values: "none, small, large", about: "Drop shadow.")
+      ref(name: "id", values: "string", about: "Anchor name for #links; unique per page.")
+    }
+    text(bold: true) "flow"
+    column(gap: 0) {
+      ref(name: "gap", values: "number", about: "Space between children.")
+      ref(name: "align", values: "start, center, end, stretch", about: "Placement across the main direction.")
+      ref(name: "justify", values: "start, center, end, between", about: "Distribution along the main direction.")
+    }
+    text(bold: true) "text (inherited)"
+    column(gap: 0) {
+      ref(name: "color", values: "color", about: "Text color.")
+      ref(name: "size", values: "number", about: "Font size.")
+      ref(name: "bold, italic, underline", values: "true, false", about: "Text decoration.")
+      ref(name: "font", values: "sans, mono", about: "Font family.")
+    }
+  }
+
+  section(id: "top-level", title: "Top level") {
+    column(gap: 0) {
+      ref(name: "slml 0.1", values: "", about: "Version line; always first.")
+      ref(name: "meta", values: "title, lang, description, icon", about: "Page information.")
+      ref(name: "use", values: "\"path.slml\"", about: "Import styles and components.")
+      ref(name: "style", values: "name(attributes)", about: "A named set of attributes, applied with .name.")
+      ref(name: "define", values: "name(params) { … }", about: "A component; $param inside, slot for content.")
+    }
+  }
+
+  pager(prev: "/from-html.slml", prev-label: "Coming from HTML", next: "/index.slml", next-label: "Back to the start")
+}

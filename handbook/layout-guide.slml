@@ -1,0 +1,135 @@
+slml 0.1
+
+use "layout.slml"
+
+style box(fill: #e8edff, padding: 10, radius: 8)
+
+doc(title: "Layout") {
+  text.lead { "Layout is part of SLML. Four containers, " code "column" ", " code "row" ", " code "grid" " and " code "page" ", and a handful of attributes describe almost any page." }
+
+  section(id: "column-row", title: "Columns and rows") {
+    text { code "column" " stacks its children from top to bottom, " code "row" " places them side by side. " code "gap" " is the space between them." }
+    demo(code: """
+        column(gap: 8) {
+          text.box "One"
+          row(gap: 8) {
+            text.box "Two"
+            text.box "Three"
+          }
+        }
+        """) {
+      column(gap: 8) {
+        text.box "One"
+        row(gap: 8) {
+          text.box "Two"
+          text.box "Three"
+        }
+      }
+    }
+    text { "The " code "page" " itself is a column with 32 pixels of padding and a gap of 16." }
+  }
+
+  section(id: "sizes", title: "Sizes: auto, fill and pixels") {
+    text { code "width" " and " code "height" " take three kinds of values:" }
+    column(gap: 0) {
+      ref(name: "auto", values: "default", about: "As big as the content. In a column, auto width fills the column unless align says otherwise.")
+      ref(name: "fill", values: "share space", about: "Take the free space. Several fill children share it equally.")
+      ref(name: "240", values: "pixels", about: "Exactly this size, padding and border included.")
+    }
+    demo(code: """
+        row(gap: 8) {
+          text.box(width: 80) "80 px"
+          text.box(width: fill) "fill"
+          text.box(width: fill) "fill"
+          text.box "auto"
+        }
+        """) {
+      row(gap: 8) {
+        text.box(width: 80) "80 px"
+        text.box(width: fill) "fill"
+        text.box(width: fill) "fill"
+        text.box "auto"
+      }
+    }
+    text { code "max-width" " limits a size and " code "min-width" " sets a lower bound. They are the key to readable pages: " code "column(width: fill, max-width: 760)" " is a column that grows with the window but never gets too wide." }
+  }
+
+  section(id: "align", title: "Alignment") {
+    text { code "align" " places children across the container (horizontally in a column, vertically in a row): " code "start" ", " code "center" ", " code "end" " or " code "stretch" " (the default). " code "justify" " distributes them along it: " code "start" ", " code "center" ", " code "end" " or " code "between" "." }
+    demo(code: """
+        row(justify: between, align: center, fill: #f4f4f8, padding: 10) {
+          text.box "Left"
+          text.box(padding: 20) "Middle"
+          text.box "Right"
+        }
+        column(align: center) { text.box "Centered" }
+        """) {
+      row(justify: between, align: center, fill: #f4f4f8, padding: 10) {
+        text.box "Left"
+        text.box(padding: 20) "Middle"
+        text.box "Right"
+      }
+      column(align: center) { text.box "Centered" }
+    }
+    text { "A " code "spacer" " absorbs free space; it is the easiest way to push things apart:" }
+    codeblock """row { text "Logo"  spacer  text "Menu" }"""
+  }
+
+  section(id: "responsive", title: "Responsive layouts") {
+    text { "Pages are viewed on phones and wide screens. Two tools adapt a layout to the space available:" }
+    text { bold "Wrapping rows." " With " code "wrap: true" ", children that don't fit move to the next line. Give " code "fill" " children a " code "min-width" " to say how narrow they may get:" }
+    demo(code: """
+        row(wrap: true, gap: 8) {
+          text.box(width: fill, min-width: 160) "Sidebar"
+          text.box(width: fill, min-width: 260) "Content"
+        }
+        """) {
+      row(wrap: true, gap: 8) {
+        text.box(width: fill, min-width: 160) "Sidebar"
+        text.box(width: fill, min-width: 260) "Content"
+      }
+    }
+    text { bold "Grids." " " code "grid(columns: 3)" " makes three equal columns. " code "grid(cell-width: 200)" " fits as many columns of at least 200 pixels as the width allows: four on a laptop, one on a phone." }
+    demo(code: """
+        grid(cell-width: 140, gap: 8) {
+          text.box "A"  text.box "B"  text.box "C"
+          text.box "D"  text.box "E"
+        }
+        """) {
+      grid(cell-width: 140, gap: 8) {
+        text.box "A"  text.box "B"  text.box "C"
+        text.box "D"  text.box "E"
+      }
+    }
+    note(title: "Try it") {
+      text "Make this browser window narrower: the sidebar of this handbook moves above the text and the grid above drops columns. Both are just a wrapping row and a grid."
+    }
+  }
+
+  section(id: "recipes", title: "Recipes") {
+    text(bold: true) "Centered page content"
+    codeblock """
+        page(align: center) {
+          column(width: fill, max-width: 760, gap: 20) { ... }
+        }
+        """
+    text(bold: true) "Header with logo and menu"
+    codeblock """
+        row(align: center, gap: 16, padding: 16) {
+          image(src: "/logo.png", alt: "Home", width: 32, to: "/index.slml")
+          spacer
+          text { link(to: "/about.slml") "About" }
+          text { link(to: "/contact.slml") "Contact" }
+        }
+        """
+    text(bold: true) "Sidebar layout that stacks on phones"
+    codeblock """
+        row(wrap: true, gap: 24) {
+          column(width: 240) { ...menu... }
+          column(width: fill, min-width: 320) { ...content... }
+        }
+        """
+  }
+
+  pager(prev: "/text.slml", prev-label: "Text", next: "/styling.slml", next-label: "Boxes and styles")
+}

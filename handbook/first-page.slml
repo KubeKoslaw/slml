@@ -1,0 +1,64 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "Your first page") {
+  text.lead "In this chapter you write a small page, preview it in your browser and compile it to HTML."
+
+  section(id: "write", title: "1. Write the page") {
+    text { "Create a folder for your site and a file named " code "index.slml" " in it:" }
+    demo(code: """
+        slml 0.1
+
+        meta(title: "My first page")
+
+        page {
+          heading "Hello, world!"
+          text "This is my first SLML page."
+          button(to: "#write") "Click me"
+        }
+        """) {
+      heading "Hello, world!"
+      text "This is my first SLML page."
+      row { button(to: "#write") "Click me" }
+    }
+    text "Every SLML file has the same three parts:"
+    list(gap: 8) {
+      item { code "slml 0.1" " — the version line. It is always first, so a page can never be misread by a newer compiler." }
+      item { code "meta(...)" " — information about the page: its title, language, description and icon. Optional." }
+      item { code "page { ... }" " — the visible content. Exactly one per file." }
+    }
+  }
+
+  section(id: "preview", title: "2. Preview it") {
+    text "Open a terminal in the folder and start the preview server:"
+    codeblock "slml serve --open"
+    text { "Your browser opens " code "http://127.0.0.1:4000/" ". Change the text in " code "index.slml" ", save, and the page updates by itself. If you make a mistake, the browser shows the error and where it is." }
+  }
+
+  section(id: "compile", title: "3. Compile it") {
+    text "When you are happy, compile the page:"
+    codeblock "slml index.slml"
+    text { "This writes " code "index.html" " next to your file, plus a " code "_slml" " folder with the stylesheet and fonts. Open " code "index.html" " in any browser, or upload both to a web server." }
+    text { "Like a C compiler, " code "-o" " chooses the output:" }
+    codeblock """
+        slml index.slml -o public/index.html    # HTML somewhere else
+        slml index.slml -o preview.png          # a picture of the page
+        """
+  }
+
+  section(id: "mistakes", title: "4. Make a mistake on purpose") {
+    text { "Change " code "heading" " to " code "headng" " and run " code "slml check index.slml" ":" }
+    codeblock """
+        error: unknown element `headng`
+         --> index.slml:6:3
+          |
+        6 |   headng "Hello, world!"
+          |   ^^^^^^
+          = hint: did you mean `heading`?
+        """
+    text "SLML never guesses. Each mistake is reported with its place and a suggestion, and nothing is written until the file is correct."
+  }
+
+  pager(prev: "/install.slml", prev-label: "Installing", next: "/syntax.slml", next-label: "Syntax basics")
+}

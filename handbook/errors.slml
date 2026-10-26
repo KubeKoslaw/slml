@@ -1,0 +1,49 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "Understanding errors") {
+  text.lead "SLML is strict on purpose. A browser that guesses what broken HTML meant hides mistakes; SLML shows them, with everything you need to fix them."
+
+  section(id: "anatomy", title: "Reading an error") {
+    codeblock """
+        error: `text` has no attribute `colr`
+         --> about.slml:12:10
+           |
+        12 |     text(colr: #b42318) "Warning"
+           |          ^^^^
+           = hint: did you mean `color`?
+        """
+    list(gap: 6) {
+      item { "The first line says " bold "what" " is wrong." }
+      item { "The arrow gives the " bold "file, line and column" "." }
+      item { "The source line is shown with the problem underlined." }
+      item { "The " bold "hint" " suggests a fix: a likely spelling, the attributes an element accepts, or the SLML equivalent of an HTML tag." }
+    }
+    text "All independent errors in a file are reported at once, so you can fix them in one go."
+  }
+
+  section(id: "common", title: "Common errors") {
+    column(gap: 0) {
+      ref(name: "unknown element", values: "colum, div, p", about: "A typo, or an HTML name. The hint names the SLML element.")
+      ref(name: "has no attribute", values: "text(gap: …)", about: "The attribute exists, but not on this element. The hint lists what it accepts.")
+      ref(name: "expects …", values: "gap: \"big\"", about: "A value of the wrong kind: a string where a number belongs, an unknown word.")
+      ref(name: "requires `alt`", values: "image", about: "Describe the image. Use alt: \"\" for decoration only.")
+      ref(name: "requires `label`", values: "input, select …", about: "Every form field needs a visible label.")
+      ref(name: "text cannot be placed directly", values: "column { \"Hi\" }", about: "Wrap the string in text.")
+      ref(name: "cannot be placed inside", values: "text { row }", about: "Only strings and inline elements go inside text.")
+      ref(name: "inside a link or button", values: "button { link }", about: "Interactive elements can't be nested.")
+      ref(name: "no element has id", values: "link(to: \"#x\")", about: "An anchor link points to an id that doesn't exist.")
+      ref(name: "broken link", values: "to: \"abuot.slml\"", about: "The linked file doesn't exist in the site.")
+      ref(name: "invalid path", values: "\"../x.png\"", about: "Paths can't leave the site. Start at the root with /.")
+      ref(name: "unterminated string", values: "\"Hello", about: "A string must end on the same line; use \\n or a \"\"\" block.")
+      ref(name: "missing `slml` version line", values: "", about: "The file must start with slml 0.1.")
+    }
+  }
+
+  section(id: "why", title: "Why so strict?") {
+    text { "HTML browsers accept almost anything and try to repair it, each in a slightly different way. That is why the same page can look different in two browsers, and why accessibility problems go unnoticed. SLML rejects the page instead and tells you exactly what to change. A page that compiles is one that every SLML tool understands the same way. See the " link(to: "https://github.com/KubeKoslaw/slml/blob/main/docs/principles.md") "design principles" " for the full reasoning." }
+  }
+
+  pager(prev: "/cli.slml", prev-label: "Command line", next: "/from-html.slml", next-label: "Coming from HTML")
+}

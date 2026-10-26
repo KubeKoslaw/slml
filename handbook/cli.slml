@@ -1,0 +1,49 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "Command line") {
+  text.lead { code "slml" " works like a classic compiler: give it input files, get output files. Run " code "slml --help" " or " code "man slml" " for a summary." }
+
+  section(id: "compile", title: "Compiling") {
+    column(gap: 0) {
+      ref(name: "slml page.slml", values: "→ page.html", about: "Compile one or more pages next to themselves.")
+      ref(name: "slml page.slml -o out.html", values: "-o file", about: "Choose the output file.")
+      ref(name: "slml page.slml -o page.png", values: ".png", about: "Render a picture of the page with the native renderer.")
+      ref(name: "slml site/", values: "→ site/_site/", about: "Build a whole site folder.")
+      ref(name: "slml site/ -o public/", values: "-o folder", about: "Build a site into a chosen folder.")
+    }
+  }
+
+  section(id: "commands", title: "Commands") {
+    column(gap: 0) {
+      ref(name: "slml check …", values: "files or folders", about: "Report errors without writing anything. Exit status 1 on errors.")
+      ref(name: "slml serve [folder]", values: "--port, --open", about: "Live preview in the browser at http://127.0.0.1:4000/.")
+      ref(name: "slml view page.slml", values: "--scale", about: "Open the page in the native SLML viewer window.")
+      ref(name: "slml render page.slml", values: "-o, --width, --scale", about: "Render to PNG (same as -o page.png).")
+    }
+  }
+
+  section(id: "options", title: "Options") {
+    column(gap: 0) {
+      ref(name: "-o, --output", values: "path", about: "Output file or folder.")
+      ref(name: "--root", values: "folder", about: "What paths starting with / refer to. Default: the current folder if the file is inside it, otherwise the file's folder. When building a folder, that folder.")
+      ref(name: "--width", values: "pixels", about: "Page width for PNG output (default 900).")
+      ref(name: "--scale", values: "number", about: "Pixel density for PNG and the viewer, e.g. 2 for sharp screens.")
+      ref(name: "--port", values: "number", about: "First port serve tries (default 4000).")
+      ref(name: "--open", values: "", about: "serve: open the preview in your browser.")
+      ref(name: "-q, --quiet", values: "", about: "Print only errors.")
+      ref(name: "-V, --version", values: "", about: "Compiler and language version.")
+    }
+  }
+
+  section(id: "viewer", title: "The native viewer") {
+    text { code "slml view" " shows a page with SLML's own renderer, without a web browser. Scroll with the mouse wheel, arrow keys or Page Up/Down, click links, press Backspace to go back and F5 to reload; the page also reloads when you save it. External links open in your normal browser." }
+  }
+
+  section(id: "exit", title: "Exit status") {
+    text { code "0" " when everything compiled, " code "1" " when any file has errors. Scripts and CI can rely on it." }
+  }
+
+  pager(prev: "/sites.slml", prev-label: "Building a website", next: "/errors.slml", next-label: "Understanding errors")
+}

@@ -1,0 +1,73 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "Building a website") {
+  text.lead { "A website is a folder of " code ".slml" " files, images and other files. One command turns it into a folder of plain HTML that any web host can serve." }
+
+  section(id: "structure", title: "A site folder") {
+    codeblock """
+        my-site/
+          layout.slml        styles and components (a library: no page)
+          index.slml         → index.html, the home page
+          about.slml         → about.html
+          blog/
+            index.slml       → blog/index.html
+            first-post.slml  → blog/first-post.html
+          img/
+            logo.png         copied as it is
+        """
+    list(gap: 6) {
+      item { "Files with a " code "page" " become HTML pages. Files with only " code "style" " and " code "define" " are libraries for " code "use" "." }
+      item { "Every other file (images, PDFs, downloads) is copied unchanged." }
+      item { "Folders whose name starts with " code "_" " or " code "." " are skipped, so you can keep drafts in " code "_drafts/" "." }
+      item { "Paths starting with " code "/" " mean the folder you build: " code "/img/logo.png" " works from every page." }
+    }
+  }
+
+  section(id: "preview", title: "Previewing") {
+    codeblock "slml serve my-site --open"
+    text { "Pages are compiled each time you open them. Errors are shown in the browser, and open pages reload when you save any file. The preview server only listens on your own computer (127.0.0.1)." }
+  }
+
+  section(id: "build", title: "Building") {
+    codeblock """
+        slml my-site                 # into my-site/_site
+        slml my-site -o public       # into public/
+        """
+    text { "The output contains your pages as " code ".html" ", your other files, and a " code "_slml" " folder with the stylesheet and fonts. Links to " code ".slml" " pages are rewritten to " code ".html" ", and paths are made relative, so the site also works when opened straight from disk or from a sub-folder of a server." }
+    text { "If any page has an error or a broken link, " code "slml" " reports all of them and exits with status 1, which stops automated deployments before a broken site goes live." }
+  }
+
+  section(id: "publish", title: "Publishing") {
+    text "The output is a static site: upload the output folder to any web host."
+    column(gap: 0) {
+      ref(name: "GitHub Pages", values: "free for public repos", about: "Build in a GitHub Actions workflow and deploy the output folder with actions/deploy-pages.")
+      ref(name: "Netlify / Cloudflare", values: "free tiers", about: "Build command: slml . -o public. Publish directory: public.")
+      ref(name: "Any server", values: "FTP, rsync", about: "Copy the output folder to the server's web root.")
+    }
+    text(bold: true) "Example: GitHub Pages workflow"
+    codeblock """
+        # .github/workflows/pages.yml
+        on: { push: { branches: [main] } }
+        permissions: { pages: write, id-token: write, contents: read }
+        jobs:
+          deploy:
+            runs-on: ubuntu-latest
+            environment: github-pages
+            steps:
+              - uses: actions/checkout@v5
+              - run: curl -fsSL https://raw.githubusercontent.com/KubeKoslaw/slml/main/install.sh | sh
+              - run: ~/.local/bin/slml . -o public
+              - uses: actions/upload-pages-artifact@v3
+                with: { path: public }
+              - uses: actions/deploy-pages@v4
+        """
+  }
+
+  section(id: "html", title: "What the HTML looks like") {
+    text { "The compiler writes semantic HTML: headings are " code "h1" "–" code "h4" ", lists are " code "ul" "/" code "ol" ", forms are real forms. Layout uses CSS flexbox and grid, so pages are responsive. Built pages contain " bold "no JavaScript" "; the live-reload script exists only in the preview server." }
+  }
+
+  pager(prev: "/forms.slml", prev-label: "Forms", next: "/cli.slml", next-label: "Command line")
+}

@@ -1,0 +1,84 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "Links and navigation") {
+  text.lead { "Anything can be a link: a piece of text, a button, an image or a whole box. The " code "to" " attribute says where it goes." }
+
+  section(id: "kinds", title: "Kinds of links") {
+    demo(code: """
+        text { "Read the " link(to: "text.slml") "text chapter" "." }
+        row(gap: 12) {
+          button(to: "#targets") "A button"
+          image(src: "/logo.png", alt: "Home", width: 40, to: "/index.slml")
+        }
+        column(to: "/layout-guide.slml", fill: #f4f4f8, padding: 14, radius: 10) {
+          text(bold: true) "A whole box is a link"
+          text "Click anywhere in it."
+        }
+        """) {
+      text { "Read the " link(to: "text.slml") "text chapter" "." }
+      row(gap: 12) {
+        button(to: "#targets") "A button"
+        image(src: "/logo.png", alt: "Home", width: 40, to: "/index.slml")
+      }
+      column(to: "/layout-guide.slml", fill: #f4f4f8, padding: 14, radius: 10) {
+        text(bold: true) "A whole box is a link"
+        text "Click anywhere in it."
+      }
+    }
+    warning(title: "No links inside links") {
+      text { "A link, button or linked box can't contain another link, button or form field. In HTML this is a common source of broken pages; in SLML it is an error." }
+    }
+  }
+
+  section(id: "targets", title: "Where a link can go") {
+    column(gap: 0) {
+      ref(name: "about.slml", values: "a page", about: "Relative to the current file. Compiled sites link to about.html automatically.")
+      ref(name: "/docs/a.slml", values: "from the root", about: "A leading slash starts at the site root, so the link works from any folder.")
+      ref(name: "#contact", values: "an anchor", about: "An element on this page with id: \"contact\". It must exist.")
+      ref(name: "a.slml#top", values: "page + anchor", about: "A place on another page.")
+      ref(name: "https://…", values: "a website", about: "Also http:, mailto: (e-mail) and tel: (phone). Other schemes are rejected.")
+    }
+    text { "Paths can't contain " code ".." ". To reach a parent folder, start at the root with " code "/" ". This keeps every link inside your site." }
+    note(title: "Broken links are errors") {
+      text { "When you compile or check a page, every link to a file in your site is checked. A typo in a file name is reported like any other mistake, before your visitors find it." }
+    }
+  }
+
+  section(id: "anchors", title: "Anchors") {
+    text { "Give any block element an " code "id" ", then link to it with " code "#" ". Ids start with a letter and must be unique on the page." }
+    codeblock """
+        text { link(to: "#faq") "Jump to the questions" }
+        ...
+        heading(level: 2, id: "faq") "Questions"
+        """
+    text { "The chapter headings of this handbook are anchors: try " link(to: "#kinds") "this link" "." }
+  }
+
+  section(id: "navigation", title: "Site navigation") {
+    text { "A menu is a row of links. To show the same menu on every page, put it in a " link(to: "/components.slml") "component" " in a shared file:" }
+    codeblock """
+        // parts.slml
+        slml 0.1
+
+        define menu {
+          row(gap: 20, padding: 16, align: center) {
+            text(bold: true) { link(to: "/index.slml") "My site" }
+            spacer
+            text { link(to: "/blog/index.slml") "Blog" }
+            text { link(to: "/contact.slml") "Contact" }
+          }
+        }
+        """
+    codeblock """
+        // any page, in any folder
+        slml 0.1
+        use "/parts.slml"
+
+        page { menu  heading "Welcome" }
+        """
+  }
+
+  pager(prev: "/content.slml", prev-label: "Lists, code and images", next: "/components.slml", next-label: "Components and imports")
+}

@@ -1,0 +1,71 @@
+slml 0.1
+
+use "layout.slml"
+
+doc(title: "The SLML Handbook") {
+  text.lead {
+    "SLML, the " bold "Strict Layout Markup Language" ", is a language for web pages and documents. "
+    "It replaces HTML and CSS with one small, strict grammar in which layout is built in. "
+    "You write " code ".slml" " files and the " code "slml" " compiler turns them into a website."
+  }
+
+  demo(code: """
+      slml 0.1
+
+      page {
+        heading "Hello!"
+        row(gap: 12) {
+          button(to: "about.slml") "About me"
+          text { "Made with " bold "SLML" }
+        }
+      }
+      """) {
+    heading "Hello!"
+    row(gap: 12, align: center) {
+      button(to: "#why") "About me"
+      text { "Made with " bold "SLML" }
+    }
+  }
+
+  section(id: "why", title: "Why SLML?") {
+    list(gap: 8) {
+      item { bold "Strict." " A mistake is an error with a line number and a hint, never a silently broken page." }
+      item { bold "Layout first." " Rows, columns, grids, gaps and alignment are part of the language; there are no floats or positioning tricks." }
+      item { bold "One syntax." " Structure, appearance and reusable components share one grammar instead of three languages." }
+      item { bold "Predictable." " Fonts are bundled and every default is written down, so a page looks the same everywhere." }
+      item { bold "Accessible." " Images must describe themselves and form fields must have labels." }
+      item { bold "Real websites." " Multi-page sites, navigation, forms and responsive layouts compile to plain HTML that works in every browser." }
+    }
+  }
+
+  section(id: "how", title: "How it works") {
+    text "SLML documents can be shown in two ways:"
+    list(marker: number, gap: 8) {
+      item { bold "In any web browser." " The compiler translates SLML to HTML and CSS. " code "slml serve" " shows a live preview while you edit, and " code "slml site/" " builds a site you can upload anywhere." }
+      item { bold "In the native SLML viewer." " SLML also has its own renderer written in Rust, which draws pages without a web browser: " code "slml view page.slml" "." }
+    }
+  }
+
+  section(id: "start", title: "Where to start") {
+    grid(cell-width: 220, gap: 14) {
+      column(to: "/install.slml", fill: #ffffff, padding: 18, radius: 12, border: 1, border-color: #e6e6ee, gap: 6) {
+        heading(level: 4) "1. Install"
+        text.muted "Get the slml compiler for Linux, macOS or Windows."
+      }
+      column(to: "/first-page.slml", fill: #ffffff, padding: 18, radius: 12, border: 1, border-color: #e6e6ee, gap: 6) {
+        heading(level: 4) "2. First page"
+        text.muted "Write, preview and compile your first page in five minutes."
+      }
+      column(to: "/sites.slml", fill: #ffffff, padding: 18, radius: 12, border: 1, border-color: #e6e6ee, gap: 6) {
+        heading(level: 4) "3. Build a site"
+        text.muted "Share a header across pages and publish the result."
+      }
+    }
+  }
+
+  note(title: "This handbook is written in SLML") {
+    text { "Every page you are reading is an " code ".slml" " file in the " code "handbook/" " folder of the repository. Open them to see real-world SLML." }
+  }
+
+  pager(prev: "/reference.slml", prev-label: "Reference", next: "/install.slml", next-label: "Install the compiler")
+}
