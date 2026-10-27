@@ -25,6 +25,8 @@ jobs:
         run: sh scripts/build-web.sh
       - name: Test actual WebAssembly renderer
         run: node web/test-wasm.mjs
+      - name: Firefox extension (headless)
+        run: python3 scripts/test-firefox.py
       - name: Format
         run: cargo fmt --all --check
       - name: Clippy
