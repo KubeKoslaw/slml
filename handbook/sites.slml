@@ -28,8 +28,8 @@ doc{$title"Building a website"
     "SLML opens `my-site/index.slml` in its own native browser. Its Rust parser, layout engine and painter read the original source. Save the page, a shared component or an image to reload the window. Local page links and anchors work inside SLML."
     "For a local source server as well, use `slml serve my-site --open`. It serves original .slml files on 127.0.0.1 and opens the native browser. The native browser reads your local site directly; closing its window stops this command."
     "The default server port is 4000. Use `--port 8080` to choose another. If it is busy, SLML tries the next 19 ports and prints the address it actually uses. Without --open, Ctrl+C stops the server."
-    note{$title"Current native browser limits"
-      "Native form editing, text selection and remote HTTP(S) document loading are still planned. Local documents, imports, images, links and anchors work in the native browser."
+    note{$title"What the native browser does"
+      "Local documents, imports, images, links, anchors, forms, text selection, find in page, zoom, history and an element inspector work in the native browser. See the [list of keys](/cli.slml#viewer). Loading documents from remote HTTP(S) addresses is still planned."
     }
   }
   section{$id"adapters" $title"Optional web adapters"

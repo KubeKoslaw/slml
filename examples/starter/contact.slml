@@ -15,5 +15,5 @@ site{$title"Contact — Fieldwork" $description"Try the accessible contact form 
     check{n:demo "I am using made-up details for this demo" req}
     r{wrap g12 send.action"Preview submission"}
   }
-  t.muted{s14 "For a real contact form, change the form destination to your server or form service and use method: post. The handbook explains how."}
+  t.muted{s14 "For a real contact form, change the form destination to your server or form service and add the flag `post`. The handbook explains how."}
 }

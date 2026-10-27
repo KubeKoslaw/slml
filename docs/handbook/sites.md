@@ -34,9 +34,9 @@ For a local source server as well, use `slml serve my-site --open`. It serves or
 
 The default server port is 4000. Use `--port 8080` to choose another. If it is busy, SLML tries the next 19 ports and prints the address it actually uses. Without --open, Ctrl+C stops the server.
 
-**Current native browser limits**
+**What the native browser does**
 
-Native form editing, text selection and remote HTTP(S) document loading are still planned. Local documents, imports, images, links and anchors work in the native browser.
+Local documents, imports, images, links, anchors, forms, text selection, find in page, zoom, history and an element inspector work in the native browser. See the [list of keys](cli.md#the-native-browser). Loading documents from remote HTTP(S) addresses is still planned.
 
 ## Optional web adapters
 

@@ -17,13 +17,14 @@ before work starts. Items marked **good first issue** are self-contained.
 
 - [x] `slml 0.2`: compact syntax (short names, glued attributes, inline `*bold*` / `[link](…)` markup), no semantic-only elements
 - [x] `slml upgrade`: verified conversion from 0.1, keeping comments
+- [x] Native browser: visible cursor (also on Wayland), hover and pressed feedback, status bubble, scrollbar, history, zoom, keyboard focus, find in page, text selection and copy, element inspector (F12), form filling and sending
 
 - [x] Native SLML browser as the default for files, site folders and `serve --open`; HTML and web-hosted previews require explicit commands
 
 - [x] HTML backend, `slml serve` live preview, `slml site/` builds, broken-link errors
 - [x] gcc-style compiler, release binaries, install scripts, man page
 - [x] Handbook written in SLML; lists, codeblock, wrapping rows, imports (`use`)
-- [ ] Typing into form fields in the native viewer
+- [x] Typing into form fields in the native viewer
 - [ ] CJK fonts
 
 ## 0.2 — make it pleasant to write
@@ -42,8 +43,8 @@ before work starts. Items marked **good first issue** are self-contained.
 ## 0.3 — a real browser
 
 - [x] Text selection and copy in the WASM preview and Firefox extension
-- [ ] Text selection and copy in the native desktop viewer
-- [ ] Find in page
+- [x] Text selection and copy in the native desktop viewer
+- [x] Find in page
 - [ ] HiDPI detection (instead of `--scale`)
 - [x] JPEG/WebP/SVG images
 - [ ] Load documents over HTTPS (`slml view https://…`) with a sandbox: a document may only read files under its own origin

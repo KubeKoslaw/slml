@@ -76,7 +76,7 @@ In the optional web preview (slml serve --web) and Firefox extension, drag acros
 
 Copying keeps literal spaces, code indentation and explicit newlines. A line wrapped only to fit the screen remains part of the same paragraph; separate text blocks are joined by a newline. Editable form fields keep their normal browser selection and copy behavior.
 
-Text selection is not yet available in the native desktop viewer.
+The native browser selects text the same way: drag, double-click for a word, triple-click for a paragraph, Shift+click to extend, Ctrl+A for everything and Ctrl+C to copy. On Linux, copying uses wl-clipboard or xclip.
 
 ## Symbols and emoji
 

@@ -73,8 +73,10 @@ back and F5 to reload manually. Close the window to exit.
 For GitHub or Obsidian, use the [Markdown handbook](docs/handbook/README.md).
 Open the complete example website with `slml examples/starter/`; the
 [website tutorial](handbook/website-tutorial.slml) explains its shared layout
-and responsive navigation. Native form editing, remote HTTP(S) navigation
-and native text selection are still on the [roadmap](ROADMAP.md).
+and responsive navigation. The native browser also fills in and sends
+forms, selects and copies text, finds in page, zooms, keeps history and has
+an element inspector (F12). Loading remote HTTP(S) documents is still on the
+[roadmap](ROADMAP.md).
 
 ### Optional compatibility tools
 

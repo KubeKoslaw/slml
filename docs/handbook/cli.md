@@ -57,7 +57,22 @@ Before writing, `slml upgrade` compiles every page from the old and the new file
 
 ## The native browser
 
-`slml` shows a page with SLML's own renderer in its own native window. Scroll with the mouse wheel, arrow keys or Page Up/Down, click links, press Backspace to go back and F5 to reload; the page also reloads when you save it, its imports or its images. External links open in your normal browser.
+`slml` shows a page with SLML's own renderer in its own native window. The page reloads when you save it, its imports or its images. External links open in your normal web browser; hovering a link shows where it goes at the bottom of the window.
+
+| Name | Values | Description |
+| --- | --- | --- |
+| `wheel, ↑ ↓, PgUp PgDn` | scroll | Also Space and Shift+Space, Home and End. Drag the scrollbar or click its track. |
+| `click, Enter` | follow a link | Links darken under the pointer and while pressed. |
+| `Tab, Shift+Tab` | move focus | Through links and form fields in reading order, with a visible ring. |
+| `Alt+← →, Backspace` | history | Back and forward; the mouse's side buttons work too. The scroll position is restored. |
+| `F5, Ctrl+R` | reload | Reload by hand. |
+| `Ctrl + − 0, Ctrl+wheel` | zoom | Zoom in, out and back to 100%. |
+| `drag, double, triple click` | select text | Shift+click extends, Ctrl+A selects all, Ctrl+C copies (needs wl-clipboard or xclip on Linux). |
+| `Ctrl+F` | find | Highlights every match; Enter or F3 goes to the next, Shift for the previous, Esc closes. |
+| `F12, Ctrl+Shift+I` | inspect | Point at an element to see its box, padding, attributes and the file and line it was written on; click pins it. |
+| `Ctrl+W` | close | Close the window. |
+
+Forms work too: type into fields, tick boxes, pick options and send. See [Forms](forms.md#where-the-data-goes).
 
 ## Exit status
 

@@ -19,9 +19,9 @@ form{>https://formspree.io/f/your-id post g14
 
 `>target` is the address that receives the form; the flag `post` sends it as a message (the default `get` is for searches). A static website can't store messages itself, so use a form service such as Formspree, Basin or Netlify Forms, or your own server.
 
-**Native viewer**
+**In the native browser**
 
-In the native SLML viewer forms are shown but can't be typed into yet. The optional web adapter (`slml serve --web --open`) and HTML exports support editing and submission. Native form interaction remains planned.
+Click a field or Tab to it and type; Backspace, Delete, the arrow keys, Home, End and Ctrl+V work as usual, and Enter sends the form (in an `area` it starts a new line). Space ticks a checkbox; a `sel` opens a list. Before sending, required fields, e-mail addresses, numbers and URLs are checked and the first problem is focused. A `get` form for a page of your site opens that page; a form for a website is handed to your normal web browser, which sends it.
 
 ## Fields
 

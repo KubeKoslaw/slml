@@ -50,7 +50,20 @@ doc{$title"Command line"
     }
   }
   section{$id"viewer" $title"The native browser"
-    "`slml` shows a page with SLML's own renderer in its own native window. Scroll with the mouse wheel, arrow keys or Page Up/Down, click links, press Backspace to go back and F5 to reload; the page also reloads when you save it, its imports or its images. External links open in your normal browser."
+    "`slml` shows a page with SLML's own renderer in its own native window. The page reloads when you save it, its imports or its images. External links open in your normal web browser; hovering a link shows where it goes at the bottom of the window."
+    c{g0
+      ref{$name"wheel, ↑ ↓, PgUp PgDn" $values"scroll" $about"Also Space and Shift+Space, Home and End. Drag the scrollbar or click its track."}
+      ref{$name"click, Enter" $values"follow a link" $about"Links darken under the pointer and while pressed."}
+      ref{$name"Tab, Shift+Tab" $values"move focus" $about"Through links and form fields in reading order, with a visible ring."}
+      ref{$name"Alt+← →, Backspace" $values"history" $about"Back and forward; the mouse's side buttons work too. The scroll position is restored."}
+      ref{$name"F5, Ctrl+R" $values"reload" $about"Reload by hand."}
+      ref{$name"Ctrl + − 0, Ctrl+wheel" $values"zoom" $about"Zoom in, out and back to 100%."}
+      ref{$name"drag, double, triple click" $values"select text" $about"Shift+click extends, Ctrl+A selects all, Ctrl+C copies (needs wl-clipboard or xclip on Linux)."}
+      ref{$name"Ctrl+F" $values"find" $about"Highlights every match; Enter or F3 goes to the next, Shift for the previous, Esc closes."}
+      ref{$name"F12, Ctrl+Shift+I" $values"inspect" $about"Point at an element to see its box, padding, attributes and the file and line it was written on; click pins it."}
+      ref{$name"Ctrl+W" $values"close" $about"Close the window."}
+    }
+    "Forms work too: type into fields, tick boxes, pick options and send. See [Forms](/forms.slml#sending)."
   }
   section{$id"exit" $title"Exit status"
     "`0` on success; `1` if checking, export or opening a window fails. In the interactive browser an invalid page appears as an SLML error page. Use `slml check` for automated validation."

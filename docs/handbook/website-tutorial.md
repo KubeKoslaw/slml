@@ -41,7 +41,7 @@ The service grid uses `grid{cols3 cw260 g16 …}`: up to three equal columns, fe
 
 ## 3. Try the form, then connect a real endpoint
 
-Contact shows the declared form layout in the native browser. Native field editing is still planned. To test editing and submission in the optional web adapter, explicitly run slml serve my-site --web --open. In that adapter, submit it empty first: the browser should focus a required field. Enter made-up details, select a service, write a message and check the demo box. Submitting should take you to the local preview page.
+Open Contact in the native browser. Send it empty first: the window should say which required field is missing and put the caret into it. Enter made-up details, select a service, write a message and tick the demo box. Sending should take you to the local preview page. The optional web adapter (slml serve my-site --web --open) behaves the same way.
 
 **What the demo does**
 
