@@ -6,6 +6,7 @@
 
 mod clipboard;
 mod cursor;
+mod forms;
 mod inspector;
 mod source;
 mod text;
@@ -21,7 +22,7 @@ use minifb::{
 };
 use slml_render::fonts::Face;
 use slml_render::images::ImageStore;
-use slml_render::layout::{Item, Rect};
+use slml_render::layout::{ControlArea, Item, Rect};
 use slml_render::{Layout, Pixmap, Renderer};
 use slml_syntax::model::{Color, Document};
 
@@ -202,6 +203,8 @@ enum Nav {
 #[derive(Debug, Clone, PartialEq)]
 enum Focus {
     Link(usize),
+    /// A form control, by its layout path.
+    Control(Vec<usize>),
 }
 
 enum Drag {
@@ -301,6 +304,15 @@ struct Scene {
     find: Option<(String, usize, usize, bool)>,
     /// The inspector's hovered and pinned element paths.
     inspector: Option<[Option<Vec<usize>>; 2]>,
+    edit: Option<forms::Edit>,
+    dropdown: Option<Dropdown>,
+}
+
+/// An open select: its control path and the option under the pointer.
+#[derive(Debug, Clone, PartialEq)]
+struct Dropdown {
+    path: Vec<usize>,
+    hover: Option<usize>,
 }
 
 struct Browser {
@@ -335,6 +347,9 @@ struct Browser {
     clicks: (Instant, (f32, f32), u32),
     find: Option<Find>,
     inspector: Option<Inspector>,
+    /// The text field being typed into.
+    edit: Option<forms::Edit>,
+    dropdown: Option<Dropdown>,
     was: (bool, bool, bool),
     toast: Option<(String, Instant)>,
     close: bool,
@@ -372,6 +387,8 @@ impl Browser {
             clicks: (Instant::now(), (0.0, 0.0), 0),
             find: None,
             inspector: None,
+            edit: None,
+            dropdown: None,
             was: (false, false, false),
             toast: None,
             close: false,
@@ -460,6 +477,8 @@ impl Browser {
         self.focus = None;
         self.drag = None;
         self.selection = None;
+        self.edit = None;
+        self.dropdown = None;
         if let Some(inspector) = &mut self.inspector {
             *inspector = Inspector::default();
         }
@@ -582,10 +601,12 @@ impl Browser {
 
     fn keys(&mut self, input: &Input) {
         let (ctrl, shift, alt) = (input.ctrl, input.shift, input.alt);
-        let typing = self.find.as_ref().is_some_and(|f| f.typing);
-        if typing {
+        let in_find = self.find.as_ref().is_some_and(|f| f.typing);
+        if in_find {
             self.find_keys(input);
         }
+        let in_control = self.control_keys(input);
+        let typing = in_find || in_control;
         // While typing into the find bar, editing keys belong to it.
         let page_key = |k: &Key| {
             !typing
@@ -620,6 +641,10 @@ impl Browser {
                 Key::F3 => self.next_match(if shift { -1 } else { 1 }),
                 Key::C if ctrl => self.copy(),
                 Key::A if ctrl => self.selection = self.layout.as_ref().and_then(text::everything),
+                Key::Escape if self.edit.is_some() || self.dropdown.is_some() => {
+                    self.edit = None;
+                    self.dropdown = None;
+                }
                 Key::Escape => {
                     let pinned = self.inspector.as_mut().and_then(|i| i.pinned.take());
                     if self.find.take().is_none() && pinned.is_none() {
@@ -888,6 +913,14 @@ impl Browser {
             .enumerate()
             .map(|(i, g)| (Focus::Link(i), g.rects[0]))
             .collect();
+        if let Some(layout) = &self.layout {
+            out.extend(
+                layout
+                    .controls
+                    .iter()
+                    .map(|c| (Focus::Control(c.path.clone()), c.input_rect)),
+            );
+        }
         out.sort_by(|(_, a), (_, b)| (a.y, a.x).partial_cmp(&(b.y, b.x)).unwrap());
         out
     }
@@ -907,17 +940,299 @@ impl Browser {
             None => all.len() - 1,
         };
         let (focus, rect) = all[next].clone();
+        self.dropdown = None;
+        self.edit = match &focus {
+            Focus::Control(path)
+                if matches!(
+                    forms::kind(&self.page.doc, path),
+                    Some(forms::Kind::Text { .. })
+                ) =>
+            {
+                Some(forms::Edit::at_end(&self.page.doc, path.clone()))
+            }
+            _ => None,
+        };
         self.focus = Some(focus);
         self.reveal(rect);
     }
 
     fn activate(&mut self) {
-        if let Some(Focus::Link(i)) = self.focus
-            && let Some(group) = self.links.get(i)
-        {
-            let target = group.target.clone();
-            self.follow(&target);
+        match self.focus.clone() {
+            Some(Focus::Link(i)) => {
+                if let Some(group) = self.links.get(i) {
+                    let target = group.target.clone();
+                    self.follow(&target);
+                }
+            }
+            Some(Focus::Control(path)) => self.use_control(path, None),
+            None => {}
         }
+    }
+
+    // ---- form controls -------------------------------------------------------
+
+    fn control(&self, path: &[usize]) -> Option<&ControlArea> {
+        self.layout
+            .as_ref()?
+            .controls
+            .iter()
+            .find(|c| c.path == path)
+    }
+
+    /// The control under a page point: the box of a text field or select,
+    /// or the whole checkbox (with its label) and submit button.
+    fn control_at(&self, (x, y): (f32, f32)) -> Option<Vec<usize>> {
+        let layout = self.layout.as_ref()?;
+        layout
+            .controls
+            .iter()
+            .rev()
+            .find(|c| {
+                let whole = matches!(
+                    forms::kind(&self.page.doc, &c.path),
+                    Some(forms::Kind::Check | forms::Kind::Submit)
+                );
+                if whole { c.rect } else { c.input_rect }.contains(x, y)
+            })
+            .map(|c| c.path.clone())
+    }
+
+    /// The values changed: lay the page out again with them.
+    fn values_changed(&mut self) {
+        self.layout = None;
+        self.ensure_layout();
+    }
+
+    /// Clicking (with `at`, a page point) or pressing Enter on a control.
+    fn use_control(&mut self, path: Vec<usize>, at: Option<(f32, f32)>) {
+        self.focus = Some(Focus::Control(path.clone()));
+        let Some(kind) = forms::kind(&self.page.doc, &path) else {
+            return;
+        };
+        if !matches!(kind, forms::Kind::Text { .. }) {
+            self.edit = None;
+        }
+        match kind {
+            forms::Kind::Text { .. } => {
+                let fonts = self.renderer.fonts();
+                let caret = match (at, self.control(&path)) {
+                    (Some((x, y)), Some(area)) => forms::caret_at(fonts, area, x, y),
+                    _ => forms::text(&self.page.doc, &path).chars().count(),
+                };
+                self.edit = Some(forms::Edit { path, caret });
+            }
+            forms::Kind::Check => {
+                forms::toggle(&mut self.page.doc, &path);
+                self.values_changed();
+            }
+            forms::Kind::Select => {
+                self.dropdown = match &self.dropdown {
+                    Some(d) if d.path == path => None,
+                    _ => Some(Dropdown { path, hover: None }),
+                };
+            }
+            forms::Kind::Submit => self.submit(&path),
+        }
+    }
+
+    fn submit(&mut self, path: &[usize]) {
+        self.dropdown = None;
+        match forms::submit(&self.page.doc, path) {
+            forms::Submission::Invalid { path, message } => {
+                self.say(message);
+                if let Some(rect) = self.control(&path).map(|c| c.input_rect) {
+                    self.reveal(rect);
+                }
+                self.edit = matches!(
+                    forms::kind(&self.page.doc, &path),
+                    Some(forms::Kind::Text { .. })
+                )
+                .then(|| forms::Edit::at_end(&self.page.doc, path.clone()));
+                self.focus = Some(Focus::Control(path));
+            }
+            forms::Submission::Local { to, query } => {
+                self.edit = None;
+                self.follow(&to);
+                let sent = if query.is_empty() {
+                    String::new()
+                } else {
+                    format!(": {query}")
+                };
+                self.say(format!("Form sent to {to}{sent}"));
+            }
+            forms::Submission::External { url } => {
+                open_external(&url);
+                self.say("Form opened in your web browser");
+            }
+            forms::Submission::Post { url, pairs } => {
+                let file = std::env::temp_dir().join(format!(
+                    "slml-form-{}-{}.html",
+                    std::process::id(),
+                    self.generation
+                ));
+                match std::fs::write(&file, forms::post_page(&url, &pairs)) {
+                    Ok(()) => {
+                        open_external(&file.display().to_string());
+                        self.say(format!("Sending the form to {url} in your web browser"));
+                    }
+                    Err(e) => self.say(format!("Cannot send the form: {e}")),
+                }
+            }
+            forms::Submission::Unsupported(message) => self.say(message),
+        }
+    }
+
+    /// Keys for the focused control. Returns whether editing keys belong to
+    /// a control this frame (so the page doesn't scroll or go back).
+    fn control_keys(&mut self, input: &Input) -> bool {
+        if input.fresh.contains(&Key::Escape) && (self.edit.is_some() || self.dropdown.is_some()) {
+            self.edit = None;
+            self.dropdown = None;
+            return true;
+        }
+        if let Some(mut dd) = self.dropdown.clone() {
+            let (options, chosen) = forms::options(&self.page.doc, &dd.path);
+            let current = dd.hover.unwrap_or(chosen);
+            for key in &input.keys {
+                match key {
+                    Key::Down => {
+                        dd.hover = Some((current + 1).min(options.len().saturating_sub(1)))
+                    }
+                    Key::Up => dd.hover = Some(current.saturating_sub(1)),
+                    _ => {}
+                }
+            }
+            if input
+                .fresh
+                .iter()
+                .any(|k| matches!(k, Key::Enter | Key::NumPadEnter | Key::Space))
+            {
+                forms::choose(&mut self.page.doc, &dd.path, dd.hover.unwrap_or(chosen));
+                self.dropdown = None;
+                self.values_changed();
+            } else if self.dropdown.is_some() {
+                self.dropdown = Some(dd);
+            }
+            return true;
+        }
+        if let Some(mut edit) = self.edit.clone() {
+            let doc = &mut self.page.doc;
+            let before = forms::text(doc, &edit.path);
+            let multiline = matches!(
+                forms::kind(doc, &edit.path),
+                Some(forms::Kind::Text { multiline: true })
+            );
+            let mut submit = false;
+            if !input.ctrl && !input.typed.is_empty() {
+                let typed: String = input.typed.iter().collect();
+                edit.insert(doc, &typed);
+            }
+            for key in &input.keys {
+                match key {
+                    Key::Backspace => edit.backspace(doc),
+                    Key::Delete => edit.delete(doc),
+                    Key::Left if !input.alt => edit.step(doc, -1),
+                    Key::Right if !input.alt => edit.step(doc, 1),
+                    Key::Home => edit.line_edge(doc, false),
+                    Key::End => edit.line_edge(doc, true),
+                    Key::Enter | Key::NumPadEnter if multiline => edit.insert(doc, "\n"),
+                    Key::Enter | Key::NumPadEnter => submit = true,
+                    Key::V if input.ctrl => match clipboard::paste() {
+                        Ok(text) => edit.insert(doc, &text),
+                        Err(e) => self.toast = Some((format!("Cannot paste: {e}"), Instant::now())),
+                    },
+                    Key::A if input.ctrl => {
+                        edit.caret = forms::text(doc, &edit.path).chars().count()
+                    }
+                    _ => {}
+                }
+            }
+            let changed = forms::text(&self.page.doc, &edit.path) != before;
+            let path = edit.path.clone();
+            if self.edit.is_some() {
+                self.edit = Some(edit);
+            }
+            if changed {
+                self.values_changed();
+            }
+            if submit {
+                self.submit(&path);
+            }
+            if changed
+                && let Some(caret) = self.edit.as_ref().and_then(|e| {
+                    let area = self.control(&e.path)?;
+                    Some(forms::caret_rect(self.renderer.fonts(), area, e.caret))
+                })
+            {
+                self.reveal(caret);
+            }
+            return true;
+        }
+        // A focused checkbox or select reacts to Space and the arrow keys.
+        if let Some(Focus::Control(path)) = self.focus.clone() {
+            match forms::kind(&self.page.doc, &path) {
+                Some(forms::Kind::Check) if input.fresh.contains(&Key::Space) => {
+                    forms::toggle(&mut self.page.doc, &path);
+                    self.values_changed();
+                    return true;
+                }
+                Some(forms::Kind::Select) => {
+                    let (options, chosen) = forms::options(&self.page.doc, &path);
+                    let step = input.keys.iter().fold(0i32, |n, k| match k {
+                        Key::Down => n + 1,
+                        Key::Up => n - 1,
+                        _ => n,
+                    });
+                    if step != 0 && !options.is_empty() {
+                        let next =
+                            (chosen as i32 + step).clamp(0, options.len() as i32 - 1) as usize;
+                        forms::choose(&mut self.page.doc, &path, next);
+                        self.values_changed();
+                    }
+                    if input
+                        .fresh
+                        .iter()
+                        .any(|k| matches!(k, Key::Space | Key::Enter | Key::NumPadEnter))
+                    {
+                        self.dropdown = Some(Dropdown { path, hover: None });
+                    }
+                    return true;
+                }
+                Some(forms::Kind::Submit) if input.fresh.contains(&Key::Space) => {
+                    self.submit(&path);
+                    return true;
+                }
+                Some(forms::Kind::Check) => return input.fresh.contains(&Key::Space),
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// The open select's option rows (page coordinates).
+    fn dropdown_rows(&self) -> Option<(Rect, Vec<Rect>)> {
+        let dd = self.dropdown.as_ref()?;
+        let area = self.control(&dd.path)?;
+        let (options, _) = forms::options(&self.page.doc, &dd.path);
+        let row_h = area.size * 1.45 + 12.0;
+        let b = area.input_rect;
+        let rows: Vec<Rect> = (0..options.len())
+            .map(|i| {
+                Rect::new(
+                    b.x + 4.0,
+                    b.y + b.h + 6.0 + i as f32 * row_h,
+                    b.w - 8.0,
+                    row_h,
+                )
+            })
+            .collect();
+        let panel = Rect::new(
+            b.x,
+            b.y + b.h + 2.0,
+            b.w,
+            options.len() as f32 * row_h + 8.0,
+        );
+        Some((panel, rows))
     }
 
     fn follow(&mut self, to: &str) {
@@ -970,8 +1285,18 @@ impl Browser {
             let element = |p: (f32, f32)| self.layout.as_ref()?.element_at(p.0, p.1);
             inspector.hover = point.and_then(element).map(|e| e.path.clone());
         }
+        let rows = self.dropdown_rows();
+        let in_panel = |p: (f32, f32)| {
+            rows.as_ref()
+                .is_some_and(|(panel, _)| panel.contains(p.0, p.1))
+        };
+        if let (Some(dd), Some((_, rows))) = (&mut self.dropdown, &rows) {
+            dd.hover = point.and_then(|p| rows.iter().position(|r| r.contains(p.0, p.1)));
+        }
         self.hover = match (&self.drag, &self.inspector) {
-            (None, None) => point.and_then(|p| self.link_at(p)),
+            (None, None) => point
+                .filter(|p| !in_panel(*p))
+                .and_then(|p| self.link_at(p)),
             _ => None,
         };
 
@@ -998,14 +1323,29 @@ impl Browser {
                     inspector.click();
                 }
             } else {
-                // A mouse click hides the keyboard focus ring.
-                self.focus = None;
                 if let Some(find) = &mut self.find {
                     find.typing = false;
                 }
-                self.pressed = self.hover;
-                if let (None, Some(p)) = (self.hover, point) {
-                    self.start_selection(p, m, input.shift);
+                if let (Some(dd), Some((_, rows))) = (self.dropdown.clone(), rows) {
+                    // A click picks an option; anywhere else it closes the list.
+                    if let Some(i) =
+                        point.and_then(|p| rows.iter().position(|r| r.contains(p.0, p.1)))
+                    {
+                        forms::choose(&mut self.page.doc, &dd.path, i);
+                        self.values_changed();
+                    }
+                    self.dropdown = None;
+                } else if let Some(path) = point.and_then(|p| self.control_at(p)) {
+                    self.use_control(path, point);
+                } else {
+                    // A mouse click hides the keyboard focus ring and leaves
+                    // any text field.
+                    self.focus = None;
+                    self.edit = None;
+                    self.pressed = self.hover;
+                    if let (None, Some(p)) = (self.hover, point) {
+                        self.start_selection(p, m, input.shift);
+                    }
                 }
             }
         }
@@ -1062,6 +1402,22 @@ impl Browser {
         };
         match self.on_page(m) {
             Some(_) if self.inspector.is_some() => CursorStyle::Crosshair,
+            Some(p)
+                if self
+                    .dropdown_rows()
+                    .is_some_and(|(panel, _)| panel.contains(p.0, p.1)) =>
+            {
+                CursorStyle::ClosedHand
+            }
+            Some(p) if self.control_at(p).is_some() => {
+                match self
+                    .control_at(p)
+                    .and_then(|path| forms::kind(&self.page.doc, &path))
+                {
+                    Some(forms::Kind::Text { .. }) => CursorStyle::Ibeam,
+                    _ => CursorStyle::ClosedHand,
+                }
+            }
             Some(p) if self.link_at(p).is_some() => CursorStyle::ClosedHand,
             Some(p) if over_text(p) => CursorStyle::Ibeam,
             _ => CursorStyle::Arrow,
@@ -1133,6 +1489,8 @@ impl Browser {
                 .inspector
                 .as_ref()
                 .map(|i| [i.hover.clone(), i.pinned.clone()]),
+            edit: self.edit.clone(),
+            dropdown: self.dropdown.clone(),
         }
     }
 
@@ -1193,6 +1551,45 @@ impl Browser {
         {
             for r in &group.rects {
                 ui.border(ui::outset(*r, 2.0), 2.0, ui::ACCENT, group.radius + 2.0);
+            }
+        }
+        if let Some(Focus::Control(path)) = &self.focus
+            && let Some(area) = self.control(path)
+        {
+            ui.border(ui::outset(area.input_rect, 2.0), 2.0, ui::ACCENT, 8.0);
+        }
+        if let Some(edit) = &self.edit
+            && let Some(area) = self.control(&edit.path)
+        {
+            let caret = forms::caret_rect(fonts, area, edit.caret);
+            ui.fill(caret, area.color, 0.0);
+        }
+        if let (Some(dd), Some((panel, rows))) = (&self.dropdown, self.dropdown_rows())
+            && let Some(area) = self.control(&dd.path)
+        {
+            let (options, chosen) = forms::options(&self.page.doc, &dd.path);
+            ui.shadow(panel, 8.0);
+            ui.fill(panel, Color::WHITE, 8.0);
+            ui.border(panel, 1.0, ui::LINE, 8.0);
+            for (i, (row, label)) in rows.iter().zip(&options).enumerate() {
+                let active = dd.hover.unwrap_or(chosen) == i;
+                if active {
+                    ui.fill(*row, Color(0x2457d61f), 5.0);
+                }
+                let face = if i == chosen {
+                    Face::Bold
+                } else {
+                    Face::Regular
+                };
+                ui.text_fit(
+                    row.x + 10.0,
+                    row.y + 6.0,
+                    row.w - 20.0,
+                    label,
+                    area.size,
+                    ui::INK,
+                    face,
+                );
             }
         }
         ui.items
@@ -1405,6 +1802,7 @@ pub fn run(path: PathBuf, root: PathBuf, scale: f32) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use slml_syntax::model::FieldKind;
 
     #[test]
     fn native_reload_tracks_shared_components_and_images() {
@@ -1591,6 +1989,107 @@ mod tests {
         assert!(b.inspector.is_none());
         assert_eq!(b.view.0, 800.0);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn forms_can_be_filled_in_and_sent_natively() {
+        let (mut b, root) = page(
+            "forms",
+            r#"slml 0.2 page{form{>preview.slml
+                in{n:name "Name" req}
+                check{n:news "News"}
+                sel{n:size "Size" opt"S" opt{v"m" "M"}}
+                send"Send"}}"#,
+        );
+        std::fs::write(root.join("preview.slml"), "slml 0.2 page{\"Thanks\"}").unwrap();
+        let size = (800.0, 600.0);
+        let center = |b: &Browser, i: usize| {
+            let r = b.layout.as_ref().unwrap().controls[i].input_rect;
+            (r.x + r.w / 2.0, r.y + r.h / 2.0)
+        };
+        let click = |b: &mut Browser, at: (f32, f32)| {
+            let mut down = Input {
+                mouse: Some(at),
+                left: true,
+                ..Input::default()
+            };
+            b.frame(&down, size);
+            down.left = false;
+            b.frame(&down, size);
+        };
+        let field = |b: &Browser, i: usize| {
+            let path = b.layout.as_ref().unwrap().controls[i].path.clone();
+            forms::field(&b.page.doc, &path).cloned().unwrap()
+        };
+
+        // Sending an empty required field is refused and focuses it.
+        let send = center(&b, 3);
+        click(&mut b, send);
+        assert!(b.status().unwrap().contains("Name"), "{:?}", b.status());
+        assert!(b.edit.is_some(), "the empty field is ready for typing");
+
+        // Click into the field, type, fix a typo.
+        let name = center(&b, 0);
+        click(&mut b, name);
+        b.frame(
+            &Input {
+                typed: "Annx".chars().collect(),
+                ..Input::default()
+            },
+            size,
+        );
+        b.frame(
+            &Input {
+                keys: vec![Key::Backspace],
+                ..Input::default()
+            },
+            size,
+        );
+        assert!(
+            matches!(field(&b, 0).kind, FieldKind::Input { value: Some(ref v), .. } if v == "Ann")
+        );
+        assert_eq!(b.cursor(Some(name)), CursorStyle::Ibeam);
+        // Typing doesn't scroll or go back in history.
+        b.frame(
+            &Input {
+                keys: vec![Key::Space],
+                typed: vec![' '],
+                ..Input::default()
+            },
+            size,
+        );
+        assert!(b.nav.is_none());
+
+        // The checkbox toggles, the select opens a list and takes a choice.
+        let check = center(&b, 1);
+        click(&mut b, check);
+        assert!(matches!(
+            field(&b, 1).kind,
+            FieldKind::Checkbox { checked: true }
+        ));
+        let select = center(&b, 2);
+        click(&mut b, select);
+        let (_, rows) = b.dropdown_rows().expect("the list is open");
+        let second = (rows[1].x + 5.0, rows[1].y + 5.0);
+        click(&mut b, second);
+        assert!(b.dropdown.is_none());
+        assert_eq!(forms::options(&b.page.doc, &field_path(&b, 2)).1, 1);
+
+        // Sending now goes to the local page.
+        let send = center(&b, 3);
+        click(&mut b, send);
+        assert!(
+            b.status().unwrap().contains("name=Ann+&news=on&size=m"),
+            "{:?}",
+            b.status()
+        );
+        b.frame(&Input::default(), size);
+        assert!(b.page.path.ends_with("preview.slml"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    fn field_path(b: &Browser, i: usize) -> Vec<usize> {
+        b.layout.as_ref().unwrap().controls[i].path.clone()
     }
 
     #[test]

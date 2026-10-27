@@ -57,7 +57,7 @@ fn face(run: &TextRun) -> Face {
 }
 
 /// Every caret position inside a run, with its x coordinate.
-fn stops(fonts: &Fonts, area: &TextArea, run: &TextRun) -> Vec<(usize, f32)> {
+pub(super) fn stops(fonts: &Fonts, area: &TextArea, run: &TextRun) -> Vec<(usize, f32)> {
     let text = run_text(area, run);
     let mut out = vec![(run.range.start, run.rect.x)];
     let mut units = run.range.start;
@@ -70,7 +70,7 @@ fn stops(fonts: &Fonts, area: &TextArea, run: &TextRun) -> Vec<(usize, f32)> {
     out
 }
 
-fn x_of(fonts: &Fonts, area: &TextArea, run: &TextRun, offset: usize) -> f32 {
+pub(super) fn x_of(fonts: &Fonts, area: &TextArea, run: &TextRun, offset: usize) -> f32 {
     stops(fonts, area, run)
         .into_iter()
         .find(|(o, _)| *o >= offset)
